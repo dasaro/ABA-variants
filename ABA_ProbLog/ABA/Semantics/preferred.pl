@@ -1,0 +1,5 @@
+%%%%%%%
+% Query
+%%%%%%%
+
+query(preferred(X)).
