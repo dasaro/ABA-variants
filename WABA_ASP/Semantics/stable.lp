@@ -20,7 +20,7 @@ total_weight(Wtotal) :- Wtotal = #sum{ W, X, Y : discarded_attack(X,Y), attacks(
 defeated(X) :- supported(Y), attacks(Y,X,_), not discarded_attack(Y,X).
 
 %% stable
-%:- not defeated(X), out(X).
+:- not defeated(X), out(X).
 
 #show in/1.
 #show total_weight/1.

@@ -7,7 +7,7 @@
 % 7. Visualizzazione dell'ABA (utile per evidenzare errori, cambiare la teoria senza dover fare handcoding)
 % 8. Aspetto ILP
 
-budget(#sup).
+budget(17).
 
 % ----------------------------
 % ASSUMPTIONS (ethical principles)
@@ -22,13 +22,11 @@ assumption(act_beneficently).
 % CHOICE RULES FOR CONTEXTUAL FACTORS
 % ----------------------------
 
-head(ctx1, refuses_meds). weight(refuses_meds,10).
-head(ctx2, severe_condition). weight(severe_condition,12).
+head(ctx1, refuses_meds). weight(refuses_meds,7).
+head(ctx2, physical_risk). weight(physical_risk,9).
 % head(ctx3, side_effects(strong)). % X = strong, mid, mild
 % head(ctx4, mental(good)). % X = bad; mid; good
 % head(ctx5, resources(scarce)). % X = scarce, sufficient, abundant
-%weight(X,#sup) :- head(_, X), not weight(X,Y), Y <= 100, Y >= 1.
-%weight(X,#sup) :- body(_, X), not weight(X,Y), Y <= 100, Y >= 1.
 
 % ----------------------------
 % RULES - FLAT ABA HAS ASSUMPTIONS IN THE BODY
@@ -37,25 +35,25 @@ head(ctx2, severe_condition). weight(severe_condition,12).
 % action(give_meds) :- act_beneficently, severity(bad)
 head(r1, action(give_meds)).
 body(r1, act_beneficently).
-body(r1, severe_condition).
+body(r1, physical_risk).
 
 % dont_give_meds :- respect_autonomy, opinion(refuses_meds)
 head(r3, action(dont_give_meds)).
 body(r3, respect_autonomy).
 body(r3, refuses_meds).
 
-% action(give_meds_against_will) :- action(give_meds), opinion(refuses_meds)
-head(r4, action(give_meds_against_will)).
+% ca :- action(give_meds), opinion(refuses_meds)
+head(r4, ca).
 body(r4, action(give_meds)).
 body(r4, refuses_meds).
 
-% action(dont_give_meds_when_needed) :- action(dont_give_meds), severity(bad)
-head(r5, action(dont_give_meds_when_needed)).
+% cb :- action(dont_give_meds), severity(bad)
+head(r5, cb).
 body(r5, action(dont_give_meds)).
-body(r5, severe_condition).
+body(r5, physical_risk).
 
-% % action(give_meds_when_unnecessary) :- action(give_meds), opinion(wants_meds), resources(scarse), severity(good).
-% head(r6, action(give_meds_when_unnecessary)).
+% % cj :- action(give_meds), opinion(wants_meds), resources(scarse), severity(good).
+% head(r6, cj).
 % body(r6, action(give_meds)).
 % body(r6, opinion(wants_meds)).
 % body(r6, resources(scarce)).
@@ -109,11 +107,18 @@ body(r5, severe_condition).
 % body(r14, side_effects(strong)).
 % body(r14, resources(scarce)).
 
+% ------------------------
+% INCONSISNTENCY MANAGMENT
+% ------------------------
+head(i1, action(delay_meds)).
+body(i1, action(give_meds)).
+body(i1, action(dont_give_meds)).
+
 % ----------------------------
 % CONTRARIES: ethical tensions
 % ----------------------------
 
-contrary(respect_autonomy, action(give_meds_against_will)).
-contrary(act_beneficently, action(dont_give_meds_when_needed)).
-% contrary(act_justly, action(give_meds_when_unnecessary)).
-% contrary(act_nonmaleficently, action(give_meds_with_strong_side_effects)).
+contrary(respect_autonomy, ca).
+contrary(act_beneficently, cb).
+% contrary(act_justly, cj).
+% contrary(act_nonmaleficently, cn).
