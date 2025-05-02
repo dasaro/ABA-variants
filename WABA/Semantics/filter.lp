@@ -1,5 +1,4 @@
 #show in/1.
-#show weight_of_atom/2.
-#show discarded_attack/2.
-#show attacks/3.
+#show supported_with_weight/2.
+#show attacks_successfully_with_weight/3.
 #show extension_cost/1.

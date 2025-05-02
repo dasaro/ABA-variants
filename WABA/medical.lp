@@ -11,14 +11,14 @@ head(
 	pos(c5),pos(mental_risk)).
 
 weight(
-	pos(refuses_meds),9;
-	pos(severe_condition),7;
-	pos(side_effects),2;
-	pos(resource_scarcity),1;
-	pos(mental_risk),9).
+	pos(refuses_meds),97;
+	pos(severe_condition),73;
+	pos(side_effects),29;
+	pos(resource_scarcity),11;
+	pos(mental_risk),91).
 
 head(neg(R),neg(X)) :- head(pos(R),pos(X)).
-weight(neg(X),10-W) :- weight(pos(X), W).
+weight(neg(X),100-W) :- weight(pos(X), W).
 
 % ----------------------------
 % DECISION RULES

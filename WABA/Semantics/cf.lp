@@ -1,1 +1,2 @@
-:- in(X), attacks(Y,X,_), not discarded_attack(Y,X), supported(Y).
+%% conflict freeness
+:- in(X), defeated(X).

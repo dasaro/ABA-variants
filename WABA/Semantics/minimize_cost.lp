@@ -1,1 +1,1 @@
-#minimize{ X : total_weight(X) }.
+#minimize{ X : extension_cost(X) }.

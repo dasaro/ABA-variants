@@ -1,32 +1,26 @@
 budget(beta).
 
-weight(X,0) :- assumption(X).
+rule(R) :- head(R,_).
 
 %% Each assumption is either in or out
 in(X) :- assumption(X), not out(X).
 out(X) :- assumption(X), not in(X).
 
-%% Everything derivable from assumptions that are in is supported
-supported(X) :- in(X).
-supported(X) :- head(R,X), rule_supported(R).
-rule_supported(R) :- head(R,_), supported(X) : body(R,X).
+supported(X) :- assumption(X), in(X).
+supported(X) :- head(R,X), triggered_by_in(R).
+triggered_by_in(R) :- head(R,_), supported(X) : body(R,X).
 
-weight_of_atom(X,W) :- weight(X,W), supported(X).
+supported_with_weight(X,#sup) :- assumption(X), in(X).
+supported_with_weight(X,W) :- supported(X), weight(X,W).
+supported_with_weight(X,W) :- supported(X), head(R,X), W = #min{ V, B : body(R,B), supported_with_weight(B,V) }.
 
-body_weight(R,S) :-
-    rule_supported(R),
-    S = #sum { W,B : body(R,B), weight_of_atom(B,W) }.
+attacks_with_weight(X,Y,W) :- supported(X), supported_with_weight(X,W), assumption(Y), contrary(Y,X).
 
-weight_of_atom(X,M) :-
-    supported(X),
-    M = #min { S,R : head(R,X), body_weight(R,S) }.
+{ discarded_attack(X,Y,W) : attacks_with_weight(X,Y,W) }.
 
-attacks(X,Y,W) :-
-    supported(X), contrary(Y,X), weight_of_atom(X,W).
+attacks_successfully_with_weight(X,Y,W) :- attacks_with_weight(X,Y,W), not discarded_attack(X,Y,W).
+defeated(X) :- attacks_successfully_with_weight(_,X,_).
 
-{ discarded_attack(X,Y) : supported(X), attacks(X,Y,_) }.
-
-extension_cost(C) :-
-    C = #sum{ W, X, Y : discarded_attack(X,Y), attacks(X,Y,W) }.
+extension_cost(C) :- C = #max{ W, X, Y : discarded_attack(X,Y,W) }.
 
 :- extension_cost(C), C > B, budget(B).
