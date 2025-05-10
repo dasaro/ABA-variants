@@ -1,5 +1,0 @@
-%%%%%%%
-% Query
-%%%%%%%
-
-query(preferred(X)).
