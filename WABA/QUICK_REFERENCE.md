@@ -1,0 +1,122 @@
+# WABA Quick Reference
+
+## Command Template
+
+```bash
+clingo -n 0 \
+  WABA/core_base.lp \
+  WABA/semiring/<semiring>.lp \
+  WABA/monoid/<monoid>.lp \
+  WABA/filter.lp \
+  [WABA/minimize_cost.lp] \
+  WABA/Semantics/<semantics>.lp \
+  <your_framework>.lp
+```
+
+## Common Combinations
+
+### Original WABA (Fuzzy + Max)
+```bash
+# Stable semantics
+clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/max.lp \
+       WABA/filter.lp WABA/Semantics/stable.lp <framework>.lp
+
+# Conflict-free semantics
+clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/max.lp \
+       WABA/filter.lp WABA/Semantics/cf.lp <framework>.lp
+
+# Naive semantics (requires special flags)
+clingo -n 0 --heuristic=Domain --enum=domRec \
+       WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/max.lp \
+       WABA/filter.lp WABA/Semantics/naive.lp <framework>.lp
+```
+
+### With Cost Minimization
+```bash
+clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/max.lp \
+       WABA/filter.lp WABA/minimize_cost.lp WABA/Semantics/stable.lp <framework>.lp
+```
+
+### Other Semiring/Monoid Combinations
+
+**Tropical + Max** (Addition for conjunction):
+```bash
+clingo -n 0 WABA/core_base.lp WABA/semiring/tropical.lp WABA/monoid/max.lp \
+       WABA/filter.lp WABA/Semantics/stable.lp <framework>.lp
+```
+
+**Fuzzy + Sum** (Sum cost aggregation):
+```bash
+clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/sum.lp \
+       WABA/filter.lp WABA/Semantics/stable.lp <framework>.lp
+```
+
+**Probabilistic + Sum** (Average for conjunction):
+```bash
+clingo -n 0 WABA/core_base.lp WABA/semiring/probabilistic.lp WABA/monoid/sum.lp \
+       WABA/filter.lp WABA/Semantics/stable.lp <framework>.lp
+```
+
+**Boolean + Max** (Binary weights):
+```bash
+clingo -n 0 WABA/core_base.lp WABA/semiring/boolean.lp WABA/monoid/max.lp \
+       WABA/filter.lp WABA/Semantics/stable.lp <framework>.lp
+```
+
+## Available Modules
+
+**Semirings** (in `WABA/semiring/`):
+- `fuzzy.lp` - Fuzzy/Gödel logic (min/max, identity=100) - **original WABA**
+- `tropical.lp` - Tropical semiring (min/+, identity=#sup)
+- `probabilistic.lp` - Viterbi/probabilistic (avg/max, identity=100)
+- `boolean.lp` - Boolean logic (and/or, binary weights {0,1})
+
+**Monoids** (in `WABA/monoid/`):
+- `max.lp` - Maximum cost (original WABA)
+- `sum.lp` - Sum of costs
+- `min.lp` - Minimum cost
+
+**Semantics** (in `WABA/Semantics/`):
+- `stable.lp` - Stable semantics (use `-n 0`)
+- `cf.lp` - Conflict-free semantics (use `-n 0`)
+- `naive.lp` - Naive semantics (use `-n 0 --heuristic=Domain --enum=domRec`)
+
+## Budget Parameter
+
+**IMPORTANT**: Always set a budget!
+
+**Option 1**: In your framework file
+```prolog
+budget(100).  % Can discard attacks up to cost 100
+```
+
+**Option 2**: Via command line
+```bash
+clingo -c beta=100 WABA/core_base.lp ...
+```
+
+**Common budget values**:
+- `budget(0)` - Strictest (classical ABA, no discarding)
+- `budget(<max_weight>)` - Can discard ~1 attack
+- `budget(<sum/2>)` - Can discard ~half the attacks
+- `budget(<sum_all>)` - Can discard all attacks
+
+## Examples
+
+```bash
+# Medical ethics example with original WABA
+clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/max.lp \
+       WABA/filter.lp WABA/Semantics/stable.lp WABA/Examples/medical.lp
+
+# Simple example with tropical semiring and cost minimization
+clingo -n 0 WABA/core_base.lp WABA/semiring/tropical.lp WABA/monoid/max.lp \
+       WABA/filter.lp WABA/minimize_cost.lp WABA/Semantics/stable.lp WABA/Examples/simple.lp
+```
+
+## Output Predicates
+
+Expected output (via filter.lp):
+- `in(X)` - Assumptions in the extension
+- `supported_with_weight(X, W)` - Supported elements with their weights
+- `attacks_successfully_with_weight(X, Y, W)` - Successful attacks
+- `extension_cost(C)` - Total cost of the extension
