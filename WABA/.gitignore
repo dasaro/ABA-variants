@@ -1,0 +1,20 @@
+# Benchmark and testing artifacts
+benchmark/
+test/
+*_ANALYSIS.md
+*_REPORT.md
+*.csv
+*.png
+results*/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# macOS
+.DS_Store
+
+# Temporary files
+*.tmp
+*.log
