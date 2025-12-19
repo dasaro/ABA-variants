@@ -9,6 +9,15 @@
 %% Note: With multiple derivations of the same attack via different rules,
 %% each derivation contributes its weight to the sum.
 %% The tuple (W, X, Y) ensures each unique attack instance is counted.
+%%
+%% UNWEIGHTED ATOMS: Default weight = #sup (infinity)
+%% Rationale: With sum monoid, hardest-to-discard = largest weight
+%% - extension_cost = sum(#sup, ...) = #sup → infinitely expensive
+%% - Can only discard if budget = #sup (unbounded)
+%% - Compatible semirings: fuzzy, probabilistic (min has identity #sup)
+%%
+supported_with_weight(X,#sup) :-
+    assumption(X), in(X), not weight(X,_).
 
 %% Extension cost is the sum of all discarded attack weights
 %% Only compute aggregate when discarded attacks exist

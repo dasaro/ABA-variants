@@ -10,6 +10,15 @@
 %% Note: This replaces the previous behavior where empty aggregates yielded #inf.
 %% In semirings with bounded ranges (like fuzzy [0,100]), having #inf breaks
 %% semantic consistency. Using 0 as the identity means "no discarded attacks = no cost".
+%%
+%% UNWEIGHTED ATOMS: Default weight = #sup (infinity)
+%% Rationale: With max monoid, hardest-to-discard = largest weight
+%% - extension_cost = max(#sup, ...) = #sup → infinitely expensive
+%% - Can only discard if budget = #sup (unbounded)
+%% - Compatible semirings: fuzzy, probabilistic (min has identity #sup)
+%%
+supported_with_weight(X,#sup) :-
+    assumption(X), in(X), not weight(X,_).
 
 %% Extension cost is the maximum discarded attack weight
 %% Only compute aggregate when discarded attacks exist
