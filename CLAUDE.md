@@ -119,6 +119,8 @@ WABA uses a **semiring** for weight propagation and a **monoid** for cost aggreg
 - **max.lp** - Maximum cost: extension_cost = max of discarded attack weights (original WABA)
 - **sum.lp** - Sum cost: extension_cost = sum of all discarded attack weights
 - **min.lp** - Minimum cost: extension_cost = min of discarded attack weights
+- **count.lp** - Count cost: extension_cost = number of discarded attacks (weight-agnostic)
+- **lex.lp** - Lexicographic cost: three components (max, sum, count) minimized in priority order
 
 **Common Combinations**:
 
@@ -159,13 +161,26 @@ clingo -n 0 --heuristic=Domain --enum=domRec \
        WABA/filter.lp WABA/Semantics/naive.lp <framework>.lp
 ```
 
-### Cost Minimization
+### Cost Optimization
 
-To find extensions with minimal cost, add `minimize_cost.lp` after filter.lp:
+To find optimal extensions, add an optimization file after filter.lp:
 
+**Standard Minimization** (for max, sum, count monoids):
 ```bash
 clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/max.lp \
        WABA/filter.lp WABA/minimize_cost.lp WABA/Semantics/stable.lp <framework>.lp
+```
+
+**Maximization** (for min monoid - quality threshold semantics):
+```bash
+clingo -n 0 WABA/core_base.lp WABA/semiring/tropical.lp WABA/monoid/min.lp \
+       WABA/filter.lp WABA/maximize_cost.lp WABA/Semantics/stable.lp <framework>.lp
+```
+
+**Lexicographic Optimization** (for lex monoid - use filter_lex.lp to see all components):
+```bash
+clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/lex.lp \
+       WABA/filter_lex.lp WABA/optimize_lex.lp WABA/Semantics/stable.lp <framework>.lp
 ```
 
 ## WABA Framework Structure
@@ -236,9 +251,12 @@ budget(beta).  % Default in core files
 ```
 WABA/
 ├── core_base.lp                 # Semiring/monoid-independent base logic
-├── filter.lp                    # Output filtering
+├── filter.lp                    # Standard output filtering
 ├── filter_project.lp            # Projection mode filtering (for stable semantics)
-├── minimize_cost.lp             # Optimization objective
+├── filter_lex.lp                # Lexicographic monoid filtering (shows all 3 components)
+├── minimize_cost.lp             # Minimize extension_cost (for max/sum/count monoids)
+├── maximize_cost.lp             # Maximize extension_cost (for min monoid)
+├── optimize_lex.lp              # Lexicographic optimization (for lex monoid)
 ├── semiring/                    # Weight propagation modules
 │   ├── fuzzy.lp                 # Fuzzy/Gödel logic (min/max, identity=100) - original WABA
 │   ├── tropical.lp              # Tropical semiring (min/+, identity=#sup)
@@ -247,7 +265,9 @@ WABA/
 ├── monoid/                      # Cost aggregation modules
 │   ├── max.lp                   # Maximum cost - original WABA
 │   ├── sum.lp                   # Sum of costs
-│   └── min.lp                   # Minimum cost
+│   ├── min.lp                   # Minimum cost (quality threshold semantics)
+│   ├── count.lp                 # Count of discarded attacks (weight-agnostic)
+│   └── lex.lp                   # Lexicographic (max→sum→count priority)
 ├── Semantics/
 │   ├── stable.lp                # Stable semantics
 │   ├── cf.lp                    # Conflict-free semantics

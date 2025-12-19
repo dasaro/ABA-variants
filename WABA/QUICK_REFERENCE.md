@@ -63,6 +63,24 @@ clingo -n 0 WABA/core_base.lp WABA/semiring/boolean.lp WABA/monoid/max.lp \
        WABA/filter.lp WABA/Semantics/stable.lp <framework>.lp
 ```
 
+**Fuzzy + Count** (Weight-agnostic counting):
+```bash
+clingo -n 0 -c beta=2 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/count.lp \
+       WABA/filter.lp WABA/Semantics/stable.lp <framework>.lp
+```
+
+**Fuzzy + Lex with Optimization** (Lexicographic minimization):
+```bash
+clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/lex.lp \
+       WABA/filter_lex.lp WABA/optimize_lex.lp WABA/Semantics/stable.lp <framework>.lp
+```
+
+**Tropical + Min with Maximization** (Quality threshold):
+```bash
+clingo -n 0 -c beta=10 WABA/core_base.lp WABA/semiring/tropical.lp WABA/monoid/min.lp \
+       WABA/filter.lp WABA/maximize_cost.lp WABA/Semantics/stable.lp <framework>.lp
+```
+
 ## Available Modules
 
 **Semirings** (in `WABA/semiring/`):
@@ -74,7 +92,9 @@ clingo -n 0 WABA/core_base.lp WABA/semiring/boolean.lp WABA/monoid/max.lp \
 **Monoids** (in `WABA/monoid/`):
 - `max.lp` - Maximum cost (original WABA)
 - `sum.lp` - Sum of costs
-- `min.lp` - Minimum cost
+- `min.lp` - Minimum cost (quality threshold semantics)
+- `count.lp` - Count of discarded attacks (weight-agnostic)
+- `lex.lp` - Lexicographic cost (max→sum→count priority)
 
 **Semantics** (in `WABA/Semantics/`):
 - `stable.lp` - Stable semantics (use `-n 0`)
@@ -85,14 +105,18 @@ clingo -n 0 WABA/core_base.lp WABA/semiring/boolean.lp WABA/monoid/max.lp \
 
 **Not all combinations are compatible!** See `SEMIRING_MONOID_COMPATIBILITY.md` for details.
 
-**Legal Combinations (7):**
+**Legal Combinations (12):**
 - ✓ Fuzzy + Max (weight: #sup)
 - ✓ Fuzzy + Sum (weight: #sup)
+- ✓ Fuzzy + Count/Lex (weight: #sup)
 - ✓ Tropical + Min (weight: 0)
+- ✓ Tropical + Count/Lex (weight: #sup)
 - ✓ Probabilistic + Max (weight: #sup)
 - ✓ Probabilistic + Sum (weight: #sup)
+- ✓ Probabilistic + Count/Lex (weight: #sup)
 - ✓ Boolean + Max (weight: 1)
 - ✓ Boolean + Sum (weight: 1)
+- ✓ Boolean + Count/Lex (weight: 1)
 
 **Illegal Combinations (5):**
 - ✗ Fuzzy/Probabilistic + Min (conflicting requirements)
