@@ -28,14 +28,9 @@
 %% - Discard cost with sum monoid: sum += 100 per attack (significant contribution)
 %%
 %% Explicit weights REPLACE the supremum default (via mutually exclusive rules).
+%% DEFAULT WEIGHTS for unweighted atoms are now defined in monoid/*.lp files,
+%% since the monoid determines what "hard to discard" means.
 %%
-
-supremum_weight(100).
-
-%% Assumptions WITHOUT explicit weight - supremum (hardest to discard)
-supported_with_weight(X,S) :-
-    assumption(X), in(X), not weight(X,_),
-    supremum_weight(S).
 
 %% Assumptions with explicit weights
 supported_with_weight(X,W) :- assumption(X), in(X), weight(X,W).
@@ -50,12 +45,12 @@ rule_derivation_weight(R,X,W) :-
     triggered_by_in(R),  % Only triggered rules (prevents #sup from unsupported bodies)
     W = #min{ V,B : body(R,B), supported_with_weight(B,V) }.
 
-%% Handle rules with empty bodies (facts): supremum (AND-identity for empty conjunction)
-rule_derivation_weight(R,X,S) :-
+%% Handle rules with empty bodies (facts): conjunction identity (100 for min)
+%% Empty conjunction = identity element for the AND operation (min)
+rule_derivation_weight(R,X,100) :-
     head(R,X),
     supported(X),
-    not body(R,_),
-    supremum_weight(S).
+    not body(R,_).
 
 %% Step 2: Combine multiple derivations using disjunction (maximum)
 %% The weight of X is the maximum across all its rule derivations

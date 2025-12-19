@@ -10,6 +10,16 @@
 %% Note: This replaces the previous behavior where empty aggregates yielded #sup.
 %% Using 0 as the identity maintains semantic consistency with bounded semirings
 %% like fuzzy [0,100].
+%%
+%% UNWEIGHTED ATOMS: Default weight = 0
+%% Rationale: With min monoid, hardest-to-discard = smallest weight
+%% - To minimize extension_cost = min(discarded), prefer discarding LARGER weights
+%% - Smallest weight (0) is hardest to discard (forces min=0)
+%% - Compatible semirings: tropical (+ operation has identity 0)
+%% - INCOMPATIBLE: fuzzy/probabilistic (min operation has identity #sup, conflicts!)
+%%
+supported_with_weight(X,0) :-
+    assumption(X), in(X), not weight(X,_).
 
 %% Extension cost is the minimum discarded attack weight
 %% Only compute aggregate when discarded attacks exist

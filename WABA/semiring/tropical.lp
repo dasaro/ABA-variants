@@ -28,14 +28,9 @@
 %% Only attacks with explicit finite costs can be discarded within budget constraints.
 %%
 %% Explicit weights REPLACE the supremum default (via mutually exclusive rules).
+%% DEFAULT WEIGHTS for unweighted atoms are now defined in monoid/*.lp files,
+%% since the monoid determines what "hard to discard" means.
 %%
-
-supremum_weight(#sup).
-
-%% Assumptions WITHOUT explicit weight - supremum (hardest to discard / impossible to discard)
-supported_with_weight(X,S) :-
-    assumption(X), in(X), not weight(X,_),
-    supremum_weight(S).
 
 %% Assumptions with explicit weights
 supported_with_weight(X,W) :- assumption(X), in(X), weight(X,W).
