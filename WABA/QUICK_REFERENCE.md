@@ -81,6 +81,24 @@ clingo -n 0 WABA/core_base.lp WABA/semiring/boolean.lp WABA/monoid/max.lp \
 - `cf.lp` - Conflict-free semantics (use `-n 0`)
 - `naive.lp` - Naive semantics (use `-n 0 --heuristic=Domain --enum=domRec`)
 
+## ⚠️ Legal Semiring/Monoid Pairs
+
+**Not all combinations are compatible!** See `SEMIRING_MONOID_COMPATIBILITY.md` for details.
+
+**Legal Combinations (7):**
+- ✓ Fuzzy + Max (weight: #sup)
+- ✓ Fuzzy + Sum (weight: #sup)
+- ✓ Tropical + Min (weight: 0)
+- ✓ Probabilistic + Max (weight: #sup)
+- ✓ Probabilistic + Sum (weight: #sup)
+- ✓ Boolean + Max (weight: 1)
+- ✓ Boolean + Sum (weight: 1)
+
+**Illegal Combinations (5):**
+- ✗ Fuzzy/Probabilistic + Min (conflicting requirements)
+- ✗ Tropical + Max/Sum (conflicting requirements)
+- ✗ Boolean + Min (conflicting requirements)
+
 ## Budget Parameter
 
 **IMPORTANT**: Always set a budget!
