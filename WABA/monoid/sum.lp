@@ -1,7 +1,8 @@
 %% Sum Monoid for Cost Aggregation
-%% Monoid: (ℝ, +, 0)
+%% Monoid: (ℤ ∪ {±∞}, +, 0)
+%% - Domain: All integers plus infinities
 %% - Operation: sum (addition)
-%% - Identity: 0
+%% - Identity: 0 (algebraic identity for addition)
 %%
 %% Extension cost = sum of all discarded attack weights
 %% This represents the "total cost" of all discarded attacks.

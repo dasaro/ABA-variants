@@ -1,15 +1,13 @@
 %% Maximum Cost Monoid for Cost Aggregation
-%% Monoid: (ℝ ∪ {∞}, max, 0)
+%% Monoid: (ℤ ∪ {±∞}, max, #inf)
+%% - Domain: All integers plus infinities
 %% - Operation: maximum
-%% - Identity: 0 (no discarded attacks = no cost)
+%% - Identity: #inf (algebraic identity for max operation)
+%% - Null value: 0 (when no attacks discarded, cost = 0 by design choice)
 %%
 %% Extension cost = maximum weight among all discarded attacks
 %% This represents the "most expensive" attack that was discarded.
-%% When no attacks are discarded, the cost is 0 (no cost incurred).
-%%
-%% Note: This replaces the previous behavior where empty aggregates yielded #inf.
-%% In semirings with bounded ranges (like fuzzy [0,100]), having #inf breaks
-%% semantic consistency. Using 0 as the identity means "no discarded attacks = no cost".
+%% When no attacks are discarded, we use 0 (not the identity #inf) to represent "no cost".
 %%
 %% UNWEIGHTED ATOMS: Default weight = #sup (infinity)
 %% Rationale: With max monoid, hardest-to-discard = largest weight

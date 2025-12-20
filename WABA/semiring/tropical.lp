@@ -1,12 +1,13 @@
 %% Tropical Semiring for Weight Propagation
-%% Semiring: (ℝ ∪ {∞}, min, +, ∞, 0)
+%% Semiring: (ℤ ∪ {±∞}, min, +, #sup, 0)
+%% - Domain: All integers plus infinities
 %% - Disjunction/⊕ (OR, multiple derivations): min (choose best path)
 %% - Conjunction/⊗ (AND, body elements): + (accumulate costs)
-%% - Additive identity: ∞
-%% - Multiplicative identity: 0
+%% - Additive identity: #sup (identity for min operation)
+%% - Multiplicative identity: 0 (identity for addition)
 %% - Interpretation: weights are costs, lower is better
 %%
-%% This is the TRUE tropical semiring used for shortest path problems.
+%% This is the tropical semiring used for shortest path problems.
 
 %% ========================================
 %% DEFAULT WEIGHT PRINCIPLE: SUPREMUM
