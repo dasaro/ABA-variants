@@ -1,14 +1,18 @@
 %% WABA Monoid: Count
 %% Cost aggregation: Counts number of discarded attacks (weight-agnostic)
 %%
+%% Monoid: (ℕ ∪ {∞}, count, 0)
+%% - Domain: Natural numbers plus infinity
+%% - Operation: count (cardinality)
+%% - Identity: 0 (algebraic identity: count of empty set = 0)
+%% - Null value: #sup (when no attacks discarded, for optimization direction)
+%%
 %% Semantics:
 %%   - extension_cost = number of discarded attack pairs
 %%   - Ignores attack weights - only counts discards
 %%   - Budget limits the COUNT of discards, not total weight cost
 %%
 %% Compatible semirings: All (weight-agnostic aggregation)
-%%
-%% Identity element: #sup (hardest to discard = infinite cost)
 %% Budget constraint: C > B (enforce C <= B, standard cost limit)
 %% Optimization: minimize extension_cost (prefer fewer discards)
 

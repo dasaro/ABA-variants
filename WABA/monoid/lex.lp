@@ -1,8 +1,10 @@
 %% WABA Monoid: Lexicographic
 %% Cost aggregation: Three components with lexicographic ordering
-%%   Primary: cost_max (maximum discarded attack weight)
-%%   Secondary: cost_sum (sum of discarded attack weights)
-%%   Tertiary: cost_cnt (count of discarded attacks)
+%%
+%% Monoid: Lexicographic product (max, sum, count)
+%% - Primary: cost_max (identity #inf, null value 0)
+%% - Secondary: cost_sum (identity 0)
+%% - Tertiary: cost_cnt (identity 0, null value #sup)
 %%
 %% Semantics:
 %%   - Minimize cost_max first (prefer discarding weak attacks)
@@ -11,8 +13,6 @@
 %%   - Budget constraint applies only to cost_max component
 %%
 %% Compatible semirings: All (uses weight-based max, sum, and count)
-%%
-%% Identity element: #sup (hardest to discard = infinite cost)
 %% Budget constraint: C > B on cost_max (enforce max <= B)
 %% Optimization: Use optimize_lex.lp for true lexicographic minimization
 

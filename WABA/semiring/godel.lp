@@ -1,15 +1,17 @@
-%% Fuzzy Semiring for Weight Propagation (Gödel Logic)
-%% Semiring: ([0,100], max, min, 0, 100)
+%% Gödel Semiring for Weight Propagation (Fuzzy Logic)
+%% Semiring: (ℤ ∪ {±∞}, max, min, #inf, #sup)
+%% - Domain: All integers plus infinities
 %% - Disjunction/⊕ (OR, multiple derivations): max (strongest alternative)
 %% - Conjunction/⊗ (AND, body elements): min (weakest link)
-%% - Additive identity: 0
-%% - Multiplicative identity: 100
+%% - Additive identity: #inf (identity for max operation)
+%% - Multiplicative identity: #sup (identity for min operation)
 %% - Interpretation: weights are truth degrees, higher is better
 %%
-%% In fuzzy logic:
-%% - Weights represent truth degrees in [0,100]
+%% In Gödel fuzzy logic:
+%% - Weights typically in [0,100] but domain is unbounded
 %% - Conjunction takes the minimum (weakest link in a chain)
 %% - Disjunction takes the maximum (strongest of multiple proofs)
+%% - Unweighted atoms get #sup (maximum truth, hardest to discard)
 
 %% ========================================
 %% DEFAULT WEIGHT PRINCIPLE: SUPREMUM
@@ -45,9 +47,10 @@ rule_derivation_weight(R,X,W) :-
     triggered_by_in(R),  % Only triggered rules (prevents #sup from unsupported bodies)
     W = #min{ V,B : body(R,B), supported_with_weight(B,V) }.
 
-%% Handle rules with empty bodies (facts): conjunction identity (100 for min)
+%% Handle rules with empty bodies (facts): conjunction identity (#sup for min)
 %% Empty conjunction = identity element for the AND operation (min)
-rule_derivation_weight(R,X,100) :-
+%% Note: Using #sup (true identity) instead of bounded domain supremum
+rule_derivation_weight(R,X,#sup) :-
     head(R,X),
     supported(X),
     not body(R,_).

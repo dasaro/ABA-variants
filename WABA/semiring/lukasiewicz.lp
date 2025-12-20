@@ -1,15 +1,17 @@
 %% Łukasiewicz Semiring for Weight Propagation
-%% Semiring: ([0,100], ⊕_Ł, ⊗_Ł, 0, 100)
-%% - Disjunction/⊕_Ł (OR): min(100, a + b) (Łukasiewicz t-conorm)
-%% - Conjunction/⊗_Ł (AND): max(0, a + b - 100) (Łukasiewicz t-norm)
-%% - Additive identity: 0
-%% - Multiplicative identity: 100
+%% Semiring: (ℤ ∪ {±∞}, ⊕_Ł, ⊗_Ł, #inf, #sup)
+%% - Domain: All integers plus infinities (typically bounded in [0,100])
+%% - Disjunction/⊕_Ł (OR): bounded sum min(#sup, a + b)
+%% - Conjunction/⊗_Ł (AND): bounded sum max(#inf, a + b - 100)
+%% - Additive identity: #inf (identity for bounded max)
+%% - Multiplicative identity: #sup (identity for bounded min with offset)
 %% - Interpretation: weights are truth degrees, higher is better
 %%
 %% Łukasiewicz logic is a fuzzy logic where:
 %% - Conjunction is "bounded sum": strength decreases more gracefully than min
 %% - Disjunction is "bounded sum": strength increases more gracefully than max
 %% - More sensitive to weight combinations than Gödel (min/max)
+%% - Domain typically restricted to [0,100] for practical use
 
 %% ========================================
 %% DEFAULT WEIGHT PRINCIPLE: SUPREMUM
@@ -63,9 +65,10 @@ rule_derivation_weight(R,X,W) :-
     body_count(R,N),
     W = #max{ 0; S - 100*(N-1) }.
 
-%% Handle rules with empty bodies (facts): conjunction identity (100)
+%% Handle rules with empty bodies (facts): conjunction identity (#sup)
 %% Empty conjunction = identity element for the AND operation
-rule_derivation_weight(R,X,100) :-
+%% Note: Using #sup (true identity) for empty bounded sum
+rule_derivation_weight(R,X,#sup) :-
     head(R,X),
     supported(X),
     not body(R,_).
