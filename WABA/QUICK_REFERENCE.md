@@ -153,3 +153,30 @@ Expected output (via filter.lp):
 - `supported_with_weight(X, W)` - Supported elements with their weights
 - `attacks_successfully_with_weight(X, Y, W)` - Successful attacks
 - `extension_cost(C)` - Total cost of the extension
+
+## ABA-Compatibility (Semiring–Monoid)
+
+**Definitions:**
+- **Semiring** S = (D, ⊕, ⊗, 0_S, 1_S) where ⊕ aggregates disjunction, ⊗ aggregates conjunction
+- **Monoid** M = (D, ⊙, e_M, ⪯) where ⊙ aggregates discarded attack costs, ⪯ is the ordering
+- **Default weight** δ assigned to atoms without explicit `weight/2` declarations
+
+**Budget Regimes:**
+- **Upper Bound (UB)**: Accept extension iff Cost ⪯ β (Max, Sum, Count, Lex monoids)
+- **Lower Bound (LB)**: Accept extension iff β ⪯ Cost (Min monoid, flipped constraint)
+
+**Proposition (Sufficient conditions for ABA-compatibility):**
+
+A (semiring, monoid, budget) triple reconstructs classical ABA (no discarding) when:
+1. Default weight δ = 1_S (propagation neutrality: x ⊗ δ = x)
+2. δ absorbs or dominates under ⊙ (e.g., δ ⊙ x ⪰ δ for all x)
+3. Budget excludes one default discard:
+   - UB regime: ¬(δ ⪯ β)
+   - LB regime: ¬(β ⪯ δ)
+
+**Proof sketch:** Suppose an extension discards ≥1 attack. By (1), unweighted atoms propagate δ through rules, so discarded attacks have weight δ. By (2), the aggregate cost satisfies Cost ⪰ δ (UB) or Cost ⪯ δ (LB). By (3), this violates the budget constraint. Hence no discards are possible, collapsing WABA to ABA on unweighted instances. ∎
+
+**Examples:**
+- Fuzzy + Max (UB): δ = #sup, β = 0 → max(#sup, ...) = #sup ⊁ 0 ✓
+- Tropical + Min (LB): δ = 0, β = 1 → min(0, ...) = 0 ⊀ 1 ✓
+- Boolean + Count (UB): δ = 1, β = 0 → count ≥ 1 ⊁ 0 ✓
