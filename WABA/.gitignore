@@ -1,6 +1,11 @@
-# Benchmark and testing artifacts
+# Test and analysis results
+test_results/
+*_results/
+*_output/
+*.out
+
+# Benchmark artifacts
 benchmark/
-test/
 *_ANALYSIS.md
 *_REPORT.md
 *.csv
@@ -15,6 +20,8 @@ __pycache__/
 # macOS
 .DS_Store
 
-# Temporary files
+# Temporary and backup files
 *.tmp
 *.log
+*.bak
+*~
