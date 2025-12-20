@@ -2,7 +2,7 @@
 %% This file contains the core argumentation logic that is independent
 %% of the choice of semiring (weight propagation) and monoid (cost aggregation).
 
-budget(beta).
+%% Budget declaration moved to constraint files (constraint/ub.lp or constraint/lb.lp)
 
 %% Rule meta-predicate
 rule(R) :- head(R,_).
@@ -40,5 +40,6 @@ attacks_successfully_with_weight(X,Y,W) :- attacks_with_weight(X,Y,W),
 %% An assumption is defeated if there's a successful attack against it
 defeated(X) :- attacks_successfully_with_weight(_,X,_).
 
-%% Budget constraint
-:- extension_cost(C), C > B, budget(B).
+%% Budget constraint is modular (loaded separately):
+%% - constraint/ub.lp: Upper Bound regime for MAX/SUM/COUNT/LEX monoids
+%% - constraint/lb.lp: Lower Bound regime for MIN monoid

@@ -34,5 +34,4 @@ cost_cnt(K) :- K = #count{ X,Y : discarded_attack(X,Y,_) }.
 %% Extension cost = maximum component (for budget checking)
 extension_cost(M) :- cost_max(M).
 
-%% Budget violation: cost_max exceeds budget
-budget_violation :- cost_max(M), budget(B), M > B.
+%% Budget constraint: Use constraint/ub.lp (Upper Bound regime)

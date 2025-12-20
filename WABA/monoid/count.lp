@@ -22,5 +22,4 @@ extension_cost(C) :- C = #count{ X,Y : discarded_attack(X,Y,_) }.
 %% Identity: no discards = infinite cost (worst case)
 extension_cost(#sup) :- not discarded_attack(_,_,_).
 
-%% Budget violation (standard: cost exceeds budget)
-budget_violation :- extension_cost(C), budget(B), C > B.
+%% Budget constraint: Use constraint/ub.lp (Upper Bound regime)

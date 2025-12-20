@@ -26,3 +26,5 @@ extension_cost(C) :- discarded_attack(_,_,_), C = #sum{ W, X, Y : discarded_atta
 %% When no attacks are discarded, cost is 0 (identity element)
 %% Note: #sum over empty set naturally returns 0, but we make it explicit for consistency
 extension_cost(0) :- not discarded_attack(_,_,_).
+
+%% Budget constraint: Use constraint/ub.lp (Upper Bound regime)
