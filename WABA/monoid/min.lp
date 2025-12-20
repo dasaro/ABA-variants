@@ -27,3 +27,7 @@ extension_cost(C) :- discarded_attack(_,_,_), C = #min{ W, X, Y : discarded_atta
 
 %% When no attacks are discarded, cost is 0 (identity element)
 extension_cost(0) :- not discarded_attack(_,_,_).
+
+%% Budget constraint: Use constraint/lb.lp (Lower Bound regime)
+%% Default beta=#inf is permissive (allows all extensions)
+%% Override with -c beta=N to set minimum quality threshold
