@@ -52,9 +52,9 @@ clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/sum.lp \
 ```
 
 
-**Boolean + Max** (Binary weights):
+**Łukasiewicz + Max** (Bounded sum logic):
 ```bash
-clingo -n 0 WABA/core/base.lp WABA/semiring/boolean.lp WABA/monoid/max.lp \
+clingo -n 0 WABA/core/base.lp WABA/semiring/lukasiewicz.lp WABA/monoid/max.lp \
        WABA/filter/standard.lp WABA/semantics/stable.lp <framework>.lp
 ```
 
@@ -79,9 +79,9 @@ clingo -n 0 -c beta=10 WABA/core/base.lp WABA/semiring/tropical.lp WABA/monoid/m
 ## Available Modules
 
 **Semirings** (in `WABA/semiring/`):
-- `fuzzy.lp` - Fuzzy/Gödel logic (min/max, identity=100) - **original WABA**
+- `godel.lp` - Gödel/Fuzzy logic (min/max, identity=100) - **original WABA**
 - `tropical.lp` - Tropical semiring (min/+, identity=#sup)
-- `boolean.lp` - Boolean logic (and/or, binary weights {0,1})
+- `lukasiewicz.lp` - Łukasiewicz logic (bounded sum, identity=100)
 
 **Monoids** (in `WABA/monoid/`):
 - `max.lp` - Maximum cost (original WABA)

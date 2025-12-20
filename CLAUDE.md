@@ -63,7 +63,7 @@ clingo -n 0 WABA/core/base.lp WABA/semiring/<semiring>.lp WABA/monoid/<monoid>.l
 
 **Required Components** (loaded in order):
 1. `WABA/core/base.lp` - Base argumentation logic (semiring/monoid-independent)
-2. `WABA/semiring/<semiring>.lp` - Weight propagation strategy (fuzzy, tropical, boolean)
+2. `WABA/semiring/<semiring>.lp` - Weight propagation strategy (godel, tropical, lukasiewicz)
 3. `WABA/monoid/<monoid>.lp` - Cost aggregation strategy (max, sum, min)
 4. `WABA/filter/standard.lp` - Output filtering via #show directives (recommended)
 5. `WABA/semantics/<semantic>.lp` - Semantics (stable.lp, cf.lp, or naive.lp)
@@ -111,9 +111,8 @@ WABA uses a **semiring** for weight propagation and a **monoid** for cost aggreg
 
 **Available Semirings** (in `WABA/semiring/`):
 - **godel.lp** - Gödel/Fuzzy logic: minimum for conjunction, maximum for disjunction, identity=100 (original WABA)
-- **lukasiewicz.lp** - Łukasiewicz t-norm: bounded sum conjunction, identity=100
 - **tropical.lp** - Tropical semiring: addition for conjunction, minimum for disjunction, identity=#sup
-- **bottleneck_cost.lp** - Bottleneck-cost semiring: max for conjunction (bottleneck), min for disjunction, path quality
+- **lukasiewicz.lp** - Łukasiewicz logic: bounded sum for conjunction/disjunction, identity=100
 
 **Available Monoids** (in `WABA/monoid/`):
 - **max.lp** - Maximum cost: extension_cost = max of discarded attack weights (original WABA)
@@ -138,9 +137,9 @@ clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/sum.lp \
        WABA/filter/standard.lp WABA/semantics/stable.lp WABA/examples/medical.lp
 
 
-# Boolean + max - Naive semantics (requires special flags)
+# Łukasiewicz + max - Naive semantics (requires special flags)
 clingo -n 0 --heuristic=Domain --enum=domRec \
-       WABA/core/base.lp WABA/semiring/boolean.lp WABA/monoid/max.lp \
+       WABA/core/base.lp WABA/semiring/lukasiewicz.lp WABA/monoid/max.lp \
        WABA/filter/standard.lp WABA/semantics/naive.lp WABA/examples/medical.lp
 ```
 
