@@ -57,26 +57,26 @@ This repository hosts **Weighted Assumption Based Argumentation (WABA)**, a fram
 WABA programs compose the core logic at runtime by loading modular components:
 
 ```bash
-clingo -n 0 WABA/core_base.lp WABA/semiring/<semiring>.lp WABA/monoid/<monoid>.lp \
-       WABA/filter.lp WABA/Semantics/<semantic>.lp <framework>.lp
+clingo -n 0 WABA/core/base.lp WABA/semiring/<semiring>.lp WABA/monoid/<monoid>.lp \
+       WABA/filter/standard.lp WABA/semantics/<semantic>.lp <framework>.lp
 ```
 
 **Required Components** (loaded in order):
-1. `WABA/core_base.lp` - Base argumentation logic (semiring/monoid-independent)
+1. `WABA/core/base.lp` - Base argumentation logic (semiring/monoid-independent)
 2. `WABA/semiring/<semiring>.lp` - Weight propagation strategy (fuzzy, tropical, boolean)
 3. `WABA/monoid/<monoid>.lp` - Cost aggregation strategy (max, sum, min)
-4. `WABA/filter.lp` - Output filtering via #show directives (recommended)
-5. `WABA/Semantics/<semantic>.lp` - Semantics (stable.lp, cf.lp, or naive.lp)
+4. `WABA/filter/standard.lp` - Output filtering via #show directives (recommended)
+5. `WABA/semantics/<semantic>.lp` - Semantics (stable.lp, cf.lp, or naive.lp)
 6. `<framework>.lp` - Your WABA framework instance
 
 **Optional Components**:
-- `WABA/minimize_cost.lp` - Add after filter.lp to find minimum-cost extensions
+- `WABA/optimize/minimize.lp` - Add after filter/standard.lp to find minimum-cost extensions
 
 ### Example: Original WABA (Fuzzy + Max)
 
 ```bash
-clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/max.lp \
-       WABA/filter.lp WABA/Semantics/stable.lp WABA/Examples/medical.lp
+clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/max.lp \
+       WABA/filter/standard.lp WABA/semantics/stable.lp WABA/examples/medical.lp
 ```
 
 ### ⚠️ CRITICAL: Budget Parameter (beta)
@@ -91,11 +91,11 @@ clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/max.lp \
 
 2. **If your framework file does NOT contain `budget(...)`**: You MUST set beta via command line
    ```bash
-   clingo -c beta=100 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/max.lp ... your_framework.lp
+   clingo -c beta=100 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/max.lp ... your_framework.lp
    ```
 
 3. **If you don't set beta AND your framework lacks `budget(...)`**:
-   - The default `budget(beta)` in core_base.lp becomes an ungrounded constant
+   - The default `budget(beta)` in core/base.lp becomes an ungrounded constant
    - Budget constraint is effectively disabled (all attacks can be discarded)
    - Results will be **meaningless** (typically one extension with all assumptions)
 
@@ -110,9 +110,10 @@ clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/max.lp \
 WABA uses a **semiring** for weight propagation and a **monoid** for cost aggregation. Compose them at runtime by selecting one file from each directory.
 
 **Available Semirings** (in `WABA/semiring/`):
-- **fuzzy.lp** - Fuzzy/Gödel logic: minimum for conjunction, maximum for disjunction, identity=100 (original WABA)
+- **godel.lp** - Gödel/Fuzzy logic: minimum for conjunction, maximum for disjunction, identity=100 (original WABA)
+- **lukasiewicz.lp** - Łukasiewicz t-norm: bounded sum conjunction, identity=100
 - **tropical.lp** - Tropical semiring: addition for conjunction, minimum for disjunction, identity=#sup
-- **boolean.lp** - Boolean logic: AND for conjunction, OR for disjunction, binary weights {0,1}
+- **bottleneck_cost.lp** - Bottleneck-cost semiring: max for conjunction (bottleneck), min for disjunction, path quality
 
 **Available Monoids** (in `WABA/monoid/`):
 - **max.lp** - Maximum cost: extension_cost = max of discarded attack weights (original WABA)
@@ -125,27 +126,27 @@ WABA uses a **semiring** for weight propagation and a **monoid** for cost aggreg
 
 ```bash
 # Original WABA (fuzzy + max) - Stable semantics
-clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/max.lp \
-       WABA/filter.lp WABA/Semantics/stable.lp WABA/Examples/medical.lp
+clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/max.lp \
+       WABA/filter/standard.lp WABA/semantics/stable.lp WABA/examples/medical.lp
 
 # Tropical + max - Stable semantics
-clingo -n 0 WABA/core_base.lp WABA/semiring/tropical.lp WABA/monoid/max.lp \
-       WABA/filter.lp WABA/Semantics/stable.lp WABA/Examples/medical.lp
+clingo -n 0 WABA/core/base.lp WABA/semiring/tropical.lp WABA/monoid/max.lp \
+       WABA/filter/standard.lp WABA/semantics/stable.lp WABA/examples/medical.lp
 
 # Fuzzy + sum - Stable semantics
-clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/sum.lp \
-       WABA/filter.lp WABA/Semantics/stable.lp WABA/Examples/medical.lp
+clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/sum.lp \
+       WABA/filter/standard.lp WABA/semantics/stable.lp WABA/examples/medical.lp
 
 
 # Boolean + max - Naive semantics (requires special flags)
 clingo -n 0 --heuristic=Domain --enum=domRec \
-       WABA/core_base.lp WABA/semiring/boolean.lp WABA/monoid/max.lp \
-       WABA/filter.lp WABA/Semantics/naive.lp WABA/Examples/medical.lp
+       WABA/core/base.lp WABA/semiring/boolean.lp WABA/monoid/max.lp \
+       WABA/filter/standard.lp WABA/semantics/naive.lp WABA/examples/medical.lp
 ```
 
 ### Available Semantics
 
-Located in `WABA/Semantics/`:
+Located in `WABA/semantics/`:
 - **stable.lp** - Stable semantics (conflict-free + all non-defeated assumptions must be out)
 - **cf.lp** - Conflict-free semantics only
 - **naive.lp** - Naive semantics (requires special heuristics: `--heuristic=Domain --enum=domRec`)
@@ -153,30 +154,30 @@ Located in `WABA/Semantics/`:
 **Example with naive semantics**:
 ```bash
 clingo -n 0 --heuristic=Domain --enum=domRec \
-       WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/max.lp \
-       WABA/filter.lp WABA/Semantics/naive.lp <framework>.lp
+       WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/max.lp \
+       WABA/filter/standard.lp WABA/semantics/naive.lp <framework>.lp
 ```
 
 ### Cost Optimization
 
-To find optimal extensions, add an optimization file after filter.lp:
+To find optimal extensions, add an optimization file after filter/standard.lp:
 
 **Standard Minimization** (for max, sum, count monoids):
 ```bash
-clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/max.lp \
-       WABA/filter.lp WABA/minimize_cost.lp WABA/Semantics/stable.lp <framework>.lp
+clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/max.lp \
+       WABA/filter/standard.lp WABA/optimize/minimize.lp WABA/semantics/stable.lp <framework>.lp
 ```
 
 **Maximization** (for min monoid - quality threshold semantics):
 ```bash
-clingo -n 0 WABA/core_base.lp WABA/semiring/tropical.lp WABA/monoid/min.lp \
-       WABA/filter.lp WABA/maximize_cost.lp WABA/Semantics/stable.lp <framework>.lp
+clingo -n 0 WABA/core/base.lp WABA/semiring/tropical.lp WABA/monoid/min.lp \
+       WABA/filter/standard.lp WABA/optimize/maximize.lp WABA/semantics/stable.lp <framework>.lp
 ```
 
 **Lexicographic Optimization** (for lex monoid - use filter_lex.lp to see all components):
 ```bash
-clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/lex.lp \
-       WABA/filter_lex.lp WABA/optimize_lex.lp WABA/Semantics/stable.lp <framework>.lp
+clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/lex.lp \
+       WABA/filter/lexicographic.lp WABA/optimize/lexicographic.lp WABA/semantics/stable.lp <framework>.lp
 ```
 
 ## WABA Framework Structure
@@ -232,10 +233,10 @@ budget(beta).  % Default in core files
 **Attack Resolution**: Attacks can be discarded at cost equal to attack weight. The extension cost is computed by the chosen monoid.
 
 **Weight Propagation** (Semiring-dependent): Elements inherit weights from supporting rules according to the semiring:
-- **Tropical semiring**: minimum of body element weights (original WABA)
-- **Fuzzy semiring**: minimum for conjunction
-- **Probabilistic semiring**: average of body element weights (simplified)
-- **Boolean semiring**: all body elements must be 1
+- **Tropical semiring**: addition of body element weights
+- **Gödel semiring**: minimum for conjunction (original WABA)
+- **Łukasiewicz semiring**: bounded sum (max(0, sum(w_i) - (n-1)*K))
+- **Bottleneck-cost semiring**: maximum for conjunction (bottleneck)
 
 **Cost Aggregation** (Monoid-dependent): Extension cost computed from discarded attacks:
 - **Max monoid**: maximum discarded attack weight (original WABA)
@@ -246,39 +247,54 @@ budget(beta).  % Default in core files
 
 ```
 WABA/
-├── core_base.lp                 # Semiring/monoid-independent base logic
-├── filter.lp                    # Standard output filtering
-├── filter_project.lp            # Projection mode filtering (for stable semantics)
-├── filter_lex.lp                # Lexicographic monoid filtering (shows all 3 components)
-├── minimize_cost.lp             # Minimize extension_cost (for max/sum/count monoids)
-├── maximize_cost.lp             # Maximize extension_cost (for min monoid)
-├── optimize_lex.lp              # Lexicographic optimization (for lex monoid)
+├── README.md                    # Quick start guide
+├── CLAUDE.md                    # Instructions for Claude Code
+├── core/                        # Core argumentation logic
+│   ├── base.lp                  # Semiring/monoid-independent base logic
+│   └── legacy.lp                # Original monolithic core (deprecated)
+├── filter/                      # Output filtering modules
+│   ├── standard.lp              # Standard output filtering
+│   ├── lexicographic.lp         # Lexicographic monoid filtering (shows all 3 components)
+│   └── projection.lp            # Projection mode filtering (for stable semantics)
+├── optimize/                    # Cost optimization modules
+│   ├── minimize.lp              # Minimize extension_cost (for max/sum/count monoids)
+│   ├── maximize.lp              # Maximize extension_cost (for min monoid)
+│   └── lexicographic.lp         # Lexicographic optimization (for lex monoid)
 ├── semiring/                    # Weight propagation modules
-│   ├── fuzzy.lp                 # Fuzzy/Gödel logic (min/max, identity=100) - original WABA
+│   ├── godel.lp                 # Gödel/Fuzzy logic (min/max, identity=100) - original WABA
+│   ├── lukasiewicz.lp           # Łukasiewicz t-norm (bounded sum conjunction)
 │   ├── tropical.lp              # Tropical semiring (min/+, identity=#sup)
-│   └── boolean.lp               # Boolean logic (and/or, binary weights)
+│   └── bottleneck_cost.lp       # Bottleneck-cost semiring (max/min, path quality)
 ├── monoid/                      # Cost aggregation modules
 │   ├── max.lp                   # Maximum cost - original WABA
 │   ├── sum.lp                   # Sum of costs
 │   ├── min.lp                   # Minimum cost (quality threshold semantics)
 │   ├── count.lp                 # Count of discarded attacks (weight-agnostic)
 │   └── lex.lp                   # Lexicographic (max→sum→count priority)
-├── Semantics/
+├── semantics/                   # Argumentation semantics
 │   ├── stable.lp                # Stable semantics
 │   ├── cf.lp                    # Conflict-free semantics
 │   └── naive.lp                 # Naive semantics
-└── Examples/
-    ├── medical.lp               # Medical ethics decision example
-    ├── simple.lp                # Simple test case
-    ├── simple2.lp               # Another simple case
-    └── simple_medical.lp
+├── examples/                    # Example frameworks
+│   ├── medical.lp               # Medical ethics decision example
+│   ├── simple.lp                # Simple test case
+│   ├── simple2.lp               # Another simple case
+│   ├── simple_medical.lp        # Simplified medical example
+│   └── showcase.lp              # Demonstrates semiring/monoid differences
+├── test/                        # Test files
+│   ├── test_lukasiewicz.lp      # Łukasiewicz semiring smoke test
+│   └── test_bottleneck.lp       # Bottleneck-cost semiring smoke test
+└── docs/                        # Documentation
+    ├── QUICK_REFERENCE.md       # Command quick reference
+    ├── SEMIRING_MONOID_COMPATIBILITY.md  # Legal combinations
+    └── CLINGO_USAGE.md          # Testing patterns and clingo commands
 ```
 
 ## Understanding Core Logic
 
 WABA's core logic is now modular, split across three components:
 
-### 1. Base Logic (core_base.lp)
+### 1. Base Logic (core/base.lp)
 
 Semiring/monoid-independent logic that all variants share:
 
@@ -326,7 +342,7 @@ supported_with_weight(X,W) :- supported(X), head(R,X),
     W = #min{ V, B : body(R,B), supported_with_weight(B,V) }.  % Conjunction: min
 ```
 
-**Fuzzy semiring** (fuzzy.lp):
+**Gödel semiring** (godel.lp):
 ```prolog
 supported_with_weight(X,100) :- assumption(X), in(X).  % Identity: 100
 supported_with_weight(X,W) :- supported(X), weight(X,W).
@@ -370,14 +386,14 @@ After modifying WABA files, test with:
 
 1. Simple examples first (using original behavior - fuzzy + max):
 ```bash
-clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/max.lp \
-       WABA/filter.lp WABA/Semantics/stable.lp WABA/Examples/simple.lp
+clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/max.lp \
+       WABA/filter/standard.lp WABA/semantics/stable.lp WABA/examples/simple.lp
 ```
 
 2. Complex examples to verify behavior:
 ```bash
-clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/max.lp \
-       WABA/filter.lp WABA/Semantics/stable.lp WABA/Examples/medical.lp
+clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/max.lp \
+       WABA/filter/standard.lp WABA/semantics/stable.lp WABA/examples/medical.lp
 ```
 
 3. Verify output includes expected predicates:
@@ -410,6 +426,6 @@ To add a new semiring or monoid:
 **Testing a new combination**:
 ```bash
 # Test your new combination
-clingo -n 0 WABA/core_base.lp WABA/semiring/<new_semiring>.lp WABA/monoid/<new_monoid>.lp \
-       WABA/filter.lp WABA/Semantics/stable.lp WABA/Examples/medical.lp
+clingo -n 0 WABA/core/base.lp WABA/semiring/<new_semiring>.lp WABA/monoid/<new_monoid>.lp \
+       WABA/filter/standard.lp WABA/semantics/stable.lp WABA/examples/medical.lp
 ```

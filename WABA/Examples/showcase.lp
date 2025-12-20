@@ -28,17 +28,17 @@
 %%   Boolean + Max: cost 18,  Sum: cost 43,  Count: cost 4,  Lex: (18,43,4)
 %%
 %% TEST COMMANDS:
-%%   # Fuzzy + Sum
-%%   clingo -n 0 core_base.lp semiring/fuzzy.lp monoid/sum.lp \\
-%%          filter.lp Semantics/cf.lp Examples/showcase.lp
+%%   # Gödel + Sum
+%%   clingo -n 0 core/base.lp semiring/godel.lp monoid/sum.lp \\
+%%          filter/standard.lp semantics/cf.lp examples/showcase.lp
 %%
-%%   # Boolean + Lex (use filter_lex.lp to see all components)
-%%   clingo -n 0 core_base.lp semiring/boolean.lp monoid/lex.lp \\
-%%          filter_lex.lp Semantics/cf.lp Examples/showcase.lp
+%%   # Boolean + Lex (use filter/lexicographic.lp to see all components)
+%%   clingo -n 0 core/base.lp semiring/boolean.lp monoid/lex.lp \\
+%%          filter/lexicographic.lp semantics/cf.lp examples/showcase.lp
 %%
-%%   # Tropical + Min (note: uses maximize_cost.lp, not minimize)
-%%   clingo -n 0 core_base.lp semiring/tropical.lp monoid/min.lp \\
-%%          filter.lp Semantics/cf.lp Examples/showcase.lp
+%%   # Tropical + Min (note: uses optimize/maximize.lp, not minimize)
+%%   clingo -n 0 core/base.lp semiring/tropical.lp monoid/min.lp \\
+%%          filter/standard.lp semantics/cf.lp examples/showcase.lp
 %% ============================================================================
 
 %% Agent requests (all desirable assumptions)

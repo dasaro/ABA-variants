@@ -138,15 +138,14 @@ These combinations work syntactically but have **conflicting semantics** for unw
 
 ## Testing Legal Pairs
 
-All legal combinations are tested in `test_combinations.sh`:
+All legal combinations can be tested with the commands documented in [`docs/CLINGO_USAGE.md`](CLINGO_USAGE.md).
+
+Example test for a specific legal pair:
 
 ```bash
-# Test all combinations (includes illegal ones currently)
-./test_combinations.sh Examples/medical.lp stable
-
-# Test specific legal pair
-clingo -n 0 core_base.lp semiring/fuzzy.lp monoid/max.lp \
-       filter.lp Semantics/stable.lp Examples/medical.lp
+# Test Gödel + Max (original WABA)
+clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
+       filter/standard.lp semantics/stable.lp examples/medical.lp
 ```
 
 Future work: Add warnings or errors for incompatible pairs.

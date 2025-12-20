@@ -8,8 +8,8 @@
 %%
 %% Usage: Include AFTER monoid/lex.lp
 %% Example:
-%%   clingo -n 0 core_base.lp semiring/fuzzy.lp monoid/lex.lp \
-%%          optimize_lex.lp Semantics/stable.lp instance.lp
+%%   clingo -n 0 core/base.lp semiring/godel.lp monoid/lex.lp \
+%%          optimize/lexicographic.lp semantics/stable.lp instance.lp
 
 %% Primary: minimize maximum discarded attack weight
 #minimize { M@3 : cost_max(M) }.
