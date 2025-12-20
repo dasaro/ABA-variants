@@ -13,7 +13,6 @@
 %%   1. Semirings propagate weights differently through rule derivations:
 %%      - Fuzzy: min (weakest link in conjunction)
 %%      - Tropical: + (additive costs)
-%%      - Probabilistic: average (approximate)
 %%      - Boolean: AND (binary logic)
 %%
 %%   2. Monoids aggregate discarding costs differently:
@@ -24,9 +23,8 @@
 %%      - Lex: cares about (max, sum, count) in lexicographic order
 %%
 %% EXPECTED RESULTS (for extension with all 4 agents using CF semantics):
-%%   Fuzzy + Max: cost 30,  Sum: cost 61,  Count: cost 4
+%%   Fuzzy + Max: cost 30,  Sum: cost 61,  Count: cost 4,  Lex: (30,61,4)
 %%   Tropical + Min: cost 8,  Count: cost 4,  Lex: (max=30, sum=81, cnt=4)
-%%   Probabilistic + Max: cost 30,  Sum: cost 61,  Count: cost 4
 %%   Boolean + Max: cost 18,  Sum: cost 43,  Count: cost 4,  Lex: (18,43,4)
 %%
 %% TEST COMMANDS:
@@ -67,25 +65,25 @@ weight(support_high, 18).
 %% Different body structures create different propagated weights in each semiring
 
 %% Grant1: From a1 + light support
-%% Fuzzy: min(8,5)=5, Tropical: 8+5=13, Prob: avg≈6.5, Boolean: 1
+%% Fuzzy: min(8,5)=5, Tropical: 8+5=13, Boolean: 1
 head(g1, grant1).
 body(g1, a1).
 body(g1, support_low).
 
 %% Grant2: From a2 + medium support
-%% Fuzzy: min(15,12)=12, Tropical: 15+12=27, Prob: avg≈13.5, Boolean: 1
+%% Fuzzy: min(15,12)=12, Tropical: 15+12=27, Boolean: 1
 head(g2, grant2).
 body(g2, a2).
 body(g2, support_med).
 
 %% Grant3: From a3 + a1 (two agents collaborate)
-%% Fuzzy: min(20,8)=8, Tropical: 20+8=28, Prob: avg≈14, Boolean: 1
+%% Fuzzy: min(20,8)=8, Tropical: 20+8=28, Boolean: 1
 head(g3, grant3).
 body(g3, a3).
 body(g3, a1).
 
 %% Grant4: From a4 + high support
-%% Fuzzy: min(30,18)=18, Tropical: 30+18=48, Prob: avg≈24, Boolean: 1
+%% Fuzzy: min(30,18)=18, Tropical: 30+18=48, Boolean: 1
 head(g4, grant4).
 body(g4, a4).
 body(g4, support_high).
@@ -111,7 +109,6 @@ contrary(a1, grant4).  % grant4 attacks a1 (weight 18 fuzzy, 48 tropical)
 %% To have all 4 agents, must discard all 4 attacks with total costs:
 %% - Fuzzy: max=18, sum=43, count=4
 %% - Tropical: max=48, sum=116, count=4
-%% - Probabilistic: max≈24, sum≈58, count=4
 %% - Boolean: max=1, sum=4, count=4
 %% Budget=120 allows all combinations (tropical sum=116 is highest)
 budget(120).

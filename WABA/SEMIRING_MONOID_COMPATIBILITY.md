@@ -14,14 +14,14 @@ These requirements can conflict depending on the semiring's conjunction operatio
 ### For Max/Sum Monoids
 - **Hardest to discard** = largest weight = #sup (infinity)
 - **Neutral propagation** requires conjunction identity = #sup
-- **Compatible** with: min-based conjunctions (fuzzy, probabilistic)
+- **Compatible** with: min-based conjunctions (fuzzy)
 - **Incompatible** with: +-based conjunctions (tropical)
 
 ### For Min Monoid
 - **Hardest to discard** = smallest weight = 0
 - **Neutral propagation** requires conjunction identity = 0
 - **Compatible** with: +-based conjunctions (tropical)
-- **Incompatible** with: min-based conjunctions (fuzzy, probabilistic)
+- **Incompatible** with: min-based conjunctions (fuzzy)
 
 ## Legal Combinations
 
@@ -29,7 +29,6 @@ These requirements can conflict depending on the semiring's conjunction operatio
 |----------|-------------|----------|------------|------------|------------|
 | **Fuzzy** | min | #sup | ✓ (#sup) | ✓ (#sup) | ✗ (conflict) |
 | **Tropical** | + | 0 | ✗ (conflict) | ✗ (conflict) | ✓ (0) |
-| **Probabilistic** | min (approx) | #sup | ✓ (#sup) | ✓ (#sup) | ✗ (conflict) |
 | **Boolean** | ∧ (min) | 1 | ✓ (1) | ✓ (1) | ✗ (conflict) |
 
 **Legend:**
@@ -74,22 +73,6 @@ These requirements can conflict depending on the semiring's conjunction operatio
 - **Attack cost**: min(0, ...) = 0 (hardest ✓)
 - **Use case**: Minimize cheapest discarded attack, neutral assumptions
 
-### ✓ Probabilistic + Max
-- **Default weight**: #sup
-- **Propagation**: min(#sup, x) = x (neutral ✓, using min approximation)
-- **Attack cost**: max(#sup, ...) = #sup (hardest ✓)
-- **Use case**: Similar to Fuzzy + Max
-
-### ✓ Probabilistic + Sum
-- **Default weight**: #sup
-- **Propagation**: min(#sup, x) = x (neutral ✓)
-- **Attack cost**: sum(#sup, ...) = #sup (hardest ✓)
-- **Use case**: Similar to Fuzzy + Sum
-
-### ✗ Probabilistic + Min (INCOMPATIBLE)
-- Same conflict as Fuzzy + Min
-- min-based propagation incompatible with min-based cost
-
 ### ✓ Boolean + Max
 - **Default weight**: 1
 - **Propagation**: ∧(1, x) = x (neutral ✓)
@@ -124,7 +107,7 @@ Semirings (`semiring/*.lp`) only handle:
 2. Empty body rules (facts) using conjunction identity
 
 Facts use hardcoded identities:
-- Fuzzy/Probabilistic: 100 (identity for min)
+- Fuzzy: 100 (identity for min)
 - Tropical: 0 (identity for +)
 - Boolean: 1 (identity for ∧)
 
@@ -135,7 +118,6 @@ Facts use hardcoded identities:
 **For classical weight semantics:**
 - Fuzzy + Max (original WABA)
 - Fuzzy + Sum (cumulative costs)
-- Probabilistic + Max/Sum (similar behavior)
 
 **For additive weight semantics:**
 - Tropical + Min (unique valid combination)
@@ -150,7 +132,6 @@ Facts use hardcoded identities:
 - Fuzzy + Min ✗
 - Tropical + Max ✗
 - Tropical + Sum ✗
-- Probabilistic + Min ✗
 - Boolean + Min ✗
 
 These combinations work syntactically but have **conflicting semantics** for unweighted assumptions. They may produce unexpected results.

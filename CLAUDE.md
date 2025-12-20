@@ -63,7 +63,7 @@ clingo -n 0 WABA/core_base.lp WABA/semiring/<semiring>.lp WABA/monoid/<monoid>.l
 
 **Required Components** (loaded in order):
 1. `WABA/core_base.lp` - Base argumentation logic (semiring/monoid-independent)
-2. `WABA/semiring/<semiring>.lp` - Weight propagation strategy (fuzzy, tropical, probabilistic, boolean)
+2. `WABA/semiring/<semiring>.lp` - Weight propagation strategy (fuzzy, tropical, boolean)
 3. `WABA/monoid/<monoid>.lp` - Cost aggregation strategy (max, sum, min)
 4. `WABA/filter.lp` - Output filtering via #show directives (recommended)
 5. `WABA/Semantics/<semantic>.lp` - Semantics (stable.lp, cf.lp, or naive.lp)
@@ -112,7 +112,6 @@ WABA uses a **semiring** for weight propagation and a **monoid** for cost aggreg
 **Available Semirings** (in `WABA/semiring/`):
 - **fuzzy.lp** - Fuzzy/Gödel logic: minimum for conjunction, maximum for disjunction, identity=100 (original WABA)
 - **tropical.lp** - Tropical semiring: addition for conjunction, minimum for disjunction, identity=#sup
-- **probabilistic.lp** - Viterbi semiring: average for conjunction (approx), maximum for disjunction, identity=100
 - **boolean.lp** - Boolean logic: AND for conjunction, OR for disjunction, binary weights {0,1}
 
 **Available Monoids** (in `WABA/monoid/`):
@@ -137,9 +136,6 @@ clingo -n 0 WABA/core_base.lp WABA/semiring/tropical.lp WABA/monoid/max.lp \
 clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/sum.lp \
        WABA/filter.lp WABA/Semantics/stable.lp WABA/Examples/medical.lp
 
-# Probabilistic + sum - Conflict-free semantics
-clingo -n 0 WABA/core_base.lp WABA/semiring/probabilistic.lp WABA/monoid/sum.lp \
-       WABA/filter.lp WABA/Semantics/cf.lp WABA/Examples/medical.lp
 
 # Boolean + max - Naive semantics (requires special flags)
 clingo -n 0 --heuristic=Domain --enum=domRec \
@@ -260,7 +256,6 @@ WABA/
 ├── semiring/                    # Weight propagation modules
 │   ├── fuzzy.lp                 # Fuzzy/Gödel logic (min/max, identity=100) - original WABA
 │   ├── tropical.lp              # Tropical semiring (min/+, identity=#sup)
-│   ├── probabilistic.lp         # Probabilistic/Viterbi (average/max, identity=100)
 │   └── boolean.lp               # Boolean logic (and/or, binary weights)
 ├── monoid/                      # Cost aggregation modules
 │   ├── max.lp                   # Maximum cost - original WABA

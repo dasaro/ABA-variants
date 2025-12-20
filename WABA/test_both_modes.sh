@@ -14,7 +14,7 @@ echo "============================================================"
 echo "Example: $EXAMPLE"
 echo ""
 
-SEMIRINGS=("fuzzy" "tropical" "probabilistic" "boolean")
+SEMIRINGS=("fuzzy" "tropical" "boolean")
 MONOIDS=("max" "sum" "min")
 
 ENUM_PASS=0

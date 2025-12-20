@@ -27,7 +27,7 @@ if [ ! -f "$EXAMPLE" ]; then
 fi
 
 # Arrays for combinations
-SEMIRINGS=("fuzzy" "tropical" "probabilistic" "boolean")
+SEMIRINGS=("fuzzy" "tropical" "boolean")
 MONOIDS=("max" "sum" "min")
 
 # Counters

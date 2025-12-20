@@ -51,11 +51,6 @@ clingo -n 0 WABA/core_base.lp WABA/semiring/fuzzy.lp WABA/monoid/sum.lp \
        WABA/filter.lp WABA/Semantics/stable.lp <framework>.lp
 ```
 
-**Probabilistic + Sum** (Average for conjunction):
-```bash
-clingo -n 0 WABA/core_base.lp WABA/semiring/probabilistic.lp WABA/monoid/sum.lp \
-       WABA/filter.lp WABA/Semantics/stable.lp <framework>.lp
-```
 
 **Boolean + Max** (Binary weights):
 ```bash
@@ -86,7 +81,6 @@ clingo -n 0 -c beta=10 WABA/core_base.lp WABA/semiring/tropical.lp WABA/monoid/m
 **Semirings** (in `WABA/semiring/`):
 - `fuzzy.lp` - Fuzzy/Gödel logic (min/max, identity=100) - **original WABA**
 - `tropical.lp` - Tropical semiring (min/+, identity=#sup)
-- `probabilistic.lp` - Viterbi/probabilistic (avg/max, identity=100)
 - `boolean.lp` - Boolean logic (and/or, binary weights {0,1})
 
 **Monoids** (in `WABA/monoid/`):
@@ -105,21 +99,18 @@ clingo -n 0 -c beta=10 WABA/core_base.lp WABA/semiring/tropical.lp WABA/monoid/m
 
 **Not all combinations are compatible!** See `SEMIRING_MONOID_COMPATIBILITY.md` for details.
 
-**Legal Combinations (12):**
+**Legal Combinations (9):**
 - ✓ Fuzzy + Max (weight: #sup)
 - ✓ Fuzzy + Sum (weight: #sup)
 - ✓ Fuzzy + Count/Lex (weight: #sup)
 - ✓ Tropical + Min (weight: 0)
 - ✓ Tropical + Count/Lex (weight: #sup)
-- ✓ Probabilistic + Max (weight: #sup)
-- ✓ Probabilistic + Sum (weight: #sup)
-- ✓ Probabilistic + Count/Lex (weight: #sup)
 - ✓ Boolean + Max (weight: 1)
 - ✓ Boolean + Sum (weight: 1)
 - ✓ Boolean + Count/Lex (weight: 1)
 
-**Illegal Combinations (5):**
-- ✗ Fuzzy/Probabilistic + Min (conflicting requirements)
+**Illegal Combinations (3):**
+- ✗ Fuzzy + Min (conflicting requirements)
 - ✗ Tropical + Max/Sum (conflicting requirements)
 - ✗ Boolean + Min (conflicting requirements)
 
