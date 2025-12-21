@@ -45,7 +45,7 @@ This uses:
 Choose how weights propagate through rule derivations:
 
 - **godel.lp** - Gödel/Fuzzy logic (min/max, identity=#sup) - *original WABA*
-- **lukasiewicz.lp** - Łukasiewicz t-norm (bounded sum)
+- **lukasiewicz.lp** - Łukasiewicz t-norm (bounded sum, parametrizable K via `-c luk_k=N`)
 - **tropical.lp** - Tropical semiring (addition, identity=#sup)
 - **bottleneck_cost.lp** - Bottleneck semiring (max/min)
 
@@ -77,6 +77,25 @@ Common values:
 - `budget(0)` - Strictest (classical ABA, no discarding)
 - `budget(max_weight)` - Can discard ~1 attack
 - `budget(sum_all)` - Can discard all attacks
+
+### Łukasiewicz Normalization Constant
+
+**For Łukasiewicz semiring only**: Control the weight scale with parameter K.
+
+**Default**: K = 100 (weights in [0,100])
+
+**Override via command line**:
+```bash
+# Standard Łukasiewicz with [0,1] scale
+clingo -c luk_k=1 WABA/core/base.lp WABA/semiring/lukasiewicz.lp ...
+
+# Finer granularity with [0,1000] scale
+clingo -c luk_k=1000 WABA/core/base.lp WABA/semiring/lukasiewicz.lp ...
+```
+
+**Impact**:
+- Conjunction formula: `max(0, sum(weights) - K*(n-1))`
+- Disjunction formula: `min(K, sum(weights))`
 
 ## Directory Structure
 
