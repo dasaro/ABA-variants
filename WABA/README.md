@@ -46,8 +46,9 @@ Choose how weights propagate through rule derivations:
 
 - **godel.lp** - Gödel/Fuzzy logic (min/max, identity=#sup) - *original WABA*
 - **lukasiewicz.lp** - Łukasiewicz t-norm (bounded sum, parametrizable K via `-c luk_k=N`)
-- **tropical.lp** - Tropical semiring (addition, identity=#sup)
-- **bottleneck_cost.lp** - Bottleneck semiring (max/min)
+- **tropical.lp** - Tropical semiring (+/min, cost minimization, identity=#sup)
+- **arctic.lp** - Arctic semiring (+/max, reward maximization, dual of Tropical)
+- **bottleneck_cost.lp** - Bottleneck-cost semiring (max/min, worst-case optimization)
 
 ### Monoids (Cost Aggregation)
 
