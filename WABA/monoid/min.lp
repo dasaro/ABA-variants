@@ -8,15 +8,13 @@
 %% This represents the "cheapest" attack that was discarded.
 %% When no attacks are discarded, the cost is #sup (identity for min).
 %%
-%% UNWEIGHTED ATOMS: Default weight = 0
-%% Rationale: With min monoid, hardest-to-discard = smallest weight
-%% - To minimize extension_cost = min(discarded), prefer discarding LARGER weights
-%% - Smallest weight (0) is hardest to discard (forces min=0)
-%% - Compatible semirings: tropical (+ operation has identity 0)
-%% - INCOMPATIBLE: fuzzy/probabilistic (min operation has identity #sup, conflicts!)
+%% DEFAULT WEIGHTS: Now defined in semiring files (moved from here)
+%% - Semirings assign defaults using disjunction identity
+%% - All weight assignment is now semiring responsibility
+%% - Monoids only handle cost aggregation
 %%
-supported_with_weight(X,0) :-
-    assumption(X), in(X), not weight(X,_).
+%% Note: MIN monoid uses LOWER BOUND regime (maximize quality threshold)
+%% - LB constraint: :- extension_cost(C), C < B, budget(B).
 
 %% Extension cost is the minimum discarded attack weight
 %% Only compute aggregate when discarded attacks exist

@@ -9,14 +9,10 @@
 %% This represents the "most expensive" attack that was discarded.
 %% When no attacks are discarded, we use 0 (not the identity #inf) to represent "no cost".
 %%
-%% UNWEIGHTED ATOMS: Default weight = #sup (infinity)
-%% Rationale: With max monoid, hardest-to-discard = largest weight
-%% - extension_cost = max(#sup, ...) = #sup → infinitely expensive
-%% - Can only discard if budget = #sup (unbounded)
-%% - Compatible semirings: fuzzy, probabilistic (min has identity #sup)
-%%
-supported_with_weight(X,#sup) :-
-    assumption(X), in(X), not weight(X,_).
+%% DEFAULT WEIGHTS: Now defined in semiring files (moved from here)
+%% - Semirings assign defaults using disjunction identity
+%% - All weight assignment is now semiring responsibility
+%% - Monoids only handle cost aggregation
 
 %% Extension cost is the maximum discarded attack weight
 %% Only compute aggregate when discarded attacks exist

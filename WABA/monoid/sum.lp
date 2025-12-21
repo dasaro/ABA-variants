@@ -11,14 +11,10 @@
 %% each derivation contributes its weight to the sum.
 %% The tuple (W, X, Y) ensures each unique attack instance is counted.
 %%
-%% UNWEIGHTED ATOMS: Default weight = #sup (infinity)
-%% Rationale: With sum monoid, hardest-to-discard = largest weight
-%% - extension_cost = sum(#sup, ...) = #sup → infinitely expensive
-%% - Can only discard if budget = #sup (unbounded)
-%% - Compatible semirings: fuzzy, probabilistic (min has identity #sup)
-%%
-supported_with_weight(X,#sup) :-
-    assumption(X), in(X), not weight(X,_).
+%% DEFAULT WEIGHTS: Now defined in semiring files (moved from here)
+%% - Semirings assign defaults using disjunction identity
+%% - All weight assignment is now semiring responsibility
+%% - Monoids only handle cost aggregation
 
 %% Extension cost is the sum of all discarded attack weights
 %% Only compute aggregate when discarded attacks exist
