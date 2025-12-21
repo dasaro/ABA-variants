@@ -58,6 +58,18 @@ clingo -n 0 WABA/core/base.lp WABA/semiring/lukasiewicz.lp WABA/monoid/max.lp \
        WABA/filter/standard.lp WABA/semantics/stable.lp <framework>.lp
 ```
 
+**Arctic + Max** (Reward maximization):
+```bash
+clingo -n 0 WABA/core/base.lp WABA/semiring/arctic.lp WABA/monoid/max.lp \
+       WABA/filter/standard.lp WABA/semantics/stable.lp <framework>.lp
+```
+
+**Bottleneck-cost + Min** (Worst-case minimization):
+```bash
+clingo -n 0 WABA/core/base.lp WABA/semiring/bottleneck_cost.lp WABA/monoid/min.lp \
+       WABA/filter/standard.lp WABA/semantics/stable.lp <framework>.lp
+```
+
 **Fuzzy + Count** (Weight-agnostic counting):
 ```bash
 clingo -n 0 -c beta=2 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/count.lp \
@@ -80,8 +92,10 @@ clingo -n 0 -c beta=10 WABA/core/base.lp WABA/semiring/tropical.lp WABA/monoid/m
 
 **Semirings** (in `WABA/semiring/`):
 - `godel.lp` - Gödel/Fuzzy logic (min/max, identity=#sup) - **original WABA**
-- `tropical.lp` - Tropical semiring (min/+, identity=#sup)
-- `lukasiewicz.lp` - Łukasiewicz logic (bounded sum, identity=#sup)
+- `tropical.lp` - Tropical semiring (+/min, cost minimization, identity=#sup)
+- `arctic.lp` - Arctic semiring (+/max, reward maximization, dual of Tropical)
+- `lukasiewicz.lp` - Łukasiewicz logic (bounded sum, identity=#sup, parametrizable K)
+- `bottleneck_cost.lp` - Bottleneck-cost (max/min, worst-case optimization)
 
 **Monoids** (in `WABA/monoid/`):
 - `max.lp` - Maximum cost (original WABA)
