@@ -134,6 +134,30 @@ clingo -c beta=100 WABA/core/base.lp ...
 - `budget(<sum/2>)` - Can discard ~half the attacks
 - `budget(<sum_all>)` - Can discard all attacks
 
+## Łukasiewicz Normalization Constant
+
+**For Łukasiewicz semiring only**: The normalization constant K determines the weight scale.
+
+**Default**: K = 100 (weights in [0,100])
+
+**Override via command line**:
+```bash
+# Use [0,1] scale (standard Łukasiewicz logic)
+clingo -c luk_k=1 WABA/core/base.lp WABA/semiring/lukasiewicz.lp ...
+
+# Use [0,1000] scale (finer granularity)
+clingo -c luk_k=1000 WABA/core/base.lp WABA/semiring/lukasiewicz.lp ...
+```
+
+**Effect on formulas**:
+- Conjunction: `max(0, sum(weights) - K*(n-1))`
+- Disjunction: `min(K, sum(weights))`
+
+**When to adjust**:
+- K=1: When using weights in [0,1] (standard fuzzy logic)
+- K=100: Default for [0,100] integer weights (good balance)
+- K=1000: When you need fine-grained distinctions between weights
+
 ## Examples
 
 ```bash
@@ -144,6 +168,10 @@ clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/max.lp \
 # Simple example with tropical semiring and cost minimization
 clingo -n 0 WABA/core/base.lp WABA/semiring/tropical.lp WABA/monoid/max.lp \
        WABA/filter/standard.lp WABA/optimize/minimize.lp WABA/semantics/stable.lp WABA/examples/simple.lp
+
+# Łukasiewicz with custom normalization constant K=1 (standard [0,1] scale)
+clingo -n 0 -c luk_k=1 WABA/core/base.lp WABA/semiring/lukasiewicz.lp WABA/monoid/max.lp \
+       WABA/filter/standard.lp WABA/semantics/stable.lp <framework_with_weights_0_to_1>.lp
 ```
 
 ## Output Predicates

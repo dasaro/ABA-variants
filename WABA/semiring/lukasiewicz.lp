@@ -1,12 +1,33 @@
 %% Łukasiewicz Semiring for Weight Propagation
 %% Semiring: (ℤ ∪ {±∞}, ⊕_Ł, ⊗_Ł, #inf, #sup)
 %% - Domain: ℤ ∪ {±∞} (integers plus positive/negative infinity)
-%% - Disjunction/⊕_Ł (OR): bounded sum min(K, a + b) where K=100 is normalization constant
-%% - Conjunction/⊗_Ł (AND): bounded sum max(#inf, a + b - K) where K=100
+%% - Disjunction/⊕_Ł (OR): bounded sum min(K, a + b) where K is normalization constant
+%% - Conjunction/⊗_Ł (AND): bounded sum max(#inf, a + b - K)
 %% - Additive identity: #inf (identity for bounded max)
 %% - Multiplicative identity: #sup (identity for bounded min with offset)
 %% - Interpretation: weights are truth degrees, higher is better
-%% - Note: K=100 is the normalization/unit constant (scales [0,1] → [0,100] in standard Łukasiewicz logic)
+%% - Normalization constant K: parametrizable via CLI (default K=100)
+%%
+%% PARAMETRIZATION: Normalization Constant K
+%% ==========================================
+%% The constant K determines the scale of weights in Łukasiewicz logic.
+%% Standard Łukasiewicz logic uses [0,1]; we scale to [0,K] for integer arithmetic.
+%%
+%% Default: K = 100 (scale [0,100])
+%% Override via CLI: clingo -c luk_k=1 ... (for [0,1] scale)
+%%                   clingo -c luk_k=1000 ... (for [0,1000] scale)
+%%
+%% Examples:
+%%   # Default K=100
+%%   clingo core/base.lp semiring/lukasiewicz.lp monoid/max.lp ...
+%%
+%%   # Use [0,1] scale (standard Łukasiewicz)
+%%   clingo -c luk_k=1 core/base.lp semiring/lukasiewicz.lp monoid/max.lp ...
+%%
+%%   # Use [0,1000] scale (finer granularity)
+%%   clingo -c luk_k=1000 core/base.lp semiring/lukasiewicz.lp monoid/max.lp ...
+
+#const luk_k = 100.
 %%
 %% Łukasiewicz logic is a fuzzy logic where:
 %% - Conjunction is "bounded sum": strength decreases more gracefully than min
@@ -54,11 +75,11 @@ supported_with_weight(X,#sup) :- assumption(X), in(X), not weight(X,_).
 %% For rule R deriving X: bounded sum of body element weights
 %% IMPORTANT: Only compute weight for TRIGGERED rules (all body elements supported)
 %%
-%% Łukasiewicz AND: max(0, sum(weights) - 100*(n-1))
-%% where n is the number of body elements
+%% Łukasiewicz AND: max(0, sum(weights) - K*(n-1))
+%% where n is the number of body elements, K is the normalization constant
 %% This can't be directly expressed in ASP, so we approximate with:
 %% - Collect sum of all body weights
-%% - Subtract 100 * (count - 1)
+%% - Subtract K * (count - 1)
 %% - Take max with 0
 
 %% Helper: count body elements for a rule
@@ -88,23 +109,23 @@ body_sum(R,X,S) :-
     not body_has_sup_weight(R),
     S = #sum{ V,B : body(R,B), supported_with_weight(B,V) }.
 
-%% Łukasiewicz conjunction: max(0, sum - 100*(n-1))
+%% Łukasiewicz conjunction: max(0, sum - K*(n-1))
 %% If sum is #sup, result is #sup (infinite truth)
 rule_derivation_weight(R,X,#sup) :-
     body_sum(R,X,#sup).
 
-%% Otherwise, apply bounded sum formula
+%% Otherwise, apply bounded sum formula with parametrized K
 rule_derivation_weight(R,X,W) :-
     body_sum(R,X,S),
     S != #sup,
     body_count(R,N),
-    W = #max{ 0; S - 100*(N-1) }.
+    W = #max{ 0; S - luk_k*(N-1) }.
 
 %% Handle rules with empty bodies (facts): Use 0 (additive identity)
 %% Empty-body rules contribute 0 to the sum (identity for addition)
 %% Rationale: Łukasiewicz disjunction uses bounded sum, so 0 is the identity
-%% - With explicit weight: min(100, 0 + explicit) = min(100, explicit) ✓
-%% - Without explicit weight: min(100, 0) = 0 (but facts typically have explicit weights)
+%% - With explicit weight: min(K, 0 + explicit) = min(K, explicit) ✓
+%% - Without explicit weight: min(K, 0) = 0 (but facts typically have explicit weights)
 %%
 %% NOTE: Uses 0 (additive identity for sum) for algebraic correctness.
 %% Assumptions (not facts) get #sup from line 50.
@@ -114,9 +135,9 @@ rule_derivation_weight(R,X,0) :-
     not body(R,_).
 
 %% Step 2: Combine multiple derivations using disjunction (Łukasiewicz OR)
-%% Łukasiewicz OR: min(100, sum of all derivation weights)
+%% Łukasiewicz OR: min(K, sum of all derivation weights)
 %%
-%% For multiple rule derivations and explicit weights, we sum them and cap at 100
+%% For multiple rule derivations and explicit weights, we sum them and cap at K
 %%
 %% Special handling for #sup: clingo's #sum aggregate ignores #sup values
 %% If ANY derivation OR explicit weight is #sup, result is #sup (infinite truth)
@@ -133,7 +154,7 @@ supported_with_weight(X,#sup) :-
     head(_,X),
     weight(X,#sup).
 
-%% Otherwise, sum finite values (both derivations and explicit weights) and cap at 100
+%% Otherwise, sum finite values (both derivations and explicit weights) and cap at K
 supported_with_weight(X,W) :-
     supported(X),
     head(_,X),
@@ -141,4 +162,4 @@ supported_with_weight(X,W) :-
     not weight(X,#sup),
     S = #sum{ V : rule_derivation_weight(_,X,V) ;
               V : weight(X,V) },
-    W = #min{ 100; S }.
+    W = #min{ luk_k; S }.
