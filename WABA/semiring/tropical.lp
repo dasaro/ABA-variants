@@ -36,21 +36,65 @@
 %% Assumptions with explicit weights
 supported_with_weight(X,W) :- assumption(X), in(X), weight(X,W).
 
+%% Assumptions without explicit weights: Use supremum (infinite cost)
+%% For Tropical semiring, unweighted assumptions get #sup (infinite cost)
+%% Rationale: Unweighted assumptions are "hardest to discard" (default acceptance)
+%% - #sup = positive infinity (infinite cost)
+%% - Matches standard ABA: assumptions accepted by default
+%% - In conjunction (+): #sup + x = #sup (infinite cost propagates)
+%% - In disjunction (min): min(#sup, x) = x (doesn't dominate)
+%%
+%% NOTE: Uses #sup (positive infinity) as supremum.
+%% Constraints must handle #sup specially for budget checking.
+supported_with_weight(X,#sup) :- assumption(X), in(X), not weight(X,_).
+
 %% Step 1: Compute weight for each rule derivation using conjunction (addition)
 %% For rule R deriving X: sum the weights of all body elements
 %% IMPORTANT: Only compute weight for TRIGGERED rules (all body elements supported)
+%%
+%% Special handling for #sup: clingo's #sum aggregate ignores #sup values
+%% If ANY body element has weight #sup, result is #sup (infinite cost propagates)
+
+%% Helper: detect if any body element has #sup weight
+body_has_sup_weight(R) :- body(R,B), supported_with_weight(B,#sup).
+
+%% If any body has #sup, derivation weight is #sup (infinite cost)
+rule_derivation_weight(R,X,#sup) :-
+    head(R,X),
+    supported(X),
+    body(R,_),
+    triggered_by_in(R),
+    body_has_sup_weight(R).
+
+%% Otherwise, sum finite weights (no #sup values present)
 rule_derivation_weight(R,X,W) :-
     head(R,X),
     supported(X),
-    body(R,_),  % Only for rules with bodies
-    triggered_by_in(R),  % Only triggered rules (prevents incorrect weights from unsupported bodies)
+    body(R,_),
+    triggered_by_in(R),
+    not body_has_sup_weight(R),
     W = #sum{ V,B : body(R,B), supported_with_weight(B,V) }.
 
-%% Handle rules with empty bodies (facts): multiplicative identity (NOT supremum)
-%% IMPORTANT: Facts use 0 (multiplicative identity for empty sum), not #sup (supremum).
-%% This is correct because: sum({}) = 0 (additive identity for empty conjunction).
-%% Supremum (#sup) applies only to unweighted assumptions, not to derivation rules.
-rule_derivation_weight(R,X,0) :-
+%% Handle rules with empty bodies (facts): Use #sup (identity for min)
+%% SOLUTION: Use additive identity (#sup for min) instead of multiplicative identity (0 for +)
+%%
+%% Traditional approach assigned 0 (multiplicative identity for +/conjunction):
+%%   rule_derivation_weight(R,X,0) :- ... not body(R,_).
+%%
+%% Problem: min(0, explicit_weight) = 0 dominates all explicit weights > 0!
+%%   Example: weight(c1, 8) → min(0, 8) = 0 → explicit weight LOST
+%%
+%% Solution: Use #sup (additive identity for min/disjunction):
+%%   min(#sup, x) = x for any x < #sup
+%%   This makes empty-body derivations "invisible" in the min aggregate
+%%   Explicit weights are preserved: min(#sup, 8) = 8 ✓
+%%
+%% Algebraic justification:
+%%   - #sup is the true identity for min operation (a ⊕ #sup = a)
+%%   - Empty-body facts contribute no information to weight disjunction
+%%   - Explicit weights take precedence without special-case logic
+%%
+rule_derivation_weight(R,X,#sup) :-
     head(R,X),
     supported(X),
     not body(R,_).

@@ -107,7 +107,7 @@ Semirings (`semiring/*.lp`) only handle:
 2. Empty body rules (facts) using conjunction identity
 
 Facts use hardcoded identities:
-- Fuzzy: 100 (identity for min)
+- Gödel: #sup (identity for min)
 - Tropical: 0 (identity for +)
 - Boolean: 1 (identity for ∧)
 

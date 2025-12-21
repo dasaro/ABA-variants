@@ -16,9 +16,10 @@
 %% Budget constraint: C > B on cost_max (enforce max <= B)
 %% Optimization: Use optimize_lex.lp for true lexicographic minimization
 
-%% Default weight for unweighted assumptions
-%% (makes them hard to discard, compatible with all semirings)
-supported_with_weight(X,#sup) :- assumption(X), in(X), not weight(X,_).
+%% DEFAULT WEIGHTS: Now defined in semiring files (moved from here)
+%% - Semirings assign defaults using disjunction identity
+%% - All weight assignment is now semiring responsibility
+%% - Monoids only handle cost aggregation
 
 %% Maximum component: largest discarded attack weight
 cost_max(M) :- discarded_attack(_,_,_), M = #max{ W,X,Y : discarded_attack(X,Y,W) }.

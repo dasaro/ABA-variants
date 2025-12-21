@@ -23,4 +23,21 @@ budget(beta).
 
 %% Budget constraint (quality threshold)
 %% Rejects extensions where quality (min cost) is too low
+%%
+%% Dual enforcement approach (same as UB):
+%% 1. Check extension_cost aggregate (for quality threshold)
+%% 2. Check individual discarded attacks (for detecting #sup weights)
+%%
+%% Special handling for infinities:
+%%   - #sup: Passes when used as "no discards" marker (extension_cost only)
+%%           Fails when discarding #sup-weight attacks
+%%   - #inf: Worst quality, always fails
+
+%% Standard quality threshold check (handles finite costs)
 :- extension_cost(C), C < B, budget(B).
+
+%% Reject if ANY discarded attack has weight #sup
+%% For LB (quality threshold), discarding #sup-weight attacks always fails
+%% because it's impossible to distinguish from "no discards" (both give cost #sup)
+%% This prevents extensions with discards from passing as "best quality"
+:- discarded_attack(_,_,#sup).

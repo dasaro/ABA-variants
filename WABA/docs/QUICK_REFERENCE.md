@@ -79,9 +79,9 @@ clingo -n 0 -c beta=10 WABA/core/base.lp WABA/semiring/tropical.lp WABA/monoid/m
 ## Available Modules
 
 **Semirings** (in `WABA/semiring/`):
-- `godel.lp` - Gödel/Fuzzy logic (min/max, identity=100) - **original WABA**
+- `godel.lp` - Gödel/Fuzzy logic (min/max, identity=#sup) - **original WABA**
 - `tropical.lp` - Tropical semiring (min/+, identity=#sup)
-- `lukasiewicz.lp` - Łukasiewicz logic (bounded sum, identity=100)
+- `lukasiewicz.lp` - Łukasiewicz logic (bounded sum, identity=#sup)
 
 **Monoids** (in `WABA/monoid/`):
 - `max.lp` - Maximum cost (original WABA)

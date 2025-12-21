@@ -44,7 +44,7 @@ This uses:
 
 Choose how weights propagate through rule derivations:
 
-- **godel.lp** - Gödel/Fuzzy logic (min/max, identity=100) - *original WABA*
+- **godel.lp** - Gödel/Fuzzy logic (min/max, identity=#sup) - *original WABA*
 - **lukasiewicz.lp** - Łukasiewicz t-norm (bounded sum)
 - **tropical.lp** - Tropical semiring (addition, identity=#sup)
 - **bottleneck_cost.lp** - Bottleneck semiring (max/min)
