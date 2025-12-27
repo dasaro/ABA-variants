@@ -40,11 +40,124 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Remove dead code / unused predicates *only if* you introduced them in this change.
 - Avoid leaving commented-out experiments in core code paths; prefer a short comment explaining intent.
 
+### 5) Documentation management (CRITICAL)
+- **Do not overwhelm the repo with documentation files**. Keep docs minimal, purposeful, and consolidated.
+- **Prefer updating existing files** over creating new ones. Add sections to existing docs when relevant.
+- **Single source of truth**: Main documentation (like README.md) should be comprehensive; avoid fragmenting info across many files.
+- **Remove redundant/obsolete files**: When information becomes outdated or is superseded, remove the file and merge essential content into main docs.
+- **Periodic refactoring**: When you notice documentation sprawl, consolidate related files and remove duplicates.
+
+**When to create a new documentation file**:
+- Template files (e.g., FINAL_REPORT_TEMPLATE.md) that serve as generation inputs
+- Auto-generated reports (e.g., FINAL_BENCHMARK_REPORT.md) that are programmatically created
+- Specialized technical documentation that would bloat main README (e.g., verification reports for specific components)
+- Subdirectory READMEs when the subdirectory is large/complex (e.g., plots/README.md, test/README.md)
+
+**When to consolidate/remove**:
+- Historical reports superseded by newer versions → Remove old, keep latest
+- Issue-specific documentation after issue is resolved → Merge key findings into main docs, remove file
+- Verification reports after verification is complete → Keep concise summary, remove verbose details
+- Multiple files covering similar topics → Consolidate into one comprehensive file
+- Preliminary/draft documents after final version exists → Remove drafts
+
+**Documentation best practices**:
+- Keep each file focused and purposeful
+- Use clear section headers for easy navigation
+- Include "Last Updated" dates for time-sensitive content
+- Cross-reference related docs (don't duplicate content)
+- Prefer tables and bullet points over prose for technical specs
+- Keep verification/test reports concise (key findings only, not verbose logs)
+
+### 6) Handling ambiguous or high-risk requests (MUST USE PLAN MODE)
+- **Always use plan mode** (EnterPlanMode tool) when:
+  - The user's prompt is **underspecified** or ambiguous (multiple valid interpretations exist)
+  - The request may **significantly disrupt** the current implementation status
+  - Major architectural decisions are needed
+  - Multiple files will be affected and the approach isn't obvious
+  - You need to ask follow-up questions to clarify requirements
+  - The change could break existing functionality
+
+- **Use plan mode to**:
+  - Ask clarifying questions about underspecified requirements
+  - Present multiple implementation approaches for user selection
+  - Explore the codebase to understand impact before making changes
+  - Get user sign-off on the approach before implementation
+  - Document assumptions and design decisions
+
+- **Examples of when to use plan mode**:
+  - "Add authentication" → Which method? Where? What should happen on failure?
+  - "Refactor the core logic" → What specifically needs refactoring? What's the target design?
+  - "Fix the performance issue" → Which issue? What's causing it? What's the acceptable solution?
+  - "Implement feature X" → When multiple valid approaches exist or requirements unclear
+
+- **Do NOT guess or assume** - If underspecified, use plan mode to clarify first
+
+### 7) Git Workflow (MUST FOLLOW)
+
+**WABA/ repository (main codebase):**
+- **ALWAYS commit to local git** after every change you make
+- Use clear, descriptive commit messages
+- **NEVER push to public repository** unless explicitly instructed by the user
+- Local commits allow rollback and tracking of changes
+- Example workflow:
+  ```bash
+  # After editing files
+  git add <changed-files>
+  git commit -m "Clear description of change"
+  # Do NOT push unless user says to
+  ```
+
+**waba-playground/ repository (web application):**
+- **ALWAYS commit AND push to GitHub Pages** after every change
+- Changes must be immediately deployed to live site
+- Use descriptive commit messages
+- Example workflow:
+  ```bash
+  # After editing files
+  git add <changed-files>
+  git commit -m "Description of change"
+  git push origin main  # ALWAYS push for playground
+  ```
+
+**Summary:**
+- WABA/: Commit locally, push only on user request
+- waba-playground/: Commit and push immediately every time
+
 ---
 
 ## Repository Overview
 
 This repository hosts **Weighted Assumption Based Argumentation (WABA)**, a framework that extends ABA with weighted arguments and attack resolution based on budget constraints.
+
+## Web Implementation Location (CRITICAL)
+
+**IMPORTANT**: The ONLY web-based WABA implementation in this repository is located at:
+```
+waba-playground/
+```
+
+This directory contains the complete browser-based WABA Playground application:
+- **index.html** - Main application HTML structure
+- **app.js** - Complete application logic (Clingo WASM integration, **vis.js** graph visualization, WABA framework execution)
+- **style.css** - Dark/light theme styling
+- **examples.js** - Example WABA frameworks
+- **Clingo WASM files** - Browser-compatible Clingo solver
+
+**Graph Visualization Library**:
+- **Current**: **vis.js** (Barnes-Hut physics, continuous simulation, native live updates)
+- **Migration Date**: 2025-12-26
+- **Backup**: Previous Cytoscape.js implementation backed up in `waba-playground/backup-cytoscape/`
+
+**DO NOT**:
+- Create alternative web implementations in other directories (e.g., WABA/web/)
+- Overwrite files in waba-playground/ without explicit user confirmation
+- Assume the user wants a new web implementation when they mention web visualization
+- Switch graph visualization libraries without explicit request and creating backups first
+
+**When working with web visualization**:
+1. Always check if waba-playground/ already contains the needed functionality
+2. Ask for clarification if the user's request could be interpreted as modifying existing web code
+3. If creating test/prototype visualizations, clearly mark them as temporary and in a separate location
 
 ## Running WABA
 
@@ -110,37 +223,70 @@ clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/max.lp \
 WABA uses a **semiring** for weight propagation and a **monoid** for cost aggregation. Compose them at runtime by selecting one file from each directory.
 
 **Available Semirings** (in `WABA/semiring/`):
-- **godel.lp** - Gödel/Fuzzy logic: minimum for conjunction, maximum for disjunction, identity=100 (original WABA)
+- **godel.lp** - Gödel/Fuzzy logic: minimum for conjunction, maximum for disjunction, identity=#sup (original WABA)
 - **tropical.lp** - Tropical semiring: addition for conjunction, minimum for disjunction, identity=#sup
-- **lukasiewicz.lp** - Łukasiewicz logic: bounded sum for conjunction/disjunction, identity=100
+- **lukasiewicz.lp** - Łukasiewicz logic: bounded sum for conjunction/disjunction, parametrizable K (default=100)
+- **arctic.lp** - Arctic semiring: addition for conjunction, maximum for disjunction, identity=0 (dual of Tropical)
+- **bottleneck_cost.lp** - Bottleneck-cost semiring: maximum for conjunction, minimum for disjunction, worst-case optimization
 
 **Available Monoids** (in `WABA/monoid/`):
 - **max.lp** - Maximum cost: extension_cost = max of discarded attack weights (original WABA)
 - **sum.lp** - Sum cost: extension_cost = sum of all discarded attack weights
 - **min.lp** - Minimum cost: extension_cost = min of discarded attack weights
 - **count.lp** - Count cost: extension_cost = number of discarded attacks (weight-agnostic)
-- **lex.lp** - Lexicographic cost: three components (max, sum, count) minimized in priority order
+
+**Optimized variants** (direct `#minimize`/`#maximize`, 1000x faster):
+- **sum_minimization.lp** / **sum_maximization.lp** - Sum minimization/maximization (works in both modes)
+- **max_minimization.lp** / **max_maximization.lp** - Max minimization/maximization (works in both modes)
+- **min_minimization.lp** / **min_maximization.lp** - Min minimization/maximization (works in both modes)
+- **count_minimization.lp** / **count_maximization.lp** - Count minimization/maximization (works in both modes)
+- **lex_minimization.lp** / **lex_maximization.lp** - Lexicographic minimization/maximization (works in both modes)
+
+**Naming convention:** `{monoid}_{direction}.lp` where:
+- `_minimization` = minimize (cost semantics: weights = costs to avoid)
+- `_maximization` = maximize (reward semantics: weights = rewards to pursue)
 
 **Common Combinations**:
 
 ```bash
-# Original WABA (fuzzy + max) - Stable semantics
-clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/max.lp \
+# Original WABA (fuzzy + max) - Stable semantics (minimize cost)
+clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/max_minimization.lp \
        WABA/filter/standard.lp WABA/semantics/stable.lp WABA/examples/medical.lp
 
-# Tropical + max - Stable semantics
-clingo -n 0 WABA/core/base.lp WABA/semiring/tropical.lp WABA/monoid/max.lp \
+# Tropical + max - Stable semantics (minimize cost)
+clingo -n 0 WABA/core/base.lp WABA/semiring/tropical.lp WABA/monoid/max_minimization.lp \
        WABA/filter/standard.lp WABA/semantics/stable.lp WABA/examples/medical.lp
 
-# Fuzzy + sum - Stable semantics
-clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/sum.lp \
+# Gödel + sum - Stable semantics (minimize cost)
+clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/sum_minimization.lp \
        WABA/filter/standard.lp WABA/semantics/stable.lp WABA/examples/medical.lp
 
+# Łukasiewicz + max - Stable semantics (minimize cost)
+clingo -n 0 WABA/core/base.lp WABA/semiring/lukasiewicz.lp WABA/monoid/max_minimization.lp \
+       WABA/filter/standard.lp WABA/semantics/stable.lp WABA/examples/medical.lp
 
-# Łukasiewicz + max - Naive semantics (requires special flags)
-clingo -n 0 --heuristic=Domain --enum=domRec \
-       WABA/core/base.lp WABA/semiring/lukasiewicz.lp WABA/monoid/max.lp \
-       WABA/filter/standard.lp WABA/semantics/naive.lp WABA/examples/medical.lp
+# Arctic + max - Stable semantics (reward maximization)
+clingo -n 0 WABA/core/base.lp WABA/semiring/arctic.lp WABA/monoid/max_maximization.lp \
+       WABA/filter/standard.lp WABA/semantics/stable.lp WABA/examples/medical.lp
+
+# Bottleneck-cost + min - Stable semantics (worst-case optimization)
+clingo -n 0 WABA/core/base.lp WABA/semiring/bottleneck_cost.lp WABA/monoid/min_minimization.lp \
+       WABA/filter/standard.lp WABA/semantics/stable.lp WABA/examples/medical.lp
+
+# Tropical + sum - Minimize total cost (1000x faster with --opt-mode=opt)
+clingo -n 0 --opt-mode=opt WABA/core/base.lp WABA/semiring/tropical.lp \
+       WABA/monoid/sum_minimization.lp WABA/filter/standard.lp \
+       WABA/semantics/stable.lp WABA/examples/medical.lp
+
+# Tropical + sum - Maximize total reward (1000x faster with --opt-mode=opt)
+clingo -n 0 --opt-mode=opt WABA/core/base.lp WABA/semiring/tropical.lp \
+       WABA/monoid/sum_maximization.lp WABA/filter/standard.lp \
+       WABA/semantics/stable.lp WABA/examples/medical.lp
+
+# Enumeration mode (works without --opt-mode flag!)
+clingo -n 10 WABA/core/base.lp WABA/semiring/tropical.lp \
+       WABA/monoid/sum_minimization.lp WABA/filter/standard.lp \
+       WABA/semantics/stable.lp WABA/examples/medical.lp
 ```
 
 ### Available Semantics
@@ -153,31 +299,29 @@ Located in `WABA/semantics/`:
 **Example with naive semantics**:
 ```bash
 clingo -n 0 --heuristic=Domain --enum=domRec \
-       WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/max.lp \
+       WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/max_minimization.lp \
        WABA/filter/standard.lp WABA/semantics/naive.lp <framework>.lp
 ```
 
 ### Cost Optimization
 
-To find optimal extensions, add an optimization file after filter/standard.lp:
+**Recommended:** Use optimized monoids with `--opt-mode=opt` for 1000x faster optimization:
 
-**Standard Minimization** (for max, sum, count monoids):
+**Minimization** (cost semantics):
 ```bash
-clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/max.lp \
-       WABA/filter/standard.lp WABA/optimize/minimize.lp WABA/semantics/stable.lp <framework>.lp
+clingo -n 0 --opt-mode=opt WABA/core/base.lp WABA/semiring/godel.lp \
+       WABA/monoid/max_minimization.lp WABA/filter/standard.lp \
+       WABA/semantics/stable.lp <framework>.lp
 ```
 
-**Maximization** (for min monoid - quality threshold semantics):
+**Maximization** (reward semantics):
 ```bash
-clingo -n 0 WABA/core/base.lp WABA/semiring/tropical.lp WABA/monoid/min.lp \
-       WABA/filter/standard.lp WABA/optimize/maximize.lp WABA/semantics/stable.lp <framework>.lp
+clingo -n 0 --opt-mode=opt WABA/core/base.lp WABA/semiring/tropical.lp \
+       WABA/monoid/sum_maximization.lp WABA/filter/standard.lp \
+       WABA/semantics/stable.lp <framework>.lp
 ```
 
-**Lexicographic Optimization** (for lex monoid - use filter_lex.lp to see all components):
-```bash
-clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/lex.lp \
-       WABA/filter/lexicographic.lp WABA/optimize/lexicographic.lp WABA/semantics/stable.lp <framework>.lp
-```
+**Note:** The optimized monoids (`*_minimization.lp` / `*_maximization.lp`) work in both enumeration and optimization modes.
 
 ## WABA Framework Structure
 
@@ -232,10 +376,11 @@ budget(beta).  % Default in core files
 **Attack Resolution**: Attacks can be discarded at cost equal to attack weight. The extension cost is computed by the chosen monoid.
 
 **Weight Propagation** (Semiring-dependent): Elements inherit weights from supporting rules according to the semiring:
-- **Tropical semiring**: addition of body element weights
-- **Gödel semiring**: minimum for conjunction (original WABA)
-- **Łukasiewicz semiring**: bounded sum (max(0, sum(w_i) - (n-1)*K))
-- **Bottleneck-cost semiring**: maximum for conjunction (bottleneck)
+- **Gödel semiring**: minimum for conjunction, maximum for disjunction (original WABA)
+- **Tropical semiring**: addition for conjunction, minimum for disjunction
+- **Łukasiewicz semiring**: bounded sum for conjunction (max(0, sum(w_i) - (n-1)*K)) and disjunction (min(K, sum))
+- **Arctic semiring**: addition for conjunction, maximum for disjunction (dual of Tropical)
+- **Bottleneck-cost semiring**: maximum for conjunction, minimum for disjunction (worst-case path)
 
 **Cost Aggregation** (Monoid-dependent): Extension cost computed from discarded attacks:
 - **Max monoid**: maximum discarded attack weight (original WABA)
@@ -249,27 +394,32 @@ WABA/
 ├── README.md                    # Quick start guide
 ├── CLAUDE.md                    # Instructions for Claude Code
 ├── core/                        # Core argumentation logic
-│   ├── base.lp                  # Semiring/monoid-independent base logic
-│   └── legacy.lp                # Original monolithic core (deprecated)
+│   └── base.lp                  # Modular semiring/monoid-independent core
 ├── filter/                      # Output filtering modules
 │   ├── standard.lp              # Standard output filtering
-│   ├── lexicographic.lp         # Lexicographic monoid filtering (shows all 3 components)
-│   └── projection.lp            # Projection mode filtering (for stable semantics)
+│   ├── projection.lp            # Projection mode filtering (for stable semantics)
+│   └── lexicographic.lp         # Lexicographic monoid filtering
 ├── optimize/                    # Cost optimization modules
 │   ├── minimize.lp              # Minimize extension_cost (for max/sum/count monoids)
 │   ├── maximize.lp              # Maximize extension_cost (for min monoid)
-│   └── lexicographic.lp         # Lexicographic optimization (for lex monoid)
+│   └── lexicographic.lp         # Lexicographic optimization
 ├── semiring/                    # Weight propagation modules
-│   ├── godel.lp                 # Gödel/Fuzzy logic (min/max, identity=100) - original WABA
-│   ├── lukasiewicz.lp           # Łukasiewicz t-norm (bounded sum conjunction)
-│   ├── tropical.lp              # Tropical semiring (min/+, identity=#sup)
-│   └── bottleneck_cost.lp       # Bottleneck-cost semiring (max/min, path quality)
-├── monoid/                      # Cost aggregation modules
-│   ├── max.lp                   # Maximum cost - original WABA
-│   ├── sum.lp                   # Sum of costs
-│   ├── min.lp                   # Minimum cost (quality threshold semantics)
-│   ├── count.lp                 # Count of discarded attacks (weight-agnostic)
-│   └── lex.lp                   # Lexicographic (max→sum→count priority)
+│   ├── godel.lp                 # Gödel/Fuzzy logic (min/max, identity=#sup) - original WABA
+│   ├── tropical.lp              # Tropical semiring (+/min, identity=#sup)
+│   ├── lukasiewicz.lp           # Łukasiewicz t-norm (bounded sum, parametrizable K)
+│   ├── arctic.lp                # Arctic semiring (+/max, identity=0, dual of Tropical)
+│   └── bottleneck_cost.lp       # Bottleneck-cost semiring (max/min, worst-case optimization)
+├── monoid/                      # Cost aggregation (OPTIMIZED)
+│   ├── sum_minimization.lp      # Minimize sum cost - 1000x faster
+│   ├── sum_maximization.lp      # Maximize sum reward - 1000x faster
+│   ├── max_minimization.lp      # Minimize max cost - 1000x faster
+│   ├── max_maximization.lp      # Maximize max reward - 1000x faster
+│   ├── min_minimization.lp      # Minimize min cost - 1000x faster
+│   ├── min_maximization.lp      # Maximize min reward - 1000x faster
+│   ├── count_minimization.lp    # Minimize attack count - 1000x faster
+│   ├── count_maximization.lp    # Maximize attack count - 1000x faster
+│   ├── lex_minimization.lp      # Lexicographic minimization (max→sum→count)
+│   └── lex_maximization.lp      # Lexicographic maximization (max→sum→count)
 ├── semantics/                   # Argumentation semantics
 │   ├── stable.lp                # Stable semantics
 │   ├── cf.lp                    # Conflict-free semantics
@@ -285,9 +435,48 @@ WABA/
 │   └── test_bottleneck.lp       # Bottleneck-cost semiring smoke test
 └── docs/                        # Documentation
     ├── QUICK_REFERENCE.md       # Command quick reference
+    ├── clingo_v5_8_0_cheatsheet.md  # Clingo ASP syntax cheat sheet ⭐
     ├── SEMIRING_MONOID_COMPATIBILITY.md  # Legal combinations
+    ├── FRAMEWORK_BEST_PRACTICES.md  # Framework creation and validation best practices
     └── CLINGO_USAGE.md          # Testing patterns and clingo commands
+
+WABA_Legacy/                     # Historical reference - Pre-December 2025 aggregate-based implementation
+├── README.md                    # Legacy implementation documentation and migration guide
+├── core/legacy.lp               # Original monolithic core (aggregate-based)
+├── monoid/                      # Old aggregate-based monoids (1000x slower)
+│   ├── max.lp, sum.lp, min.lp, count.lp
+├── semiring/                    # Same semirings (Gödel, Tropical, Łukasiewicz)
+├── filter/standard.lp           # Output filtering
+├── semantics/                   # Same semantics (stable, cf)
+└── examples/medical.lp          # Example framework
+
+waba-playground/                 # ⚠️ CRITICAL: Web-based WABA implementation (DO NOT DUPLICATE)
+├── index.html                   # Main application structure
+├── app.js                       # Complete application logic (Clingo WASM + vis.js)
+├── style.css                    # Dark theme styling
+├── examples.js                  # Example WABA frameworks
+├── clingo.wasm                  # Clingo WebAssembly binary
+├── clingo.web.js                # Clingo WASM loader
+├── clingo.web.worker.js         # Clingo Web Worker
+└── README.md                    # Web implementation documentation
 ```
+
+## Historical Implementation (WABA_Legacy/)
+
+The original aggregate-based implementation (pre-December 2025) has been moved to `WABA_Legacy/` for historical reference.
+
+**Legacy vs Current**:
+- **Legacy**: Aggregate-based `extension_cost/1`, monolithic core, 1000x slower optimization
+- **Current**: Weak constraint-based, modular core, 53-54% fewer timeouts
+
+**When to use WABA_Legacy/**:
+- Backward compatibility with existing workflows
+- Performance comparison benchmarking
+- Historical research reference
+
+**For production use**: Always use the current WABA/ implementation.
+
+See `WABA_Legacy/README.md` for detailed migration guide and performance comparison.
 
 ## Understanding Core Logic
 
@@ -333,20 +522,22 @@ defeated(X) :- attacks_successfully_with_weight(_,X,_).
 
 Define `supported_with_weight/2` for weight propagation.
 
-**Tropical semiring** (tropical.lp) - Original WABA:
+**Gödel semiring** (godel.lp) - Original WABA:
 ```prolog
-supported_with_weight(X,#sup) :- assumption(X), in(X).  % Identity: infinity
+supported_with_weight(X,#sup) :- assumption(X), in(X).  % Identity: #sup
 supported_with_weight(X,W) :- supported(X), weight(X,W).
 supported_with_weight(X,W) :- supported(X), head(R,X),
     W = #min{ V, B : body(R,B), supported_with_weight(B,V) }.  % Conjunction: min
 ```
 
-**Gödel semiring** (godel.lp):
+**Tropical semiring** (tropical.lp):
 ```prolog
-supported_with_weight(X,100) :- assumption(X), in(X).  % Identity: 100
+supported_with_weight(X,#sup) :- assumption(X), in(X).  % Identity: #sup
 supported_with_weight(X,W) :- supported(X), weight(X,W).
-supported_with_weight(X,W) :- supported(X), head(R,X),
-    W = #min{ V, B : body(R,B), supported_with_weight(B,V) }.  % Conjunction: min
+rule_derivation_weight(R,X,W) :- head(R,X), supported(X), body(R,_),
+    W = #sum{ V,B : body(R,B), supported_with_weight(B,V) }.  % Conjunction: + (sum)
+supported_with_weight(X,W) :- supported(X), head(_,X),
+    W = #min{ V : rule_derivation_weight(_,X,V) }.  % Disjunction: min
 ```
 
 ### 3. Monoid Modules (monoid/*.lp)
@@ -366,7 +557,9 @@ extension_cost(0) :- not discarded_attack(_,_,_).
 
 ## Clingo ASP Guidelines
 
-When editing `.lp` files, follow Answer Set Programming conventions. Key reference points from `docs/external_tools/clingo_quickref.md`:
+**IMPORTANT**: When editing `.lp` files, **ALWAYS consult** the comprehensive **[Clingo v5.8.0 Cheat Sheet](docs/clingo_v5_8_0_cheatsheet.md)** ⭐ for proper ASP syntax.
+
+**Quick reference** (see cheat sheet for complete details):
 
 - **Rules end with `.`** and comments start with `%`
 - **Variables** start with uppercase letters (e.g., `Variable`) and constants start with lowercase letters (e.g., `constant`)
@@ -428,3 +621,55 @@ To add a new semiring or monoid:
 clingo -n 0 WABA/core/base.lp WABA/semiring/<new_semiring>.lp WABA/monoid/<new_monoid>.lp \
        WABA/filter/standard.lp WABA/semantics/stable.lp WABA/examples/medical.lp
 ```
+
+
+## Budget Constraints (CRITICAL)
+
+### ⚠️ IMPORTANT: Use Monoid-Specific Constraint Files
+
+Budget constraints are in `WABA/constraint/` and are **monoid-specific**.
+
+**DO NOT use generic `ub.lp` or `lb.lp`** - they are documentation files only.
+
+**ALWAYS use:**
+- `constraint/ub_sum.lp` with SUM monoid
+- `constraint/ub_max.lp` with MAX monoid  
+- `constraint/lb_min.lp` with MIN monoid (most common for MIN)
+- `constraint/ub_count.lp` with COUNT monoid
+
+### Why Monoid-Specific?
+
+All constraints check `discarded_attack(X,Y,W)` directly. Using a generic file causes **constraint interference** - all aggregates fire simultaneously.
+
+Example: Using `ub.lp` with SUM monoid and `beta=1`:
+- SUM check: 30 > 1 → fires
+- MAX check: 20 > 1 → fires
+- MIN check: 10 > 1 → fires
+- **COUNT check: 2 > 1 → FIRES! (even though you're using SUM!)**
+
+**Solution**: Use `ub_sum.lp` which only checks SUM aggregate.
+
+### Usage Examples
+
+```bash
+# SUM monoid with upper bound
+clingo -c beta=100 WABA/core/base.lp WABA/semiring/tropical.lp \
+       WABA/monoid/sum_minimization.lp WABA/constraint/ub_sum.lp \
+       WABA/filter/standard.lp WABA/semantics/stable.lp framework.lp
+
+# MIN monoid with quality threshold (lower bound)
+clingo -c beta=10 WABA/core/base.lp WABA/semiring/tropical.lp \
+       WABA/monoid/min_minimization.lp WABA/constraint/lb_min.lp \
+       WABA/filter/standard.lp WABA/semantics/stable.lp framework.lp
+```
+
+### Quick Reference
+
+| Monoid | Typical Constraint | File | Meaning |
+|--------|-------------------|------|---------|
+| SUM | Upper bound | `ub_sum.lp` | Total cost ≤ β |
+| MAX | Upper bound | `ub_max.lp` | Worst-case ≤ β |
+| MIN | **Lower bound** | `lb_min.lp` | Quality ≥ β |
+| COUNT | Upper bound | `ub_count.lp` | # discards ≤ β |
+
+See `WABA/constraint/README.md` for complete documentation.
