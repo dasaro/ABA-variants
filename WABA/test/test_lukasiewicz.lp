@@ -7,7 +7,7 @@
 %% - d3: Insufficient support (n=2): max(0, 30+40-100) = max(0, -30) = 0
 %%
 %% Run with:
-%%   clingo -n 0 core/base.lp semiring/lukasiewicz.lp monoid/max.lp \
+%%   clingo -n 0 core/base.lp semiring/lukasiewicz.lp monoid/baseline/max.lp \
 %%          filter/standard.lp semantics/stable.lp test/test_lukasiewicz.lp
 %%
 %% Check output for:

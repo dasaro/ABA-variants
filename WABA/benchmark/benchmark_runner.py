@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 """
-WABA Benchmark Runner v5.0 - Memory-Safe Edition
+WABA Benchmark Runner v6.0 - Memory-Safe Edition (Enum + Opt)
 
 Executes clingo across framework × semiring × monoid × semantics combinations.
 
-Two modes:
-- enum: Enumerate all answer sets (memory-safe: --quiet mode, no model output, stats parsing)
-- opt: Find optimal model (--outf=2 JSON output, only optimal model printed)
+Two modes (BOTH memory-safe now):
+- enum: Enumerate all answer sets (--quiet mode, no model output, stats parsing)
+- opt: Find optimal model (--quiet mode, text/stats parsing, NO JSON)
 
 Features:
-- Memory-safe enum mode: --quiet=1,1,2 prevents printing models, avoids OOM
+- Memory-safe enum AND opt modes: --quiet=1,1,2 prevents printing models, avoids OOM
+- Text-based optimization parsing: parse "Optimization:" from stats, not JSON
+- Ultra-robust timeout: multiple SIGKILL attempts, process group killing, 5s hard cleanup
+- Write-to-disk pattern: save full results to JSON files, return tiny summaries
 - Chunked execution: recycle workers every N runs to prevent memory leaks
 - Reproducible + resumable (run_id hashing, skip existing runs)
-- Aggressive timeout handling with process group killing
 - Full provenance tracking + detailed progress reporting
 """
 
@@ -159,118 +161,44 @@ def load_existing_run_ids(results_file: Path) -> Set[str]:
     return run_ids
 
 
-def aggressive_kill_process_group(process: subprocess.Popen, max_attempts: int = 10) -> Tuple[bool, Optional[str]]:
-    """
-    ULTRA-AGGRESSIVE process termination with immediate SIGKILL and multiple fallback strategies.
+def kill_process_group_aggressive(pgid: int, max_attempts: int = 5) -> bool:
+    """Kill a process group using multiple SIGKILL attempts.
+
+    Ported from executor_robust.py for ultra-robust timeout enforcement.
 
     Args:
-        process: The subprocess.Popen object to kill
-        max_attempts: Number of SIGKILL attempts per strategy (default: 10)
+        pgid: Process group ID to kill
+        max_attempts: Maximum SIGKILL attempts (default: 5)
 
     Returns:
-        (success: bool, diagnostic: Optional[str])
+        True if process group killed, False otherwise
     """
-    if platform.system() == 'Windows':
-        # Windows: immediate repeated kills
-        for i in range(max_attempts):
+    for attempt in range(max_attempts):
+        try:
+            # Send SIGKILL to entire process group
+            os.killpg(pgid, signal.SIGKILL)
+            time.sleep(0.05 * (attempt + 1))  # Increasing delay
+
+            # Check if process group still exists
             try:
-                process.kill()
-                process.wait(timeout=0.1)
-                return (True, None)
-            except subprocess.TimeoutExpired:
-                time.sleep(0.1)
+                os.killpg(pgid, 0)  # Signal 0 checks existence
+                # If this succeeds, process group still exists
+                if attempt < max_attempts - 1:
+                    continue  # Try again
+                else:
+                    return False  # Failed after max attempts
             except ProcessLookupError:
-                return (True, None)
+                # Process group no longer exists - success!
+                return True
 
-        diagnostic = f"Windows kill failed after {max_attempts} attempts (pid={process.pid})"
-        return (False, diagnostic)
-
-    # Unix: Multi-strategy killing
-    pid = process.pid
-
-    # Check if already dead
-    try:
-        os.kill(pid, 0)  # Signal 0 = check if process exists
-    except ProcessLookupError:
-        return (True, None)  # Already dead
-    except Exception:
-        pass
-
-    # Get process group ID
-    try:
-        pgid = os.getpgid(pid)
-    except ProcessLookupError:
-        return (True, None)
-    except Exception:
-        pgid = None  # Fallback if we can't get pgid
-
-    # STRATEGY 1: Immediate SIGKILL to process group (skip SIGTERM - no mercy)
-    if pgid is not None:
-        for i in range(max_attempts):
-            try:
-                os.killpg(pgid, signal.SIGKILL)
-            except ProcessLookupError:
-                return (True, None)
-            except Exception:
-                pass  # Try other strategies
-
-            time.sleep(0.05)  # Shorter wait
-
-            # Check if dead
-            try:
-                os.getpgid(pid)
-            except ProcessLookupError:
-                return (True, None)
-
-    # STRATEGY 2: Direct SIGKILL to main process (bypass process group)
-    for i in range(max_attempts):
-        try:
-            os.kill(pid, signal.SIGKILL)
         except ProcessLookupError:
-            return (True, None)
-        except Exception:
-            pass
+            # Process group already dead
+            return True
+        except PermissionError:
+            # Can't kill (shouldn't happen for our own processes)
+            return False
 
-        time.sleep(0.05)
-
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
-            return (True, None)
-
-    # STRATEGY 3: Python's process.kill() as last resort
-    for i in range(max_attempts):
-        try:
-            process.kill()
-        except ProcessLookupError:
-            return (True, None)
-        except Exception:
-            pass
-
-        time.sleep(0.05)
-
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
-            return (True, None)
-
-    # STRATEGY 4: Nuclear option - kill entire process group with different signals
-    if pgid is not None:
-        for sig in [signal.SIGKILL, signal.SIGTERM, signal.SIGKILL]:
-            try:
-                os.killpg(pgid, sig)
-                time.sleep(0.1)
-            except:
-                pass
-
-        try:
-            os.getpgid(pid)
-        except ProcessLookupError:
-            return (True, None)
-
-    # Failed all strategies
-    diagnostic = f"ULTRA-KILL FAILED: Process {pid} (pgid={pgid}) survived {max_attempts * 4} kill attempts across 4 strategies"
-    return (False, diagnostic)
+    return False
 
 
 def truncate_output(text: str, max_bytes: int = 8192) -> str:
@@ -338,6 +266,33 @@ def parse_stats_output(output: str, max_parse_bytes: int = 16384) -> Tuple[Optio
     return models_found, grounding_time_ms, solving_time_ms, atoms, rules
 
 
+def parse_optimization_from_stats(output: str, max_parse_bytes: int = 16384) -> Optional[List[int]]:
+    """
+    Parse optimization values from clingo stats output.
+
+    Looks for "Optimization : 42" or "Optimization : 10 5 3" in stats.
+
+    Returns: List of optimization values (multi-criteria support), or None if not found
+    """
+    # Only parse the tail (stats are at the end)
+    if len(output) > max_parse_bytes:
+        output = output[-max_parse_bytes:]
+
+    for line in output.split('\n'):
+        line = line.strip()
+        # Optimization line: "Optimization : 42" or "Optimization : 10 5 3"
+        if line.startswith('Optimization'):
+            try:
+                values_str = line.split(':', 1)[1].strip()
+                # Parse all values (multi-criteria support)
+                values = [int(v) for v in values_str.split()]
+                return values if values else None
+            except (ValueError, IndexError):
+                pass
+
+    return None
+
+
 def execute_single_run(config: RunConfiguration, provenance: Dict[str, str]) -> RunResult:
     """Execute a single clingo run with timeout and memory-safe output handling."""
     run_id = config.compute_run_id()
@@ -347,15 +302,11 @@ def execute_single_run(config: RunConfiguration, provenance: Dict[str, str]) -> 
     cmd = ['clingo']
 
     # MODE-DEPENDENT OUTPUT CONFIGURATION
-    # ENUM MODE: Suppress model printing to avoid OOM (models can be huge)
-    # OPT MODE: Use JSON output (only optimal models are printed, small output)
-    if config.mode == 'enum':
-        # --quiet=1,1,2 prevents printing models even when enumerating
-        # --stats=2 enables detailed statistics output
-        cmd.extend(['--stats=2', '--quiet=1,1,2'])
-    else:  # opt mode
-        # JSON output for parsing optimal model
-        cmd.extend(['--outf=2', '--stats=2'])
+    # BOTH MODES: Suppress model printing to avoid OOM
+    # - enum mode: Can enumerate millions of models, printing causes OOM
+    # - opt mode: Even single optimal model JSON can be huge (70+ runs before OOM!)
+    # SOLUTION: Use --quiet=1,1,2 for both modes, parse stats text instead of JSON
+    cmd.extend(['--stats=2', '--quiet=1,1,2'])
 
     # Add timeout (clingo's internal timeout)
     cmd.append(f'--time-limit={config.timeout_seconds}')
@@ -386,14 +337,15 @@ def execute_single_run(config: RunConfiguration, provenance: Dict[str, str]) -> 
 
     try:
         # MEMORY-SAFE SUBPROCESS HANDLING
-        # Both modes capture stdout and stderr, but handle differently
-        # Start process in new process group for killability
+        # Start process in new process group for ultra-robust killability
+        # Use os.setpgrp (ported from executor_robust.py) instead of os.setsid
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            preexec_fn=os.setsid  # Create new process group
+            preexec_fn=os.setpgrp,  # Create new process group (more robust than setsid)
+            start_new_session=True  # Additional isolation
         )
 
         try:
@@ -401,17 +353,38 @@ def execute_single_run(config: RunConfiguration, provenance: Dict[str, str]) -> 
             returncode = process.returncode
             wall_time_ms = (time.time() - wall_start) * 1000
 
-        except subprocess.TimeoutExpired:
-            # Aggressive kill with repeated SIGKILL attempts
-            kill_success, kill_diagnostic = aggressive_kill_process_group(process)
+        except subprocess.TimeoutExpired as e:
+            timed_out = True
+            cleanup_start = time.time()
 
-            # Collect remaining output (may be partial)
+            # ULTRA-ROBUST TIMEOUT ENFORCEMENT (ported from executor_robust.py)
+            # Strategy 1: Multiple SIGKILL attempts to process group
             try:
-                stdout, stderr = process.communicate(timeout=1)
+                pgid = os.getpgid(process.pid)
+                kill_success = kill_process_group_aggressive(pgid, max_attempts=5)
+            except (ProcessLookupError, PermissionError):
+                kill_success = True  # Process already dead
+
+            # Strategy 2: Wait with hard timeout (prevent infinite cleanup)
+            try:
+                process.wait(timeout=5.0)  # Hard 5s limit on cleanup
             except subprocess.TimeoutExpired:
-                # Still hanging, force communicate
-                process.kill()
-                stdout, stderr = process.communicate()
+                # Process STILL not dead after SIGKILL + 5s
+                # Force-abandon it and log warning
+                kill_success = False
+
+            # Try to get partial output
+            try:
+                stdout = e.stdout.decode('utf-8') if e.stdout else ""
+                stderr = e.stderr.decode('utf-8') if e.stderr else ""
+            except Exception:
+                stdout = ""
+                stderr = ""
+
+            # Verify cleanup time didn't exceed limit
+            cleanup_elapsed = time.time() - cleanup_start
+            if cleanup_elapsed > 5.5:
+                stderr += f"\nWARNING: Cleanup took {cleanup_elapsed:.1f}s (>5s limit)"
 
             returncode = -1
             wall_time_ms = (time.time() - wall_start) * 1000
@@ -424,7 +397,7 @@ def execute_single_run(config: RunConfiguration, provenance: Dict[str, str]) -> 
             else:
                 # Kill failed - record special status
                 status = 'timeout_kill_failed'
-                error_msg = kill_diagnostic
+                error_msg = f"Process {process.pid} (pgid={pgid if 'pgid' in locals() else 'unknown'}) survived SIGKILL for 5+ seconds"
                 stderr_snippet = truncate_output(stderr) if stderr else None
 
             # Free memory immediately
@@ -525,158 +498,32 @@ def execute_single_run(config: RunConfiguration, provenance: Dict[str, str]) -> 
             timestamp_end=timestamp_end
         )
 
-    # MODE-DEPENDENT PARSING
-    if config.mode == 'enum':
-        # ENUM MODE: Parse stats from stdout (--quiet mode output still goes to stdout)
-        try:
-            models_found_parsed, grounding_time_ms, solving_time_ms, atoms, rules = parse_stats_output(stdout)
+    # UNIFIED TEXT/STATS PARSING (for both enum and opt modes)
+    # Both modes now use --quiet mode, so we parse stats text instead of JSON
+    try:
+        # Parse basic stats (models, timing, grounding)
+        models_found_parsed, grounding_time_ms, solving_time_ms, atoms, rules = parse_stats_output(stdout)
 
-            # Determine status from returncode
-            # Note: Clingo returns 30 (OPTIMUM) even with --opt-mode=ignore if weak constraints present
-            if returncode == 10 or returncode == 30:  # SAT or OPTIMUM (treat as SAT in enum mode)
-                status = 'sat'
-            elif returncode == 20:
-                status = 'unsat'
-            else:
-                status = 'unknown'
-
-            # Use parsed model count or default to 0
-            models_found = models_found_parsed if models_found_parsed is not None else 0
-
-            # No optimum in enum mode
-            optimum = None
-
-            # Free memory
-            stdout = None
-            stderr = None
-            gc.collect()
-
-            return RunResult(
-                run_id=run_id,
-                instance_id=config.instance_id,
-                semiring=config.semiring,
-                monoid=config.monoid,
-                semantics=config.semantics,
-                mode=config.mode,
-                opt_direction=config.opt_direction,
-                status=status,
-                wall_time_ms=wall_time_ms,
-                grounding_time_ms=grounding_time_ms,
-                solving_time_ms=solving_time_ms,
-                optimum=optimum,
-                models_found=models_found,
-                atoms=atoms,
-                rules=rules,
-                error_message=None,
-                stderr_snippet=None,
-                **provenance,
-                clingo_command=clingo_command,
-                timestamp_start=timestamp_start,
-                timestamp_end=timestamp_end
-            )
-
-        except Exception as e:
-            # Stats parsing failed - return error with truncated stderr
-            stderr_tail = truncate_output(stderr) if stderr else None
-            stdout = None
-            stderr = None
-            gc.collect()
-
-            return RunResult(
-                run_id=run_id,
-                instance_id=config.instance_id,
-                semiring=config.semiring,
-                monoid=config.monoid,
-                semantics=config.semantics,
-                mode=config.mode,
-                opt_direction=config.opt_direction,
-                status='error',
-                wall_time_ms=wall_time_ms,
-                grounding_time_ms=None,
-                solving_time_ms=None,
-                optimum=None,
-                models_found=0,
-                atoms=None,
-                rules=None,
-                error_message=f'Stats parsing error: {e}',
-                stderr_snippet=stderr_tail,
-                **provenance,
-                clingo_command=clingo_command,
-                timestamp_start=timestamp_start,
-                timestamp_end=timestamp_end
-            )
-
-    else:
-        # OPT MODE: Parse JSON from stdout
-        try:
-            output_data = json.loads(stdout)
-        except json.JSONDecodeError as e:
-            # JSON parse error - truncate and free
-            stdout_tail = truncate_output(stdout) if stdout else None
-            stdout = None
-            stderr = None
-            gc.collect()
-
-            return RunResult(
-                run_id=run_id,
-                instance_id=config.instance_id,
-                semiring=config.semiring,
-                monoid=config.monoid,
-                semantics=config.semantics,
-                mode=config.mode,
-                opt_direction=config.opt_direction,
-                status='error',
-                wall_time_ms=wall_time_ms,
-                grounding_time_ms=None,
-                solving_time_ms=None,
-                optimum=None,
-                models_found=0,
-                atoms=None,
-                rules=None,
-                error_message=f'JSON parse error: {e}',
-                stderr_snippet=stdout_tail,
-                **provenance,
-                clingo_command=clingo_command,
-                timestamp_start=timestamp_start,
-                timestamp_end=timestamp_end
-            )
-
-        # Extract result fields
-        call_data = output_data.get('Call', [{}])[0] if 'Call' in output_data else {}
-
-        # Status
-        result_str = output_data.get('Result', 'UNKNOWN')
-        if result_str == 'SATISFIABLE':
+        # Determine status from returncode
+        # Note: Clingo returns 30 (OPTIMUM) even with --opt-mode=ignore if weak constraints present
+        if returncode == 10:  # SAT
             status = 'sat'
-        elif result_str == 'UNSATISFIABLE':
+        elif returncode == 20:  # UNSAT
             status = 'unsat'
-        elif result_str == 'OPTIMUM FOUND':
-            status = 'optimal'
+        elif returncode == 30:  # OPTIMUM
+            status = 'optimal' if config.mode == 'opt' else 'sat'
         else:
             status = 'unknown'
 
-        # Models found
-        models_found = len(call_data.get('Witnesses', []))
+        # Use parsed model count or default to 0
+        models_found = models_found_parsed if models_found_parsed is not None else 0
 
-        # Optimum (if optimization)
+        # Parse optimization values (opt mode only)
         optimum = None
-        if models_found > 0:
-            last_witness = call_data.get('Witnesses', [])[-1]
-            if 'Costs' in last_witness:
-                optimum = last_witness['Costs']
+        if config.mode == 'opt' and status == 'optimal':
+            optimum = parse_optimization_from_stats(stdout)
 
-        # Timing (from stats if available)
-        stats = output_data.get('Stats', {})
-        times = stats.get('Times', {})
-        grounding_time_ms = times.get('Grounding', 0.0) * 1000 if 'Grounding' in times else None
-        solving_time_ms = times.get('Solving', 0.0) * 1000 if 'Solving' in times else None
-
-        # Grounding stats
-        problem_stats = stats.get('Problem', {})
-        atoms = problem_stats.get('Atoms', None)
-        rules = problem_stats.get('Rules', {}).get('Original', None) if 'Rules' in problem_stats else None
-
-        # Free large output strings from memory
+        # Free memory
         stdout = None
         stderr = None
         gc.collect()
@@ -699,6 +546,37 @@ def execute_single_run(config: RunConfiguration, provenance: Dict[str, str]) -> 
             rules=rules,
             error_message=None,
             stderr_snippet=None,
+            **provenance,
+            clingo_command=clingo_command,
+            timestamp_start=timestamp_start,
+            timestamp_end=timestamp_end
+        )
+
+    except Exception as e:
+        # Stats parsing failed - return error with truncated stderr
+        stderr_tail = truncate_output(stderr) if stderr else None
+        stdout = None
+        stderr = None
+        gc.collect()
+
+        return RunResult(
+            run_id=run_id,
+            instance_id=config.instance_id,
+            semiring=config.semiring,
+            monoid=config.monoid,
+            semantics=config.semantics,
+            mode=config.mode,
+            opt_direction=config.opt_direction,
+            status='error',
+            wall_time_ms=wall_time_ms,
+            grounding_time_ms=None,
+            solving_time_ms=None,
+            optimum=None,
+            models_found=0,
+            atoms=None,
+            rules=None,
+            error_message=f'Stats parsing error: {e}',
+            stderr_snippet=stderr_tail,
             **provenance,
             clingo_command=clingo_command,
             timestamp_start=timestamp_start,

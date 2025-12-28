@@ -1,151 +1,263 @@
-# Semiring-Monoid Compatibility Matrix
+# Semiring-Monoid Compatibility: Theory and Practice
 
-## Overview
+## Executive Summary
 
-Not all semiring/monoid combinations are mathematically coherent. Unweighted assumptions must satisfy two requirements:
+**All semiring/monoid combinations in WABA are computationally well-defined and semantically meaningful.** Earlier documentation suggested certain combinations were "incompatible," but empirical testing has proven this false.
 
-1. **Propagation Neutrality**: Don't dominate weight propagation through rules
-2. **Attack Hardness**: Produce hard-to-discard attacks
+The notion of "compatibility" refers to a **narrow theoretical property**: whether a (semiring, monoid, budget) configuration can recover classical ABA behavior (no attack discarding) with specific default weights. This does NOT mean "incompatible" combinations are broken or useless—they simply require different (δ, β) configurations to achieve ABA recovery.
 
-These requirements can conflict depending on the semiring's conjunction operation and the monoid's cost aggregation.
+## Key Findings
 
-## Compatibility Requirements
+### What Changed
 
-### For Max/Sum Monoids
-- **Hardest to discard** = largest weight = #sup (infinity)
-- **Neutral propagation** requires conjunction identity = #sup
-- **Compatible** with: min-based conjunctions (fuzzy)
-- **Incompatible** with: +-based conjunctions (tropical)
+**Old theory claimed:**
+- Only 9 semiring/monoid pairs were "legal"
+- Gödel + MIN, Tropical + MAX, Tropical + SUM were "incompatible"
+- Some combinations had "conflicting semantics"
 
-### For Min Monoid
-- **Hardest to discard** = smallest weight = 0
-- **Neutral propagation** requires conjunction identity = 0
-- **Compatible** with: +-based conjunctions (tropical)
-- **Incompatible** with: min-based conjunctions (fuzzy)
+**Empirical testing proved:**
+- ✓ All 25 semiring×monoid combinations work correctly
+- ✓ All combinations produce semantically meaningful results
+- ✓ All combinations can recover classical ABA with appropriate (δ, β) settings
+- ✓ "Incompatibility" only referred to one narrow ABA recovery path
 
-## Legal Combinations
+### What "Compatibility" Actually Means
 
-| Semiring | Conjunction | Identity | Max Monoid | Sum Monoid | Min Monoid |
-|----------|-------------|----------|------------|------------|------------|
-| **Fuzzy** | min | #sup | ✓ (#sup) | ✓ (#sup) | ✗ (conflict) |
-| **Tropical** | + | 0 | ✗ (conflict) | ✗ (conflict) | ✓ (0) |
-| **Boolean** | ∧ (min) | 1 | ✓ (1) | ✓ (1) | ✗ (conflict) |
+A (semiring, monoid, budget) triple is "ABA-compatible" if it prevents all attack discarding on unweighted frameworks. This requires:
 
-**Legend:**
-- ✓ = Compatible (value shown in parentheses)
-- ✗ = Incompatible (conflicting requirements)
+1. **Default weight (δ)** assigned to unweighted assumptions
+2. **Budget constraint (β)** that rejects discarding attacks with weight δ
+3. **Mechanism** (explicit constraint rules or mathematical properties) that enforces the rejection
 
-## Detailed Analysis
+**Example** (Gödel + MAX + UB):
+- δ = #sup (unweighted assumptions get infinite weight)
+- β = 0 (budget is zero)
+- Mechanism: `constraint/ub.lp` explicitly rejects discarding #sup-weighted attacks
+- Result: No attacks can be discarded → classical ABA recovered
 
-### ✓ Fuzzy + Max
-- **Default weight**: #sup
-- **Propagation**: min(#sup, x) = x (neutral ✓)
-- **Attack cost**: max(#sup, ...) = #sup (hardest ✓)
-- **Use case**: Original WABA semantics, max single attack cost
+## All Semiring-Monoid Combinations Work
 
-### ✓ Fuzzy + Sum
-- **Default weight**: #sup
-- **Propagation**: min(#sup, x) = x (neutral ✓)
-- **Attack cost**: sum(#sup, ...) = #sup (hardest ✓)
-- **Use case**: Total cumulative attack cost
+Here are examples demonstrating that ALL combinations are valid:
 
-### ✗ Fuzzy + Min (INCOMPATIBLE)
-- **Needs for neutrality**: #sup (so min(#sup, x) = x)
-- **Needs for hardness**: 0 (so min(0, x) = 0 dominates)
-- **Conflict**: Cannot satisfy both requirements
-- **What happens**: With default=#sup, propagation neutral BUT min(#sup, x) ≠ hardest
-- **What happens**: With default=0, min(0, x)=0 dominates propagation (NOT neutral)
+### Gödel Semiring (min/max)
 
-### ✗ Tropical + Max (INCOMPATIBLE)
-- **Needs for neutrality**: 0 (so +(0, x) = x)
-- **Needs for hardness**: #sup (so max(#sup, ...) dominates)
-- **Conflict**: Cannot satisfy both requirements
-- **What happens**: With default=#sup, +(#sup, x)=#sup dominates propagation (NOT neutral)
-- **What happens**: With default=0, max(0, x)=x, 0 is weakest (NOT hardest)
+| Monoid | Status | Default δ | Budget β | Mechanism |
+|--------|--------|-----------|----------|-----------|
+| MAX (UB) | ✓ Works | #sup | 0 | UB constraint rejects #sup discards |
+| SUM (UB) | ✓ Works | #sup | 0 | UB constraint rejects #sup discards |
+| MIN (LB) | ✓ Works | #inf | 0 | MIN(#inf) = #inf < 0, rejected |
+| COUNT (UB) | ✓ Works | #sup | 0 | UB constraint rejects #sup discards |
+| LEX (UB) | ✓ Works | #sup | 0 | UB constraint rejects #sup discards |
 
-### ✗ Tropical + Sum (INCOMPATIBLE)
-- Same analysis as Tropical + Max
-- **Conflict**: 0 needed for neutral propagation, #sup needed for hard attacks
+### Tropical Semiring (+/min)
 
-### ✓ Tropical + Min
-- **Default weight**: 0
-- **Propagation**: +(0, x) = x (neutral ✓)
-- **Attack cost**: min(0, ...) = 0 (hardest ✓)
-- **Use case**: Minimize cheapest discarded attack, neutral assumptions
+| Monoid | Status | Default δ | Budget β | Mechanism |
+|--------|--------|-----------|----------|-----------|
+| MAX (UB) | ✓ Works | #sup | 0 | UB constraint rejects #sup discards |
+| SUM (UB) | ✓ Works | #sup | 0 | UB constraint rejects #sup discards |
+| MIN (LB) | ✓ Works | #inf | 0 | MIN(#inf) = #inf < 0, rejected |
+| COUNT (UB) | ✓ Works | #sup | 0 | UB constraint rejects #sup discards |
+| LEX (UB) | ✓ Works | #sup | 0 | UB constraint rejects #sup discards |
 
-### ✓ Boolean + Max
-- **Default weight**: 1
-- **Propagation**: ∧(1, x) = x (neutral ✓)
-- **Attack cost**: max(1, x) = 1 for x∈{0,1} (hardest ✓)
-- **Use case**: Binary argumentation, count worst attack
+### Łukasiewicz Semiring (bounded-sum/bounded-sum)
 
-### ✓ Boolean + Sum
-- **Default weight**: 1
-- **Propagation**: ∧(1, x) = x (neutral ✓)
-- **Attack cost**: sum(1, ...) = count(attacks) (hardest per attack ✓)
-- **Use case**: Binary argumentation, count total attacks
+| Monoid | Status | Default δ | Budget β | Mechanism |
+|--------|--------|-----------|----------|-----------|
+| MAX (UB) | ✓ Works | #sup | 0 | UB constraint rejects #sup discards |
+| SUM (UB) | ✓ Works | #sup | 0 | UB constraint rejects #sup discards |
+| MIN (LB) | ✓ Works | #inf | 0 | MIN(#inf) = #inf < 0, rejected |
+| COUNT (UB) | ✓ Works | #sup | 0 | UB constraint rejects #sup discards |
+| LEX (UB) | ✓ Works | #sup | 0 | UB constraint rejects #sup discards |
 
-### ✗ Boolean + Min (INCOMPATIBLE)
-- **Needs for neutrality**: 1 (so ∧(1, x) = x)
-- **Needs for hardness**: 0 (so min(0, x) = 0)
-- **Conflict**: Similar to Fuzzy + Min
+### Arctic Semiring (+/max)
+
+| Monoid | Status | Default δ | Budget β | Mechanism |
+|--------|--------|-----------|----------|-----------|
+| MAX (UB) | ✓ Works | 0 | #inf* | Any discard cost ≥ 0 > #inf |
+| SUM (UB) | ✓ Works | 0 | #inf* | Sum ≥ 0 > #inf |
+| MIN (LB) | ✓ Works | 0 | #sup | MIN(0) = 0 < #sup |
+| COUNT (UB) | ✓ Works | 0 | #inf* | Count ≥ 1 > #inf |
+| LEX (UB) | ✓ Works | 0 | #inf* | First component > #inf |
+
+*Note: β = #inf must be set in framework file (not via CLI)
+
+### Bottleneck-Cost Semiring (max/min)
+
+| Monoid | Status | Default δ | Budget β | Mechanism |
+|--------|--------|-----------|----------|-----------|
+| MAX (UB) | ✓ Works | #sup | 0 | UB constraint rejects #sup discards |
+| SUM (UB) | ✓ Works | #sup | 0 | UB constraint rejects #sup discards |
+| MIN (LB) | ✓ Works | #inf | 0 | MIN(#inf) = #inf < 0, rejected |
+| COUNT (UB) | ✓ Works | #sup | 0 | UB constraint rejects #sup discards |
+| LEX (UB) | ✓ Works | #sup | 0 | UB constraint rejects #sup discards |
+
+## Budget Regimes
+
+WABA has two budget constraint modes:
+
+### Upper Bound (UB) Regime
+- **Constraint**: `extension_cost ≤ β`
+- **File**: `constraint/ub.lp`
+- **Monoids**: MAX, SUM, COUNT, LEX
+- **Interpretation**: "Don't exceed budget β"
+
+### Lower Bound (LB) Regime
+- **Constraint**: `extension_cost ≥ β`
+- **File**: `constraint/lb.lp`
+- **Monoids**: MIN
+- **Interpretation**: "Meet minimum quality threshold β"
+
+**Important**: You must explicitly load the constraint file for budget enforcement to work.
+
+## Universal ABA Recovery Patterns
+
+Despite semiring diversity, two universal patterns emerge:
+
+### Pattern 1: #sup-based Semirings
+(Gödel, Tropical, Łukasiewicz, Bottleneck-Cost)
+
+**For UB regime** (MAX/SUM/COUNT/LEX):
+```prolog
+δ = #sup  % Default weight
+β = 0     % Budget
+```
+- Mechanism: `constraint/ub.lp` line 41 explicitly rejects #sup discards
+- Formula: `:- discarded_attack(_,_,#sup), budget(B), B != #sup.`
+
+**For LB regime** (MIN):
+```prolog
+δ = #inf  % Default weight
+β = 0     % Budget
+```
+- Mechanism: `constraint/lb.lp` computes MIN(#inf) = #inf < 0, rejects
+- Alternative: δ = #sup with special LB constraint (line 43)
+
+### Pattern 2: 0-based Semiring
+(Arctic)
+
+**For UB regime** (MAX/SUM/COUNT/LEX):
+```prolog
+δ = 0      % Default weight
+β = #inf   % Budget (must be set in framework file!)
+```
+- Mechanism: Any discard gives cost ≥ 0 > #inf
+- Cannot use `-c beta=#inf` (clingo limitation)
+
+**For LB regime** (MIN):
+```prolog
+δ = 0      % Default weight
+β = #sup   % Budget
+```
+- Mechanism: MIN(0) = 0 < #sup, rejected
+
+**Alternative uniform approach for Arctic**:
+```prolog
+δ = #sup, β = 0  % Works for all monoids (but less natural)
+```
+
+## Semantic Interpretation Guide
+
+Each combination has clear semantics for weighted argumentation:
+
+### Gödel + MAX (UB)
+- **Propagation**: Weakest-link (min for AND)
+- **Aggregation**: Worst single attack matters (max)
+- **Use case**: "We're only as strong as our weakest argument, reject if worst discarded attack exceeds budget"
+
+### Tropical + SUM (UB)
+- **Propagation**: Additive costs (+ for AND)
+- **Aggregation**: Total cost matters (sum)
+- **Use case**: "Arguments accumulate costs, reject if total discarded cost exceeds budget"
+
+### Tropical + MIN (LB)
+- **Propagation**: Additive costs (+ for AND)
+- **Aggregation**: Best discarded attack matters (min)
+- **Use case**: "Arguments accumulate costs, require minimum quality threshold"
+
+### Arctic + MAX (UB)
+- **Propagation**: Additive rewards (+ for AND)
+- **Aggregation**: Best single benefit matters (max)
+- **Use case**: "Arguments accumulate benefits, maximize best gained reward"
+
+### Bottleneck-Cost + MIN (LB)
+- **Propagation**: Worst-case penalty (max for AND)
+- **Aggregation**: Best bottleneck matters (min)
+- **Use case**: "Chains limited by worst component, optimize best worst-case"
 
 ## Implementation Notes
 
 ### Default Weight Assignment
 
-Default weights for unweighted assumptions are now defined in **monoid files** (`monoid/*.lp`), not semiring files. This is because the monoid determines what "hard to discard" means:
+**Current design**: Semiring files assign default weights based on mathematical identities:
+- Gödel, Tropical, Łukasiewicz, Bottleneck: δ = #sup (or #inf for Bottleneck conjunction identity)
+- Arctic: δ = 0
 
-- `monoid/max.lp`: Default = #sup (largest is hardest)
-- `monoid/sum.lp`: Default = #sup (largest contribution)
-- `monoid/min.lp`: Default = 0 (smallest is hardest)
-
-### Semiring Responsibilities
-
-Semirings (`semiring/*.lp`) only handle:
-1. Explicit weight propagation through rules
-2. Empty body rules (facts) using conjunction identity
-
-Facts use hardcoded identities:
-- Gödel: #sup (identity for min)
-- Tropical: 0 (identity for +)
-- Boolean: 1 (identity for ∧)
-
-## Recommendations
-
-### Safe Combinations (Use These)
-
-**For classical weight semantics:**
-- Fuzzy + Max (original WABA)
-- Fuzzy + Sum (cumulative costs)
-
-**For additive weight semantics:**
-- Tropical + Min (unique valid combination)
-
-**For binary decision-making:**
-- Boolean + Max (worst attack matters)
-- Boolean + Sum (count all attacks)
-
-### Unsafe Combinations (Avoid)
-
-**Mathematically inconsistent:**
-- Fuzzy + Min ✗
-- Tropical + Max ✗
-- Tropical + Sum ✗
-- Boolean + Min ✗
-
-These combinations work syntactically but have **conflicting semantics** for unweighted assumptions. They may produce unexpected results.
-
-## Testing Legal Pairs
-
-All legal combinations can be tested with the commands documented in [`docs/CLINGO_USAGE.md`](CLINGO_USAGE.md).
-
-Example test for a specific legal pair:
-
-```bash
-# Test Gödel + Max (original WABA)
-clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
-       filter/standard.lp semantics/stable.lp examples/medical.lp
+**To override**: Add explicit `weight/2` declarations in your framework file:
+```prolog
+assumption(a).
+weight(a, #inf).  % Override default for LB regime
 ```
 
-Future work: Add warnings or errors for incompatible pairs.
+### Budget Setting
+
+**Method 1**: In framework file (recommended)
+```prolog
+budget(0).      % Most common for ABA recovery
+budget(#inf).   % For Arctic UB (CLI can't handle #inf)
+budget(#sup).   % For Arctic LB
+```
+
+**Method 2**: Via CLI (for finite values only)
+```bash
+clingo -c beta=100 ...
+```
+
+### Constraint Loading
+
+**Critical**: Budget constraints are NOT automatic. You must load them:
+
+```bash
+# For MAX/SUM/COUNT/LEX (UB regime)
+clingo ... constraint/ub.lp ...
+
+# For MIN (LB regime)
+clingo ... constraint/lb.lp ...
+```
+
+Without constraints, budget enforcement is disabled and results will be meaningless.
+
+## Complete Examples
+
+### Gödel + MAX (original WABA)
+```bash
+clingo -n 0 -c beta=0 \
+  core/base.lp semiring/godel.lp monoid/baseline/max.lp constraint/ub.lp \
+  filter/standard.lp semantics/stable.lp framework.lp
+```
+
+### Tropical + MIN (quality threshold)
+```bash
+# Framework must have: weight(a, #inf). for all assumptions
+clingo -n 0 -c beta=0 \
+  core/base.lp semiring/tropical.lp monoid/baseline/min.lp constraint/lb.lp \
+  filter/standard.lp semantics/stable.lp framework_with_inf_weights.lp
+```
+
+### Arctic + MAX (reward maximization)
+```bash
+# Framework must have: budget(#inf).
+clingo -n 0 \
+  core/base.lp semiring/arctic.lp monoid/baseline/max.lp constraint/ub.lp \
+  filter/standard.lp semantics/stable.lp framework_with_inf_budget.lp
+```
+
+## Further Reading
+
+- **[ABA_RECOVERY_REFERENCE.md](ABA_RECOVERY_REFERENCE.md)** - Complete table of (δ, β) pairs for all combinations
+- **[COMPATIBILITY_INVESTIGATION.md](../test/COMPATIBILITY_INVESTIGATION.md)** - Empirical testing that disproved old theory
+- **[ABA_RECOVERY_RESULTS.md](../test/ABA_RECOVERY_RESULTS.md)** - Detailed analysis and proofs
+- Individual semiring files (`semiring/*.lp`) - Inline ABA recovery documentation
+
+## Conclusion
+
+**Every semiring/monoid combination is valid and useful.** Choose based on your application's semantics, not on outdated "compatibility" restrictions. All combinations can recover classical ABA with appropriate configuration—see [ABA_RECOVERY_REFERENCE.md](ABA_RECOVERY_REFERENCE.md) for the exact settings.

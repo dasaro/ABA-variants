@@ -14,7 +14,7 @@
 %% - impact_b: max(40, 15+25) = max(40, 40) = 40 (two paths, both equal)
 %%
 %% Run with:
-%%   clingo -n 0 core/base.lp semiring/arctic.lp monoid/max.lp \
+%%   clingo -n 0 core/base.lp semiring/arctic.lp monoid/baseline/max.lp \
 %%          filter/standard.lp semantics/stable.lp test/test_arctic.lp
 %%
 %% Check output for:

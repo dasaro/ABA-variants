@@ -22,6 +22,27 @@
 %% - Quality control: Reject batch if ANY component exceeds defect threshold (max)
 %% - Security: System vulnerability = worst component vulnerability (max)
 %% - Logistics: Route cost = bottleneck (slowest/most expensive segment)
+
+%% =============================================
+%% CLASSICAL ABA RECOVERY (No Discarding)
+%% =============================================
+%%
+%% To recover plain unweighted ABA behavior with this semiring:
+%%
+%% UPPER BOUND REGIME (MAX, SUM, COUNT, LEX monoids):
+%%   δ = #sup     (default weight for unweighted assumptions)
+%%   β = 0        (budget value)
+%%   Mechanism: constraint/ub.lp explicitly rejects discarding #sup-weighted attacks
+%%
+%% LOWER BOUND REGIME (MIN monoid):
+%%   δ = #inf     (default weight for unweighted assumptions)
+%%   β = 0        (budget value)
+%%   Mechanism: MIN(#inf) = #inf < 0, rejected by constraint/lb.lp
+%%   Alternative: δ = #sup with special constraint rejection
+%%
+%% CURRENT IMPLEMENTATION: δ = #sup (see line ~60 below)
+%% This enables ABA recovery for UB monoids with β = 0.
+%% For LB monoids, use δ = #inf by setting all assumption weights explicitly.
 %%
 %% Comparison to Tropical:
 %% - Tropical (+/min): Minimize SUM of costs (total cost matters)
@@ -53,7 +74,9 @@
 %% should assign #sup as default weight (monoid/*.lp files handle this).
 
 %% Assumptions with explicit weights
-supported_with_weight(X,W) :- assumption(X), in(X), weight(X,W).
+%% FLAT-WABA: assumption is not a rule head
+%% NON-FLAT-WABA: if assumption is also a rule head, weight is computed below via rule derivation
+supported_with_weight(X,W) :- assumption(X), in(X), weight(X,W), not head(_,X).
 
 %% Assumptions without explicit weights: Use multiplicative identity (#inf)
 %% For Bottleneck-cost semiring, unweighted assumptions get #inf (zero cost)
@@ -63,7 +86,10 @@ supported_with_weight(X,W) :- assumption(X), in(X), weight(X,W).
 %%
 %% NOTE: This is the MULTIPLICATIVE identity (neutral for conjunction).
 %% For "hard to discard" semantics, monoids assign #sup as default weight.
-supported_with_weight(X,#inf) :- assumption(X), in(X), not weight(X,_).
+%%
+%% FLAT-WABA: assumption is not a rule head
+%% NON-FLAT-WABA: if assumption is also a rule head, weight is computed below via rule derivation
+supported_with_weight(X,#inf) :- assumption(X), in(X), not weight(X,_), not head(_,X).
 
 %% Step 1: Compute weight for each rule derivation using conjunction (maximum)
 %% For rule R deriving X: take MAXIMUM weight among all body elements (bottleneck)
@@ -95,11 +121,41 @@ rule_derivation_weight(R,X,#sup) :-
     not body(R,_).
 
 %% Step 2: Combine multiple derivations using disjunction (minimum)
-%% The weight of X is the MINIMUM across all its rule derivations
-%% AND any explicit weight (OR semantics: explicit weight is another "derivation")
-%% Interpretation: Multiple derivation paths → take cheapest/lowest-cost path
+%% IMPORTANT: Use DISJUNCTION OPERATOR (⊕) to combine weights from different paths:
+%% - Multiple rule derivations are combined via ⊕
+%% - Explicit weight is another "path" to support, combined via ⊕
+%% - For Bottleneck-cost semiring: ⊕ = min (choose cheapest/lowest-cost path)
+%%
+%% SEMANTICS: Explicit weight + derived weight represent ALTERNATIVE support paths.
+%% The actual weight is their DISJUNCTION, not conjunction or override.
+%%
+%% Example: If X has explicit weight 50 and is also derived with weight 30,
+%%          then supported_with_weight(X, min(50, 30)) = supported_with_weight(X, 30)
+%%          (the cheaper path is chosen)
 supported_with_weight(X,W) :-
     supported(X),
     head(_,X),  % X is derived (not just an assumption)
-    W = #min{ V : rule_derivation_weight(_,X,V) ;
-              V : weight(X,V) }.
+    not assumption(X),  % X is not an assumption
+    W = #min{ V,R : rule_derivation_weight(R,X,V) ;
+              V : weight(X,V) }.  % DISJUNCTION (⊕ = min for Bottleneck-cost)
+
+%% NON-FLAT-WABA: Derived assumption with explicit weight
+%% Combine rule-derived weight with explicit weight via DISJUNCTION (min)
+supported_with_weight(X,W) :-
+    assumption(X),
+    supported(X),
+    head(_,X),  % Assumption is also derived
+    weight(X,_),  % Has explicit weight
+    W = #min{ V,R : rule_derivation_weight(R,X,V) ;
+              V : weight(X,V) }.  % DISJUNCTION (⊕ = min for Bottleneck-cost)
+
+%% NON-FLAT-WABA: Derived assumption WITHOUT explicit weight, but is IN
+%% Combine rule-derived weight with default assumption weight (#inf) via DISJUNCTION (min)
+supported_with_weight(X,W) :-
+    assumption(X),
+    in(X),  % Assumption is selected
+    supported(X),
+    head(_,X),  % Assumption is also derived
+    not weight(X,_),  % No explicit weight
+    W = #min{ V,R : rule_derivation_weight(R,X,V) ;
+              #inf : true }.  % DISJUNCTION with default: min(derived, #inf) = derived

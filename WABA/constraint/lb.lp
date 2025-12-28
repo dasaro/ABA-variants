@@ -1,43 +1,51 @@
 %% WABA Lower Bound (LB) Budget Constraint
 %% =========================================
 %%
-%% Used by: MIN monoid
-%% Semantics: Accept extension iff extension_cost ≥ β (quality threshold)
-%% Constraint: Reject if extension_cost < β
+%% ⚠️  IMPORTANT: This is a DOCUMENTATION file only.
+%% ⚠️  Use the monoid-specific files instead:
 %%
-%% Default: β = #inf (infimum/-∞)
-%%   - Permissive: All extensions allowed by default
-%%   - Override with -c beta=N to set minimum quality threshold
+%%     constraint/lb_sum.lp    - For SUM monoid (total cost ≥ β)
+%%     constraint/lb_max.lp    - For MAX monoid (worst-case cost ≥ β)
+%%     constraint/lb_min.lp    - For MIN monoid (quality threshold ≥ β) ⭐ RECOMMENDED
+%%     constraint/lb_count.lp  - For COUNT monoid (number of discards ≥ β)
 %%
-%% Note: Lower values are WORSE quality (cheaper discarded attacks)
-%%       Higher values are BETTER quality (only expensive attacks discarded)
+%% WHY MONOID-SPECIFIC FILES?
+%% ==========================
+%% All constraints check discarded_attack/3 directly, which means:
+%% - If you load a generic lb.lp, ALL aggregate checks fire simultaneously
+%% - This causes constraint interference (e.g., COUNT < β rejects even when using MIN monoid)
+%% - Monoid-specific files ensure only the correct aggregate is checked
 %%
-%% Examples:
-%%   -c beta=#inf   # Explicit permissive (same as default, -∞)
-%%   -c beta=0      # Reject if any attack with cost < 0 is discarded
-%%   -c beta=10     # Reject if min(discarded attacks) < 10
-%%   (no -c beta)   # Uses default #inf (permissive)
+%% USAGE EXAMPLES
+%% ==============
+%%
+%% MIN monoid with quality threshold β=10 (most common use case):
+%%   clingo -c beta=10 core/base.lp semiring/tropical.lp monoid/min_minimization.lp \
+%%          filter/standard.lp constraint/lb_min.lp semantics/stable.lp framework.lp
+%%
+%% SUM monoid with minimum total cost β=50 (unusual):
+%%   clingo -c beta=50 core/base.lp semiring/tropical.lp monoid/sum_minimization.lp \
+%%          filter/standard.lp constraint/lb_sum.lp semantics/stable.lp framework.lp
+%%
+%% COUNT monoid with minimum 2 discarded attacks (unusual):
+%%   clingo -c beta=2 core/base.lp semiring/tropical.lp monoid/count_minimization.lp \
+%%          filter/standard.lp constraint/lb_count.lp semantics/stable.lp framework.lp
+%%
+%% SEMANTICS BY MONOID
+%% ===================
+%%
+%% SUM:   Lower bound on total cost (unusual - requires minimum spending)
+%% MAX:   Lower bound on worst-case cost (unusual - requires expensive discards)
+%% MIN:   ⭐ Quality threshold (standard - requires minimum quality floor)
+%% COUNT: Lower bound on number of discarded attacks (unusual - requires minimum discards)
+%%
+%% NOTE: Lower bounds are most commonly used with MIN monoid for quality thresholds.
+%%       Other monoids rarely need lower bounds in practice.
+%%
+%% DEFAULT BETA VALUES
+%% ===================
+%% All lb_*.lp files default to β = #inf (no minimum, permissive)
+%% Override with: -c beta=N
 
-#const beta = #inf.
-budget(beta).
-
-%% Budget constraint (quality threshold)
-%% Rejects extensions where quality (min cost) is too low
-%%
-%% Dual enforcement approach (same as UB):
-%% 1. Check extension_cost aggregate (for quality threshold)
-%% 2. Check individual discarded attacks (for detecting #sup weights)
-%%
-%% Special handling for infinities:
-%%   - #sup: Passes when used as "no discards" marker (extension_cost only)
-%%           Fails when discarding #sup-weight attacks
-%%   - #inf: Worst quality, always fails
-
-%% Standard quality threshold check (handles finite costs)
-:- extension_cost(C), C < B, budget(B).
-
-%% Reject if ANY discarded attack has weight #sup
-%% For LB (quality threshold), discarding #sup-weight attacks always fails
-%% because it's impossible to distinguish from "no discards" (both give cost #sup)
-%% This prevents extensions with discards from passing as "best quality"
-:- discarded_attack(_,_,#sup).
+%% This file intentionally contains no constraints to prevent accidental misuse.
+%% Load the appropriate monoid-specific file instead.

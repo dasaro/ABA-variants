@@ -1,11 +1,34 @@
-%% WABA Base Logic (Semiring/Monoid-Independent)
+%% WABA Base Logic (Semiring/Monoid-Independent) - GROUNDING OPTIMIZED
 %% This file contains the core argumentation logic that is independent
 %% of the choice of semiring (weight propagation) and monoid (cost aggregation).
+%%
+%% OPTIMIZATIONS APPLIED:
+%% - Added unary domain predicates to reduce grounding size
+%% - Use rule/1 consistently instead of head(R,_)
+%% - Removed redundant supported(X) joins
 
 %% Budget declaration moved to constraint files (constraint/ub.lp or constraint/lb.lp)
 
-%% Rule meta-predicate
+%% ====================
+%% DOMAIN PREDICATES
+%% ====================
+%% These unary predicates reduce grounding by avoiding repeated existential patterns
+
+%% Rule meta-predicate (R is a rule identifier)
 rule(R) :- head(R,_).
+
+%% Unary flag: X appears as some rule head
+is_head(X) :- head(_,X).
+
+%% Unary flag: R has at least one body element
+has_body(R) :- body(R,_).
+
+%% Derived atoms: heads that are not assumptions
+derived_atom(X) :- is_head(X), not assumption(X).
+
+%% ====================
+%% CORE LOGIC
+%% ====================
 
 %% Assumption choice: each assumption is either in or out
 in(X) :- assumption(X), not out(X).
@@ -19,12 +42,14 @@ supported(X) :- assumption(X), in(X).
 supported(X) :- head(R,X), triggered_by_in(R).
 
 %% A rule is triggered when all its body elements are supported
-triggered_by_in(R) :- head(R,_), supported(X) : body(R,X).
+%% OPTIMIZED: Use rule(R) instead of head(R,_) for domain
+triggered_by_in(R) :- rule(R), supported(X) : body(R,X).
 
 %% Attack computation
 %% An attack exists when a supported atom X attacks an assumption Y
 %% (where Y's contrary is X), with the weight of X
-attacks_with_weight(X,Y,W) :- supported(X), supported_with_weight(X,W),
+%% OPTIMIZED: Remove redundant supported(X) check (supported_with_weight(X,W) implies support)
+attacks_with_weight(X,Y,W) :- supported_with_weight(X,W),
                                assumption(Y), contrary(Y,X).
 
 %% Attack discretion choice
@@ -40,6 +65,17 @@ attacks_successfully_with_weight(X,Y,W) :- attacks_with_weight(X,Y,W),
 %% An assumption is defeated if there's a successful attack against it
 defeated(X) :- attacks_successfully_with_weight(_,X,_).
 
-%% Budget constraint is modular (loaded separately):
-%% - constraint/ub.lp: Upper Bound regime for MAX/SUM/COUNT/LEX monoids
-%% - constraint/lb.lp: Lower Bound regime for MIN monoid
+%% ====================
+%% BUDGET CONSTRAINT
+%% ====================
+%% Budget Constraints
+%% ====================
+%%
+%% Budget constraints have been moved to constraint/ub.lp and constraint/lb.lp
+%% to support both old monoids (extension_cost/1) and new monoids (weak constraints).
+%%
+%% Load constraint/ub.lp for upper bound enforcement (cost ≤ beta)
+%% Load constraint/lb.lp for lower bound enforcement (cost ≥ beta)
+%%
+%% The constraint files work with direct discarded_attack/3 predicates,
+%% supporting all monoid types (sum, max, min, count) without requiring extension_cost/1.

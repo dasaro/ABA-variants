@@ -10,7 +10,7 @@
 %%   - Via r2b: max(15, 25) = 25 → choose this one
 %%
 %% Run with:
-%%   clingo -n 0 core/base.lp semiring/bottleneck_cost.lp monoid/min.lp \
+%%   clingo -n 0 core/base.lp semiring/bottleneck_cost.lp monoid/baseline/min.lp \
 %%          filter/standard.lp optimize/maximize.lp semantics/stable.lp test/test_bottleneck.lp
 %%
 %% Check output for:

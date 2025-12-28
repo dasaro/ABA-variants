@@ -6,9 +6,9 @@
 %%   @2 (medium):  Minimize cost_sum (break ties by total cost)
 %%   @1 (lowest):  Minimize cost_cnt (break ties by attack count)
 %%
-%% Usage: Include AFTER monoid/lex.lp
+%% Usage: Include AFTER monoid/baseline/lex.lp
 %% Example:
-%%   clingo -n 0 core/base.lp semiring/godel.lp monoid/lex.lp \
+%%   clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/lex.lp \
 %%          optimize/lexicographic.lp semantics/stable.lp instance.lp
 
 %% Primary: minimize maximum discarded attack weight

@@ -6,7 +6,46 @@
 |------|--------|---------------------|-----------------------|-----|-----|----------|
 | **Gödel** | ℤ ∪ {±∞} | min | max | #inf | #sup | Fuzzy logic, weakest-link reasoning |
 | **Tropical** | ℤ ∪ {±∞} | + | min | #sup | 0 | Shortest path, additive costs |
-| **Łukasiewicz** | ℤ ∪ {±∞} | max(#inf, a+b-K) | min(K, a+b) | #inf | #sup | Bounded fuzzy logic, gradual accumulation |
+| **Łukasiewicz** | ℤ ∪ {±∞} | max(0, a+b-K) | min(K, a+b) | 0 | K | Bounded fuzzy logic, gradual accumulation |
+| **Arctic** | ℤ ∪ {±∞} | + | max | #inf | 0 | Longest path, reward maximization |
+| **Bottleneck-Cost** | ℤ ∪ {±∞} | max | min | #sup | #inf | Worst-case optimization, maximum penalty |
+
+## Semirings Supported via Transformation
+
+### Viterbi Semiring (via Tropical + Log Transformation)
+
+**Status**: ✓ **Fully supported** - No implementation needed!
+
+| Property | Viterbi (Original) | Tropical (With Log Transform) |
+|----------|-------------------|-------------------------------|
+| Domain | [0,1] probabilities | ℤ costs (= -log(p) × 1000) |
+| Conjunction | × (multiply) | + (add costs) |
+| Disjunction | max (best evidence) | min (cheapest path) |
+| Identity (⊗) | 1 | 0 |
+| Identity (⊕) | 0 | #sup |
+
+**Transformation**: `cost = round(-log(probability) × 1000)`
+
+**Mathematical equivalence**:
+- `p₁ × p₂` (multiply probabilities) → `cost₁ + cost₂` (add costs)
+- `max(p₁, p₂)` (best evidence) → `min(cost₁, cost₂)` (cheapest path)
+- Maximize probability → Minimize cost
+
+**Example**: Medical diagnosis with probabilistic evidence
+- File: `examples/viterbi_simulation.lp`
+- Configuration: (Tropical, MIN, LB, Stable)
+- Use case: Choose diagnosis with highest combined symptom probability
+- Result: Extension with lowest cost = most probable explanation
+
+**Key insight**: The Tropical semiring already handles Viterbi semantics when weights represent log-transformed probabilities. This is a standard technique in:
+- Hidden Markov Models (Viterbi algorithm)
+- Speech recognition
+- Bioinformatics
+- Probabilistic inference
+
+See `examples/VITERBI_SIMULATION_RESULTS.md` for detailed analysis.
+
+---
 
 ## Potential New Semirings
 
@@ -14,7 +53,6 @@
 
 | Name | Domain | ⊗ (AND) | ⊕ (OR) | 0_S | 1_S | Use Case |
 |------|--------|---------|--------|-----|-----|----------|
-| **Viterbi** | [0,1] or ℝ⁺ | × | max | 0 | 1 | Probabilistic reasoning, independent events |
 | **Product** | [0,1] or ℝ⁺ | × | + | 0 | 1 | Bayesian inference, probability accumulation |
 | **Log-space** | ℝ ∪ {±∞} | + | log(e^a + e^b) | -∞ | 0 | Numerical stability for probabilities |
 
@@ -22,7 +60,6 @@
 
 | Name | Domain | ⊗ (AND) | ⊕ (OR) | 0_S | 1_S | Use Case |
 |------|--------|---------|--------|-----|-----|----------|
-| **Arctic (Max-Plus)** | ℤ ∪ {-∞} | + | max | -∞ | 0 | Longest path, reward maximization |
 | **Dual-Gödel** | ℤ ∪ {±∞} | max | min | #sup | #inf | Security levels, access control |
 | **Bottleneck** | ℤ ∪ {±∞} | min | max | #sup | #inf | Capacity constraints, quality thresholds |
 
@@ -66,25 +103,25 @@
 ## Implementation Priorities
 
 ### High Priority (Most Useful)
-1. **Viterbi**: Probabilistic reasoning is common in AI
-2. **Counting**: Provenance tracking valuable for explanation
-3. **Arctic**: Natural for reward/benefit maximization scenarios
+1. **Counting**: Provenance tracking valuable for explanation
+2. **Product**: True Bayesian probability accumulation (different from Viterbi)
 
 ### Medium Priority (Niche but Interesting)
-4. **Dual-Gödel**: Useful for access control, security scenarios
-5. **Log-space**: Numerical stability for probability computations
-6. **Hamacher**: Alternative fuzzy semantics
+3. **Dual-Gödel**: Useful for access control, security scenarios
+4. **Log-space**: Numerical stability for probability computations
+5. **Hamacher**: Alternative fuzzy semantics
 
 ### Low Priority (Academic Interest)
-7. **Provenance-Poly**: Complex, mainly for database provenance
-8. **Pareto**: Multi-objective, but conflicts with linear optimization
-9. **Yager/Einstein**: Specialized fuzzy variants
+6. **Provenance-Poly**: Complex, mainly for database provenance
+7. **Pareto**: Multi-objective, but conflicts with linear optimization
+8. **Yager/Einstein**: Specialized fuzzy variants
 
 ## ASP Implementation Challenges
 
-| Semiring | Challenge | Workaround |
-|----------|-----------|------------|
-| Viterbi | Multiplication not native in ASP | Use log-space or fixed-precision integers |
+| Semiring | Challenge | Workaround / Status |
+|----------|-----------|---------------------|
+| Viterbi | Multiplication not native in ASP | ✓ **SOLVED**: Use Tropical + log transformation |
+| Product | Multiplication not native in ASP | Use log-space or fixed-precision integers |
 | Log-space | Floating-point operations | Approximate with fixed-precision |
 | Provenance-Poly | Symbolic manipulation | Represent polynomials as lists |
 | Pareto | No total ordering | Use Pareto-optimal filtering |
@@ -96,8 +133,8 @@
 - Gödel, Łukasiewicz, Viterbi, Fuzzy t-norms
 - Weights = degrees of certainty/truth
 
-### Ontic (Resource) Semirings  
-- Tropical, Arctic, Bottleneck
+### Ontic (Resource) Semirings
+- Tropical (costs), Arctic (rewards), Bottleneck-Cost (worst-case penalties)
 - Weights = costs, rewards, capacities
 
 ### Hybrid Semirings

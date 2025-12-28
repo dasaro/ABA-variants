@@ -29,15 +29,15 @@
 %%
 %% TEST COMMANDS:
 %%   # Gödel + Sum
-%%   clingo -n 0 core/base.lp semiring/godel.lp monoid/sum.lp \\
+%%   clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/sum.lp \\
 %%          filter/standard.lp semantics/cf.lp examples/showcase.lp
 %%
 %%   # Boolean + Lex (use filter/lexicographic.lp to see all components)
-%%   clingo -n 0 core/base.lp semiring/boolean.lp monoid/lex.lp \\
+%%   clingo -n 0 core/base.lp semiring/boolean.lp monoid/baseline/lex.lp \\
 %%          filter/lexicographic.lp semantics/cf.lp examples/showcase.lp
 %%
 %%   # Tropical + Min (note: uses optimize/maximize.lp, not minimize)
-%%   clingo -n 0 core/base.lp semiring/tropical.lp monoid/min.lp \\
+%%   clingo -n 0 core/base.lp semiring/tropical.lp monoid/baseline/min.lp \\
 %%          filter/standard.lp semantics/cf.lp examples/showcase.lp
 %% ============================================================================
 

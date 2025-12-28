@@ -1,9 +1,9 @@
 %% Output filtering for Lexicographic Monoid
 %% Shows all three cost components plus standard predicates
 %%
-%% Usage: Replace filter/standard.lp with this when using monoid/lex.lp
+%% Usage: Replace filter/standard.lp with this when using monoid/baseline/lex.lp
 %% Example:
-%%   clingo -n 0 core/base.lp semiring/godel.lp monoid/lex.lp \
+%%   clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/lex.lp \
 %%          filter/lexicographic.lp optimize/lexicographic.lp semantics/stable.lp instance.lp
 
 #show in/1.

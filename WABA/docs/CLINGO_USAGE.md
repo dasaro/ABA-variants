@@ -19,21 +19,21 @@ This document provides comprehensive clingo command patterns for testing WABA. I
 ### Test Original WABA (Gödel + Max + Stable)
 
 ```bash
-clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp semantics/stable.lp examples/medical.lp
 ```
 
 ### Test with Simple Example
 
 ```bash
-clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp semantics/stable.lp examples/simple.lp
 ```
 
 ### Test Semiring Differences (Showcase)
 
 ```bash
-clingo -n 0 core/base.lp semiring/godel.lp monoid/sum.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/sum.lp \
        filter/standard.lp semantics/cf.lp examples/showcase.lp
 ```
 
@@ -47,25 +47,25 @@ See [SEMIRING_MONOID_COMPATIBILITY.md](SEMIRING_MONOID_COMPATIBILITY.md) for det
 
 **Gödel + Max** (Original WABA):
 ```bash
-clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp semantics/stable.lp examples/medical.lp
 ```
 
 **Gödel + Sum** (Cumulative cost):
 ```bash
-clingo -n 0 core/base.lp semiring/godel.lp monoid/sum.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/sum.lp \
        filter/standard.lp semantics/stable.lp examples/medical.lp
 ```
 
 **Gödel + Count** (Weight-agnostic counting):
 ```bash
-clingo -n 0 -c beta=2 core/base.lp semiring/godel.lp monoid/count.lp \
+clingo -n 0 -c beta=2 core/base.lp semiring/godel.lp monoid/baseline/count.lp \
        filter/standard.lp semantics/stable.lp examples/medical.lp
 ```
 
 **Gödel + Lex** (Lexicographic priority):
 ```bash
-clingo -n 0 core/base.lp semiring/godel.lp monoid/lex.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/lex.lp \
        filter/lexicographic.lp optimize/lexicographic.lp \
        semantics/stable.lp examples/medical.lp
 ```
@@ -74,19 +74,19 @@ clingo -n 0 core/base.lp semiring/godel.lp monoid/lex.lp \
 
 **Tropical + Min** (Only legal tropical combination):
 ```bash
-clingo -n 0 -c beta=10 core/base.lp semiring/tropical.lp monoid/min.lp \
+clingo -n 0 -c beta=10 core/base.lp semiring/tropical.lp monoid/baseline/min.lp \
        filter/standard.lp optimize/maximize.lp semantics/stable.lp examples/medical.lp
 ```
 
 **Tropical + Count**:
 ```bash
-clingo -n 0 -c beta=2 core/base.lp semiring/tropical.lp monoid/count.lp \
+clingo -n 0 -c beta=2 core/base.lp semiring/tropical.lp monoid/baseline/count.lp \
        filter/standard.lp semantics/stable.lp examples/medical.lp
 ```
 
 **Tropical + Lex**:
 ```bash
-clingo -n 0 core/base.lp semiring/tropical.lp monoid/lex.lp \
+clingo -n 0 core/base.lp semiring/tropical.lp monoid/baseline/lex.lp \
        filter/lexicographic.lp optimize/lexicographic.lp \
        semantics/stable.lp examples/medical.lp
 ```
@@ -95,19 +95,19 @@ clingo -n 0 core/base.lp semiring/tropical.lp monoid/lex.lp \
 
 **Łukasiewicz + Max**:
 ```bash
-clingo -n 0 core/base.lp semiring/lukasiewicz.lp monoid/max.lp \
+clingo -n 0 core/base.lp semiring/lukasiewicz.lp monoid/baseline/max.lp \
        filter/standard.lp semantics/stable.lp test/test_lukasiewicz.lp
 ```
 
 **Łukasiewicz + Sum**:
 ```bash
-clingo -n 0 core/base.lp semiring/lukasiewicz.lp monoid/sum.lp \
+clingo -n 0 core/base.lp semiring/lukasiewicz.lp monoid/baseline/sum.lp \
        filter/standard.lp semantics/stable.lp test/test_lukasiewicz.lp
 ```
 
 **Łukasiewicz + Count**:
 ```bash
-clingo -n 0 -c beta=2 core/base.lp semiring/lukasiewicz.lp monoid/count.lp \
+clingo -n 0 -c beta=2 core/base.lp semiring/lukasiewicz.lp monoid/baseline/count.lp \
        filter/standard.lp semantics/stable.lp test/test_lukasiewicz.lp
 ```
 
@@ -115,7 +115,7 @@ clingo -n 0 -c beta=2 core/base.lp semiring/lukasiewicz.lp monoid/count.lp \
 
 **Bottleneck-Cost + Min** (Quality threshold):
 ```bash
-clingo -n 0 -c beta=0 core/base.lp semiring/bottleneck_cost.lp monoid/min.lp \
+clingo -n 0 -c beta=0 core/base.lp semiring/bottleneck_cost.lp monoid/baseline/min.lp \
        filter/standard.lp optimize/maximize.lp semantics/stable.lp test/test_bottleneck.lp
 ```
 
@@ -126,14 +126,14 @@ clingo -n 0 -c beta=0 core/base.lp semiring/bottleneck_cost.lp monoid/min.lp \
 ### Stable Semantics (Default)
 
 ```bash
-clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp semantics/stable.lp examples/medical.lp
 ```
 
 ### Conflict-Free Semantics
 
 ```bash
-clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp semantics/cf.lp examples/medical.lp
 ```
 
@@ -141,7 +141,7 @@ clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
 
 ```bash
 clingo -n 0 --heuristic=Domain --enum=domRec \
-       core/base.lp semiring/godel.lp monoid/max.lp \
+       core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp semantics/naive.lp examples/medical.lp
 ```
 
@@ -154,33 +154,33 @@ clingo -n 0 --heuristic=Domain --enum=domRec \
 ### Without Optimization (All Extensions)
 
 ```bash
-clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp semantics/stable.lp examples/medical.lp
 ```
 
 ### With Cost Minimization (Optimal Extensions Only)
 
 ```bash
-clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp optimize/minimize.lp semantics/stable.lp examples/medical.lp
 ```
 
 ### With Cost Maximization (For MIN Monoid)
 
 ```bash
-clingo -n 0 -c beta=10 core/base.lp semiring/tropical.lp monoid/min.lp \
+clingo -n 0 -c beta=10 core/base.lp semiring/tropical.lp monoid/baseline/min.lp \
        filter/standard.lp optimize/maximize.lp semantics/stable.lp examples/medical.lp
 ```
 
 ### Lexicographic Optimization
 
 ```bash
-clingo -n 0 core/base.lp semiring/godel.lp monoid/lex.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/lex.lp \
        filter/lexicographic.lp optimize/lexicographic.lp \
        semantics/stable.lp examples/simple.lp
 ```
 
-**Note**: Use `filter/lexicographic.lp` with `monoid/lex.lp` to see all three cost components (max, sum, count).
+**Note**: Use `filter/lexicographic.lp` with `monoid/baseline/lex.lp` to see all three cost components (max, sum, count).
 
 ---
 
@@ -190,7 +190,7 @@ clingo -n 0 core/base.lp semiring/godel.lp monoid/lex.lp \
 
 ```bash
 # Filter output to see specific predicates
-clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp semantics/stable.lp examples/medical.lp \
        | grep "in("
 ```
@@ -198,7 +198,7 @@ clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
 ### Count Answer Sets
 
 ```bash
-clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp semantics/stable.lp examples/medical.lp \
        | grep "Answer:" | wc -l
 ```
@@ -208,19 +208,19 @@ clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
 ```bash
 # Test with MAX monoid
 echo "=== MAX Monoid ==="
-clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp semantics/stable.lp examples/showcase.lp \
        | grep "extension_cost"
 
 # Test with SUM monoid
 echo "=== SUM Monoid ==="
-clingo -n 0 core/base.lp semiring/godel.lp monoid/sum.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/sum.lp \
        filter/standard.lp semantics/stable.lp examples/showcase.lp \
        | grep "extension_cost"
 
 # Test with COUNT monoid
 echo "=== COUNT Monoid ==="
-clingo -n 0 -c beta=4 core/base.lp semiring/godel.lp monoid/count.lp \
+clingo -n 0 -c beta=4 core/base.lp semiring/godel.lp monoid/baseline/count.lp \
        filter/standard.lp semantics/stable.lp examples/showcase.lp \
        | grep "extension_cost"
 ```
@@ -230,13 +230,13 @@ clingo -n 0 -c beta=4 core/base.lp semiring/godel.lp monoid/count.lp \
 ```bash
 # Without optimization
 echo "=== Without Optimization (All Extensions) ==="
-clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp semantics/stable.lp examples/simple.lp \
        | grep -E "(Answer:|extension_cost)"
 
 # With optimization
 echo "=== With Optimization (Optimal Only) ==="
-clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp optimize/minimize.lp semantics/stable.lp examples/simple.lp \
        | grep -E "(Answer:|extension_cost|Optimization)"
 ```
@@ -254,7 +254,7 @@ clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
 **Fix**:
 ```bash
 # Add -c beta=N to command
-clingo -n 0 -c beta=100 core/base.lp semiring/godel.lp monoid/max.lp \
+clingo -n 0 -c beta=100 core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp semantics/stable.lp your_framework.lp
 
 # OR add budget(100). to your framework file
@@ -262,11 +262,11 @@ clingo -n 0 -c beta=100 core/base.lp semiring/godel.lp monoid/max.lp \
 
 ### 2. Wrong Optimization for MIN Monoid
 
-**Problem**: Using `optimize/minimize.lp` with `monoid/min.lp`.
+**Problem**: Using `optimize/minimize.lp` with `monoid/baseline/min.lp`.
 
 **Fix**: MIN monoid uses **maximize.lp** (quality threshold semantics):
 ```bash
-clingo -n 0 -c beta=10 core/base.lp semiring/tropical.lp monoid/min.lp \
+clingo -n 0 -c beta=10 core/base.lp semiring/tropical.lp monoid/baseline/min.lp \
        filter/standard.lp optimize/maximize.lp semantics/stable.lp examples/medical.lp
 ```
 
@@ -285,7 +285,7 @@ clingo -n 0 -c beta=10 core/base.lp semiring/tropical.lp monoid/min.lp \
 **Fix**:
 ```bash
 clingo -n 0 --heuristic=Domain --enum=domRec \
-       core/base.lp semiring/godel.lp monoid/max.lp \
+       core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp semantics/naive.lp examples/medical.lp
 ```
 
@@ -301,11 +301,11 @@ clingo -n 0 --heuristic=Domain --enum=domRec \
 **Debug**:
 ```bash
 # Try conflict-free semantics instead of stable
-clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp semantics/cf.lp examples/medical.lp
 
 # Increase budget
-clingo -n 0 -c beta=1000 core/base.lp semiring/godel.lp monoid/max.lp \
+clingo -n 0 -c beta=1000 core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp semantics/stable.lp examples/medical.lp
 ```
 
@@ -347,7 +347,7 @@ done
 
 CORE="core/base.lp"
 SEMIRING="semiring/godel.lp"
-MONOID="monoid/max.lp"
+MONOID="monoid/baseline/max.lp"
 FILTER="filter/standard.lp"
 EXAMPLE="examples/simple.lp"
 
@@ -371,7 +371,7 @@ done
 
 CORE="core/base.lp"
 SEMIRING="semiring/godel.lp"
-MONOID="monoid/max.lp"
+MONOID="monoid/baseline/max.lp"
 FILTER="filter/standard.lp"
 SEMANTICS="semantics/stable.lp"
 EXAMPLE="examples/simple.lp"
@@ -443,12 +443,12 @@ echo "=== Bottleneck-cost combinations require specific test files ==="
 
 ```bash
 # Save all output
-clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp semantics/stable.lp examples/medical.lp \
        > results_medical.txt 2>&1
 
 # Save only answer sets
-clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
+clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/max.lp \
        filter/standard.lp semantics/stable.lp examples/medical.lp \
        | grep -A 20 "Answer:" > answers_only.txt
 ```
@@ -461,7 +461,7 @@ clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
 
 for fw in examples/*.lp; do
   echo "Testing $fw"
-  clingo -n 0 core/base.lp semiring/godel.lp monoid/max.lp \
+  clingo -n 0 core/base.lp semiring/godel.lp monoid/baseline/max.lp \
          filter/standard.lp semantics/stable.lp "$fw" \
          > "results_$(basename $fw .lp).txt" 2>&1 &
 done
