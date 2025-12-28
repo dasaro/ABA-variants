@@ -4,13 +4,27 @@ test_results/
 *_output/
 *.out
 
-# Benchmark artifacts
-benchmark/
+# Benchmark artifacts (ignore generated data, but track source code)
+benchmark/results*/
+benchmark/analysis*/
+benchmark/frameworks*/
+benchmark/test_frameworks*/
+benchmark/*.jsonl
+benchmark/*.csv
+benchmark/*.log
+benchmark/*.meta.json
+benchmark/TOPOLOGY_DIAGRAMS/
 *_ANALYSIS.md
 *_REPORT.md
-*.csv
 *.png
-results*/
+
+# But allow benchmark source code to be tracked
+!benchmark/**/*.py
+!benchmark/**/*.md
+!benchmark/**/*.sh
+!benchmark/README.md
+!benchmark/SMOKE_TEST.md
+!benchmark/EXPERIMENTAL_DESIGN.md
 
 # Python cache
 __pycache__/
