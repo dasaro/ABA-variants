@@ -106,6 +106,7 @@ clingo -n 0 \
   WABA/core/base.lp \
   WABA/semiring/tropical.lp \
   WABA/monoid/sum_minimization.lp \
+  WABA/constraint/ub_sum.lp \
   WABA/filter/standard.lp \
   WABA/semantics/stable.lp \
   WABA/examples/sally_clark_meta_evidence/sally_clark_meta_evidence.lp
@@ -117,6 +118,7 @@ clingo -n 0 --opt-mode=opt -c beta=150 \
   WABA/core/base.lp \
   WABA/semiring/tropical.lp \
   WABA/monoid/sum_minimization.lp \
+  WABA/constraint/ub_sum.lp \
   WABA/filter/standard.lp \
   WABA/semantics/stable.lp \
   WABA/examples/sally_clark_meta_evidence/sally_clark_meta_evidence.lp
@@ -128,6 +130,7 @@ clingo -n 0 --opt-mode=opt -c beta=0 \
   WABA/core/base.lp \
   WABA/semiring/tropical.lp \
   WABA/monoid/sum_minimization.lp \
+  WABA/constraint/ub_sum.lp \
   WABA/filter/standard.lp \
   WABA/semantics/stable.lp \
   WABA/examples/sally_clark_meta_evidence/sally_clark_meta_evidence.lp

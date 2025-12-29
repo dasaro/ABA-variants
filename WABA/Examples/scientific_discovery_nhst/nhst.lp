@@ -168,16 +168,8 @@ body(r16, significant_safety).  % Safety concerns (H2) significant
 body(r16, h2).                  % H2 accepted
 
 %% ============================================================================
-%% BUDGET CONSTRAINT (Total Ignored Evidence ≤ β)
+%% BUDGET CONSTRAINT
 %% ============================================================================
 
-%% The sum_minimization.lp monoid defines extension_cost(C) = sum of discarded attack weights.
-%% We enforce: extension_cost ≤ beta (total ignored evidence strength ≤ β)
-
-:- extension_cost(C), C > beta.
-
-%% ============================================================================
-%% BUDGET FACT
-%% ============================================================================
-
-budget(beta).
+%% Budget constraint enforced by loading constraint/ub_sum.lp
+%% (total ignored evidence ≤ β)

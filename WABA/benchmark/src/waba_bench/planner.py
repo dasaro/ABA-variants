@@ -27,6 +27,80 @@ from utils import derive_seed, create_rng, get_git_status
 
 
 # =============================================================================
+# PARAMETER SPECIFICATION UTILITIES
+# =============================================================================
+
+def pure_python_logspace(n: int, min_val: int, max_val: int) -> List[int]:
+    """
+    Generate n log-spaced integer values from min_val to max_val (pure Python, no numpy).
+
+    Args:
+        n: Number of points to generate
+        min_val: Minimum value (inclusive)
+        max_val: Maximum value (inclusive)
+
+    Returns:
+        List of n unique, sorted log-spaced integer values
+    """
+    import math
+
+    if n <= 0:
+        return []
+    if n == 1:
+        return [min_val]
+
+    log_min = math.log10(min_val)
+    log_max = math.log10(max_val)
+    step = (log_max - log_min) / (n - 1)
+
+    values = [int(10 ** (log_min + i * step)) for i in range(n)]
+
+    # Ensure uniqueness and sort
+    unique_values = sorted(set(values))
+    return unique_values
+
+
+def parse_parameter_spec(
+    list_arg: Optional[str],
+    range_arg: Optional[str],
+    logspace_arg: Optional[str],
+    default_values: List[int]
+) -> List[int]:
+    """
+    Parse parameter specification from CLI arguments.
+
+    Args:
+        list_arg: Comma-separated list (e.g., "10,20,30")
+        range_arg: START:STOP:STEP with EXCLUSIVE upper (e.g., "5:50:5")
+        logspace_arg: N:MIN:MAX (e.g., "2:100:5")
+        default_values: Default values if none specified
+
+    Returns:
+        List of integer parameter values
+    """
+    if list_arg:
+        return [int(x.strip()) for x in list_arg.split(',')]
+
+    elif range_arg:
+        parts = range_arg.split(':')
+        if len(parts) != 3:
+            raise ValueError(f"Range format must be START:STOP:STEP, got: {range_arg}")
+        start, stop, step = map(int, parts)
+        # EXCLUSIVE upper bound (Python range semantics)
+        return list(range(start, stop, step))
+
+    elif logspace_arg:
+        parts = logspace_arg.split(':')
+        if len(parts) != 3:
+            raise ValueError(f"Logspace format must be N:MIN:MAX, got: {logspace_arg}")
+        n, min_val, max_val = map(int, parts)
+        return pure_python_logspace(n, min_val, max_val)
+
+    else:
+        return default_values
+
+
+# =============================================================================
 # EXPERIMENTAL FACTORS (following EXPERIMENTAL_DESIGN.md)
 # =============================================================================
 
@@ -46,12 +120,7 @@ class ExperimentalFactors:
     # Weight schemes (must be same across ALL topologies to avoid confounding)
     WEIGHT_SCHEMES: List[str] = None
 
-    # Constraint operators
-    OPERATORS: List[str] = None  # ['<=', '>=']
-
-    # Budget levels (OPTIONAL - metadata only, never emitted to .lp files)
-    # Default: None (disabled) unless --include-budget-level flag is set
-    BUDGET_LEVELS: List[str] = None  # ['tight', 'loose'] or None
+    # NOTE: OPERATORS and BUDGET_LEVELS removed - no longer used in WABA benchmark
 
     def __post_init__(self):
         """Set defaults following EXPERIMENTAL_DESIGN.md v2.0."""
@@ -74,14 +143,8 @@ class ExperimentalFactors:
             # Single weight scheme for simplified benchmark
             self.WEIGHT_SCHEMES = ['sparse']
 
-        if self.OPERATORS is None:
-            # Both operators for full benchmark
-            self.OPERATORS = ['<=', '>=']
-
-        # BUDGET_LEVELS remains None by default (must be explicitly enabled)
-
     def get_factor_levels(self) -> Dict[str, List]:
-        """Return dict mapping factor name to list of levels."""
+        """Return dict mapping factor name to list of levels (NO operator/budget_level)."""
         levels = {
             'topology': self.TOPOLOGIES,
             'A': self.A_VALUES,
@@ -89,17 +152,12 @@ class ExperimentalFactors:
             'D': self.D_VALUES,
             'body_max': self.BODY_MAX_VALUES,
             'weight_scheme': self.WEIGHT_SCHEMES,
-            'operator': self.OPERATORS,
         }
-
-        # Only include budget_level if explicitly set
-        if self.BUDGET_LEVELS is not None:
-            levels['budget_level'] = self.BUDGET_LEVELS
 
         return levels
 
     def total_factorial_size(self, replicates: int = 1) -> int:
-        """Calculate total size of full factorial design."""
+        """Calculate total size of full factorial design (NO operator/budget_level)."""
         size = (
             len(self.TOPOLOGIES) *
             len(self.A_VALUES) *
@@ -107,13 +165,8 @@ class ExperimentalFactors:
             len(self.D_VALUES) *
             len(self.BODY_MAX_VALUES) *
             len(self.WEIGHT_SCHEMES) *
-            len(self.OPERATORS) *
             replicates
         )
-
-        # Multiply by budget levels if enabled
-        if self.BUDGET_LEVELS is not None:
-            size *= len(self.BUDGET_LEVELS)
 
         return size
 
@@ -124,18 +177,16 @@ class ExperimentalFactors:
 
 @dataclass
 class PlanEntry:
-    """Single framework instance in the experimental plan."""
+    """Single framework instance in the experimental plan (NO operator/budget_level)."""
 
     plan_id: str              # Unique plan identifier (e.g., "plan_seed42_v1")
-    instance_id: str          # Unique instance ID (e.g., "linear_a10_r3_d1_uniform_ub_rep1")
+    instance_id: str          # Unique instance ID (e.g., "linear_a10_r3_d1_b3_sparse_rep1")
     topology: str
     A: int
     R: int
     D: int
     body_max: int
     weight_scheme: str
-    operator: str             # '<=' or '>='
-    budget_level: Optional[str]  # 'tight', 'loose', or None (METADATA ONLY - never in .lp)
     replicate: int            # Replicate index (1, 2, 3, ...)
 
     # Seeds for reproducibility
@@ -152,18 +203,10 @@ class PlanEntry:
 
     @staticmethod
     def create_instance_id(topology: str, A: int, R: int, D: int, body_max: int,
-                          weight_scheme: str, operator: str, budget_level: Optional[str],
-                          replicate: int) -> str:
-        """Create unique instance ID from parameters."""
-        op_abbrev = 'ub' if operator == '<=' else 'lb'
-
-        # Budget is optional - omit from ID if not present
-        if budget_level:
-            return (f"{topology}_a{A}_r{R}_d{D}_b{body_max}_"
-                    f"{weight_scheme}_{op_abbrev}_{budget_level}_rep{replicate}")
-        else:
-            return (f"{topology}_a{A}_r{R}_d{D}_b{body_max}_"
-                    f"{weight_scheme}_{op_abbrev}_rep{replicate}")
+                          weight_scheme: str, replicate: int) -> str:
+        """Create unique instance ID from parameters (NO operator/budget_level)."""
+        return (f"{topology}_a{A}_r{R}_d{D}_b{body_max}_"
+                f"{weight_scheme}_rep{replicate}")
 
 
 # =============================================================================
@@ -207,12 +250,7 @@ class BalanceValidator:
 
     def _check_marginal_balance(self):
         """Check that each factor level appears equally often."""
-        factors = ['topology', 'A', 'R', 'D', 'body_max', 'weight_scheme',
-                   'operator', 'replicate']
-
-        # Include budget_level only if it's used in the plan
-        if len(self.plan) > 0 and self.plan[0].budget_level is not None:
-            factors.append('budget_level')
+        factors = ['topology', 'A', 'R', 'D', 'body_max', 'weight_scheme', 'replicate']
 
         for factor in factors:
             counts = Counter(getattr(entry, factor) for entry in self.plan)
@@ -252,9 +290,7 @@ class BalanceValidator:
         # Key pairs to check (to prevent confounding)
         pairs = [
             ('topology', 'weight_scheme'),  # CRITICAL: no confounding
-            ('topology', 'operator'),
             ('A', 'weight_scheme'),
-            ('weight_scheme', 'operator'),
         ]
 
         for factor1, factor2 in pairs:
@@ -304,12 +340,7 @@ class BalanceValidator:
         lines.append("MARGINAL COUNTS (per factor level):")
         lines.append("-" * 70)
 
-        factors = ['topology', 'A', 'R', 'D', 'body_max', 'weight_scheme',
-                   'operator', 'replicate']
-
-        # Include budget_level only if it's used
-        if len(self.plan) > 0 and self.plan[0].budget_level is not None:
-            factors.insert(-1, 'budget_level')  # Insert before 'replicate'
+        factors = ['topology', 'A', 'R', 'D', 'body_max', 'weight_scheme', 'replicate']
 
         for factor in factors:
             counts = Counter(getattr(entry, factor) for entry in self.plan)
@@ -396,7 +427,7 @@ class FactorialSampler:
 
         per_topology_count = defaultdict(int)
 
-        # Build product() arguments based on enabled factors
+        # Build product() arguments (NO operator/budget_level)
         product_args = [
             factor_levels['topology'],
             factor_levels['A'],
@@ -404,38 +435,25 @@ class FactorialSampler:
             factor_levels['D'],
             factor_levels['body_max'],
             factor_levels['weight_scheme'],
-            factor_levels['operator'],
+            range(1, self.replicates + 1),  # Replicates
         ]
 
-        # Include budget_level only if enabled
-        budget_enabled = 'budget_level' in factor_levels
-        if budget_enabled:
-            product_args.append(factor_levels['budget_level'])
-
-        # Replicates always included
-        product_args.append(range(1, self.replicates + 1))
-
         for combo in product(*product_args):
-            # Unpack based on whether budget is enabled
-            if budget_enabled:
-                topology, A, R, D, body_max, weight_scheme, operator, budget_level, replicate = combo
-            else:
-                topology, A, R, D, body_max, weight_scheme, operator, replicate = combo
-                budget_level = None  # Not enabled
+            topology, A, R, D, body_max, weight_scheme, replicate = combo
 
             # Check max_per_topology cap
             if max_per_topology and per_topology_count[topology] >= max_per_topology:
                 continue
 
-            # Create instance
+            # Create instance (NO operator/budget_level)
             instance_id = PlanEntry.create_instance_id(
-                topology, A, R, D, body_max, weight_scheme, operator, budget_level, replicate
+                topology, A, R, D, body_max, weight_scheme, replicate
             )
 
             # Derive instance-specific seed
             instance_seed = derive_seed(
                 self.seed, topology, str(A), str(R), str(D), str(body_max),
-                weight_scheme, operator, budget_level, str(replicate)
+                weight_scheme, str(replicate)
             )
 
             entry = PlanEntry(
@@ -447,8 +465,6 @@ class FactorialSampler:
                 D=D,
                 body_max=body_max,
                 weight_scheme=weight_scheme,
-                operator=operator,
-                budget_level=budget_level,
                 replicate=replicate,
                 master_seed=self.seed,
                 instance_seed=instance_seed,
@@ -503,10 +519,7 @@ class StratifiedSampler:
         if max_per_topology:
             target_per_topology = min(target_per_topology, max_per_topology)
 
-        # Check if budget is enabled
-        budget_enabled = 'budget_level' in factor_levels
-
-        # For each topology, generate a balanced sample
+        # For each topology, generate a balanced sample (NO operator/budget_level)
         for topology in sorted(factor_levels['topology']):  # Sort for determinism
 
             # Build product() arguments for this topology
@@ -517,15 +530,8 @@ class StratifiedSampler:
                 factor_levels['D'],
                 factor_levels['body_max'],
                 factor_levels['weight_scheme'],
-                factor_levels['operator'],
+                range(1, self.replicates + 1),  # Replicates
             ]
-
-            # Include budget_level only if enabled
-            if budget_enabled:
-                product_args.append(factor_levels['budget_level'])
-
-            # Replicates always included
-            product_args.append(range(1, self.replicates + 1))
 
             # Generate all combinations for this topology
             topo_combos = list(product(*product_args))
@@ -551,20 +557,16 @@ class StratifiedSampler:
 
                 combo = topo_combos[index]
 
-                # Unpack based on whether budget is enabled
-                if budget_enabled:
-                    topology, A, R, D, body_max, weight_scheme, operator, budget_level, replicate = combo
-                else:
-                    topology, A, R, D, body_max, weight_scheme, operator, replicate = combo
-                    budget_level = None  # Not enabled
+                # Unpack (NO operator/budget_level)
+                topology, A, R, D, body_max, weight_scheme, replicate = combo
 
                 instance_id = PlanEntry.create_instance_id(
-                    topology, A, R, D, body_max, weight_scheme, operator, budget_level, replicate
+                    topology, A, R, D, body_max, weight_scheme, replicate
                 )
 
                 instance_seed = derive_seed(
                     self.seed, topology, str(A), str(R), str(D), str(body_max),
-                    weight_scheme, operator, budget_level, str(replicate)
+                    weight_scheme, str(replicate)
                 )
 
                 entry = PlanEntry(
@@ -576,8 +578,6 @@ class StratifiedSampler:
                     D=D,
                     body_max=body_max,
                     weight_scheme=weight_scheme,
-                    operator=operator,
-                    budget_level=budget_level,
                     replicate=replicate,
                     master_seed=self.seed,
                     instance_seed=instance_seed,
@@ -588,6 +588,132 @@ class StratifiedSampler:
                 plan.append(entry)
 
         return plan
+
+
+class Grid3Sampler:
+    """
+    Full Cartesian grid over A×R×D with single replicate per (topology, weight_scheme).
+
+    NO operator/budget_level - these factors have been removed from WABA benchmark.
+    """
+
+    def __init__(
+        self,
+        factors: ExperimentalFactors,
+        seed: int,
+        num_replicates: int = 1,
+        max_instances: Optional[int] = None,
+        max_per_topology: Optional[int] = None
+    ):
+        self.factors = factors
+        self.seed = seed
+        self.num_replicates = num_replicates
+        self.max_instances = max_instances
+        self.max_per_topology = max_per_topology
+
+    def sample(self) -> List[PlanEntry]:
+        """
+        Generate full A×R×D grid, then downsample if caps specified.
+
+        Returns:
+            List of plan entries
+        """
+        plan_id = f"plan_seed{self.seed}_grid3"
+        timestamp = datetime.utcnow().isoformat() + 'Z'
+
+        # STEP 1: Generate ALL candidates (full grid)
+        candidates = []
+
+        factor_levels = self.factors.get_factor_levels()
+
+        for A in factor_levels['A']:
+            for R in factor_levels['R']:
+                for D in factor_levels['D']:
+                    for topology in factor_levels['topology']:
+                        for body_max in factor_levels['body_max']:
+                            for weight_scheme in factor_levels['weight_scheme']:
+                                # Generate replicates=1..num_replicates
+                                for replicate in range(1, self.num_replicates + 1):
+                                    instance_id = PlanEntry.create_instance_id(
+                                        topology, A, R, D, body_max, weight_scheme, replicate
+                                    )
+
+                                    instance_seed = derive_seed(
+                                        self.seed, topology, str(A), str(R), str(D), str(body_max),
+                                        weight_scheme, str(replicate)
+                                    )
+
+                                    candidates.append(PlanEntry(
+                                        plan_id=plan_id,
+                                        instance_id=instance_id,
+                                        topology=topology,
+                                        A=A,
+                                        R=R,
+                                        D=D,
+                                        body_max=body_max,
+                                        weight_scheme=weight_scheme,
+                                        replicate=replicate,
+                                    master_seed=self.seed,
+                                    instance_seed=instance_seed,
+                                    design_type='grid3',
+                                    timestamp=timestamp
+                                ))
+
+        # STEP 2: Apply caps if specified (balance-preserving downsampling)
+        if self.max_instances and len(candidates) > self.max_instances:
+            # Downsample uniformly across topologies
+            import random
+
+            rng = random.Random(derive_seed(self.seed, "grid3_downsample"))
+
+            # Group by topology
+            by_topology = defaultdict(list)
+            for cfg in candidates:
+                by_topology[cfg.topology].append(cfg)
+
+            # Sample proportionally
+            plan = []
+            topologies = sorted(by_topology.keys())
+            quota_per_topology = self.max_instances // len(topologies)
+
+            for topology in topologies:
+                instances = by_topology[topology]
+                sample_size = min(quota_per_topology, len(instances))
+                plan.extend(rng.sample(instances, sample_size))
+
+            # Fill remaining quota from leftovers
+            remaining = self.max_instances - len(plan)
+            if remaining > 0:
+                leftover = [cfg for cfg in candidates if cfg not in plan]
+                if len(leftover) > 0:
+                    plan.extend(rng.sample(leftover, min(remaining, len(leftover))))
+
+            print(f"WARNING: Downsampled {len(candidates)} → {len(plan)} instances (max_instances={self.max_instances})")
+            return plan[:self.max_instances]
+
+        elif self.max_per_topology:
+            # Cap per topology
+            import random
+
+            rng = random.Random(derive_seed(self.seed, "grid3_topology_cap"))
+
+            by_topology = defaultdict(list)
+            for cfg in candidates:
+                by_topology[cfg.topology].append(cfg)
+
+            plan = []
+            for topology, instances in by_topology.items():
+                if len(instances) > self.max_per_topology:
+                    print(f"WARNING: Capping {topology} instances {len(instances)} → {self.max_per_topology}")
+                    plan.extend(rng.sample(instances, self.max_per_topology))
+                else:
+                    plan.extend(instances)
+
+            return plan
+
+        else:
+            # No caps, return full grid
+            return candidates
 
 
 # =============================================================================
@@ -637,7 +763,7 @@ def main():
     parser.add_argument(
         '--design',
         type=str,
-        choices=['factorial', 'stratified'],
+        choices=['factorial', 'stratified', 'grid3'],
         default='factorial',
         help='Experimental design type'
     )
@@ -653,10 +779,59 @@ def main():
         default=3,
         help='Number of replicates per configuration'
     )
-    parser.add_argument(
-        '--include-budget-level',
-        action='store_true',
-        help='Include budget_level as experimental factor (default: disabled, metadata-only)'
+
+    # A parameter specifications (mutually exclusive)
+    a_group = parser.add_mutually_exclusive_group()
+    a_group.add_argument(
+        '--A-list',
+        type=str,
+        help='Comma-separated list of A values (e.g., "10,20,30")'
+    )
+    a_group.add_argument(
+        '--A-range',
+        type=str,
+        help='A values as START:STOP:STEP with EXCLUSIVE upper bound (e.g., "5:50:5" → [5,10,...,45])'
+    )
+    a_group.add_argument(
+        '--A-logspace',
+        type=str,
+        help='A values as N:MIN:MAX for N log-spaced points (e.g., "2:100:5" → 5 points from 2 to 100)'
+    )
+
+    # R parameter specifications (mutually exclusive)
+    r_group = parser.add_mutually_exclusive_group()
+    r_group.add_argument(
+        '--R-list',
+        type=str,
+        help='Comma-separated list of R values'
+    )
+    r_group.add_argument(
+        '--R-range',
+        type=str,
+        help='R values as START:STOP:STEP (EXCLUSIVE upper)'
+    )
+    r_group.add_argument(
+        '--R-logspace',
+        type=str,
+        help='R values as N:MIN:MAX'
+    )
+
+    # D parameter specifications (mutually exclusive)
+    d_group = parser.add_mutually_exclusive_group()
+    d_group.add_argument(
+        '--D-list',
+        type=str,
+        help='Comma-separated list of D values'
+    )
+    d_group.add_argument(
+        '--D-range',
+        type=str,
+        help='D values as START:STOP:STEP (EXCLUSIVE upper)'
+    )
+    d_group.add_argument(
+        '--D-logspace',
+        type=str,
+        help='D values as N:MIN:MAX'
     )
 
     # Termination controls
@@ -750,12 +925,22 @@ def main():
         print("ERROR: --seed is required for planning mode")
         return 1
 
-    # Initialize factors
+    # Initialize factors with custom A/R/D values if specified
     factors = ExperimentalFactors()
 
-    # Enable budget_level factor if requested
-    if args.include_budget_level:
-        factors.BUDGET_LEVELS = ['tight', 'loose']
+    # Parse custom A/R/D parameter specifications
+    factors.A_VALUES = parse_parameter_spec(
+        args.A_list, args.A_range, args.A_logspace,
+        factors.A_VALUES
+    )
+    factors.R_VALUES = parse_parameter_spec(
+        args.R_list, args.R_range, args.R_logspace,
+        factors.R_VALUES
+    )
+    factors.D_VALUES = parse_parameter_spec(
+        args.D_list, args.D_range, args.D_logspace,
+        factors.D_VALUES
+    )
 
     print("=" * 70)
     print("WABA BENCHMARK DESIGN PLANNER")
@@ -763,7 +948,6 @@ def main():
     print(f"Design type: {args.design}")
     print(f"Master seed: {args.seed}")
     print(f"Replicates: {args.replicates}")
-    print(f"Budget levels: {'enabled' if args.include_budget_level else 'disabled (metadata-only)'}")
     print(f"Max instances: {args.max_instances or 'unlimited'}")
     print(f"Max per topology: {args.max_per_topology or 'unlimited'}")
     print()
@@ -782,7 +966,7 @@ def main():
             max_instances=args.max_instances,
             max_per_topology=args.max_per_topology
         )
-    else:  # stratified
+    elif args.design == 'stratified':
         if not args.max_instances:
             print("ERROR: --max-instances required for stratified design")
             return 1
@@ -792,6 +976,18 @@ def main():
             target_instances=args.max_instances,
             max_per_topology=args.max_per_topology
         )
+    elif args.design == 'grid3':
+        sampler = Grid3Sampler(
+            factors,
+            args.seed,
+            num_replicates=args.replicates,
+            max_instances=args.max_instances,
+            max_per_topology=args.max_per_topology
+        )
+        plan = sampler.sample()
+    else:
+        print(f"ERROR: Unknown design type: {args.design}")
+        return 1
 
     print(f"✓ Generated plan with {len(plan):,} instances")
     print()

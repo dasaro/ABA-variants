@@ -132,16 +132,8 @@ contrary(assume_newtonian, incompatible_classical_relativistic).
 contrary(assume_auxiliary_h1, excessive_complexity).
 
 %% ============================================================================
-%% BUDGET CONSTRAINT (Total Complexity ≤ β)
+%% BUDGET CONSTRAINT
 %% ============================================================================
 
-%% The sum_minimization.lp monoid defines extension_cost(C) = sum of discarded attack weights.
-%% We enforce: extension_cost ≤ beta (total complexity ≤ β)
-
-:- extension_cost(C), C > beta.
-
-%% ============================================================================
-%% BUDGET FACT
-%% ============================================================================
-
-budget(beta).
+%% Budget constraint enforced by loading constraint/ub_sum.lp
+%% (total complexity ≤ β)

@@ -150,16 +150,8 @@ contrary(trust_expert_witness, expert_unreliable).          % Expert trust defea
 contrary(accept_prosecution_logic, prosecutor_fallacy_detected). % Prosecution reasoning defeated by fallacy
 
 %% ============================================================================
-%% BUDGET CONSTRAINT (Total Ignored Critique Severity ≤ β)
+%% BUDGET CONSTRAINT
 %% ============================================================================
 
-%% The sum_minimization.lp monoid defines extension_cost(C) = sum of discarded attack weights.
-%% We enforce: extension_cost ≤ beta (total ignored critique severity ≤ β)
-
-:- extension_cost(C), C > beta.
-
-%% ============================================================================
-%% BUDGET FACT
-%% ============================================================================
-
-budget(beta).
+%% Budget constraint enforced by loading constraint/ub_sum.lp
+%% (total critique severity ≤ β)

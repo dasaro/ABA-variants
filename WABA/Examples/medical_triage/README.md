@@ -136,6 +136,7 @@ clingo -n 0 --opt-mode=opt -c beta=50 \
   WABA/core/base.lp \
   WABA/semiring/godel.lp \
   WABA/monoid/max_minimization.lp \
+  WABA/constraint/ub_max.lp \
   WABA/filter/standard.lp \
   WABA/semantics/stable.lp \
   WABA/examples/medical_triage/medical_triage.lp
@@ -148,6 +149,7 @@ clingo -n 0 -c beta=50 \
   WABA/core/base.lp \
   WABA/semiring/godel.lp \
   WABA/monoid/max_minimization.lp \
+  WABA/constraint/ub_max.lp \
   WABA/filter/standard.lp \
   WABA/semantics/stable.lp \
   WABA/examples/medical_triage/medical_triage.lp

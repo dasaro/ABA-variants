@@ -125,13 +125,5 @@ contrary(assume_respiratory_distress, no_icu_available).
 %% BUDGET CONSTRAINT (Max Harm ≤ β)
 %% ============================================================================
 
-%% The max_minimization.lp monoid defines extension_cost(C) = max discarded attack weight.
-%% We enforce: extension_cost ≤ beta (no patient harm above β)
-
-:- extension_cost(C), C > beta.
-
-%% ============================================================================
-%% BUDGET FACT (Needed by core/base.lp)
-%% ============================================================================
-
-budget(beta).
+%% Budget constraint enforced by loading constraint/ub_max.lp
+%% (worst single harm severity ≤ β)

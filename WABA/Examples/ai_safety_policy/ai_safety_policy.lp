@@ -156,17 +156,8 @@ contrary(assume_fairness, violates_fairness).
 contrary(assume_monitoring, violates_monitoring).
 
 %% ============================================================================
-%% BUDGET CONSTRAINT (Minimum Safety ≥ β)
+%% BUDGET CONSTRAINT
 %% ============================================================================
 
-%% The min_maximization.lp monoid defines extension_cost(C) = min discarded attack weight.
-%% We enforce: extension_cost ≥ beta (minimum safety threshold ≥ β)
-%% This is a LOWER BOUND constraint (quality threshold)
-
-:- extension_cost(C), C < beta.
-
-%% ============================================================================
-%% BUDGET FACT (Needed by core/base.lp)
-%% ============================================================================
-
-budget(beta).
+%% Budget constraint enforced by loading constraint/lb_min.lp
+%% (minimum safety threshold ≥ β)

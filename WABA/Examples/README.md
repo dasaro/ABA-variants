@@ -67,7 +67,11 @@ All examples in this directory adhere to the normative constraints specified in 
 
 | Example | Domain | Semiring | Monoid | Opt | Weight Interpretation | Description |
 |---------|--------|----------|--------|-----|----------------------|-------------|
-| `scientific_theory.lp` | Philosophy of Science | Tropical | Sum | Max | Explanatory power | Theory choice maximizing cumulative explanatory strength |
+| `scientific_theory.lp` | Philosophy of Science | Tropical | Sum | Min | Theoretical complexity | Theory choice minimizing total complexity (Ockham's razor) |
+| `strong_inference.lp` | Scientific Discovery | Tropical | Count | Min | Rejection strength | Ulam-Rényi game: "Nature can lie m times" (minimize experimental errors) |
+| `nhst.lp` | Statistical Inference | Tropical | Sum | Min | Evidence strength | NHST-style hypothesis testing (minimize ignored statistical evidence) |
+| `meta_evidence_layered.lp` | Epistemology / Meta-Science | Gödel | Max | Min | Credibility penalty | 3-layer defeaters: study → meta → meta-meta (non-monotonic flip) |
+| `sally_clark_meta_evidence.lp` | Legal / Forensic Stats | Tropical | Sum | Min | Fallacy severity | Prosecutor's fallacy and statistical critique accumulation |
 | `experimental_design.lp` | Methodology | Łukasiewicz | Sum | Min | Experimental cost | Hypothesis testing with bounded cost accumulation |
 
 ---
@@ -75,24 +79,24 @@ All examples in this directory adhere to the normative constraints specified in 
 ## Coverage Statistics
 
 ### Semiring Distribution
-- **Gödel**: 4 examples (weakest-link semantics)
-- **Tropical**: 5 examples (accumulative semantics)
+- **Gödel**: 5 examples (weakest-link semantics) ⬆️
+- **Tropical**: 8 examples (accumulative semantics) ⬆️
 - **Łukasiewicz**: 2 examples (bounded accumulation)
 - **Arctic**: 1 example (dual/reward semantics)
 - **Bottleneck**: 2 examples (worst-case semantics)
 
 ### Monoid Distribution
-- **Max**: 6 examples (worst-case aggregation)
-- **Sum**: 7 examples (cumulative aggregation)
+- **Max**: 7 examples (worst-case aggregation) ⬆️
+- **Sum**: 9 examples (cumulative aggregation) ⬆️
 - **Min**: 1 example (minimum threshold)
-- **Count**: 1 example (cardinality-based)
+- **Count**: 2 examples (cardinality-based)
 
 ### Optimization Direction
-- **Minimize**: 10 examples (cost/harm/uncertainty minimization)
+- **Minimize**: 14 examples (cost/harm/uncertainty minimization) ⬆️
 - **Maximize**: 4 examples (strength/value/reward maximization)
 
 ### Structural Features
-- **Mixed rule bodies** (assumptions + derived atoms): 9 examples
+- **Mixed rule bodies** (assumptions + derived atoms): 13 examples ⬆️
 - **Pure assumption bodies**: 5 examples
 
 ---

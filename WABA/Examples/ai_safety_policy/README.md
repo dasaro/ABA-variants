@@ -97,6 +97,7 @@ clingo -n 0 --opt-mode=opt -c beta=60 \
   WABA/core/base.lp \
   WABA/semiring/bottleneck_cost.lp \
   WABA/monoid/min_maximization.lp \
+  WABA/constraint/lb_min.lp \
   WABA/filter/standard.lp \
   WABA/semantics/stable.lp \
   WABA/examples/ai_safety_policy/ai_safety_policy.lp

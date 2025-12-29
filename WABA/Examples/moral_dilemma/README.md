@@ -145,6 +145,7 @@ clingo -n 0 --opt-mode=opt -c beta=40 \
   WABA/core/base.lp \
   WABA/semiring/godel.lp \
   WABA/monoid/max_minimization.lp \
+  WABA/constraint/ub_max.lp \
   WABA/filter/standard.lp \
   WABA/semantics/stable.lp \
   WABA/examples/moral_dilemma/moral_dilemma.lp
@@ -157,6 +158,7 @@ clingo -n 0 -c beta=40 \
   WABA/core/base.lp \
   WABA/semiring/godel.lp \
   WABA/monoid/max_minimization.lp \
+  WABA/constraint/ub_max.lp \
   WABA/filter/standard.lp \
   WABA/semantics/stable.lp \
   WABA/examples/moral_dilemma/moral_dilemma.lp

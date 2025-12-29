@@ -133,16 +133,8 @@ contrary(assume_tactile_wet, contradicts_tactile_evidence).
 contrary(assume_forecast_dry, contradicts_forecast).
 
 %% ============================================================================
-%% BUDGET CONSTRAINT (Total Unreliability ≤ β)
+%% BUDGET CONSTRAINT
 %% ============================================================================
 
-%% The sum_minimization.lp monoid defines extension_cost(C) = sum of discarded attack weights.
-%% We enforce: extension_cost ≤ beta (total unreliability ≤ β)
-
-:- extension_cost(C), C > beta.
-
-%% ============================================================================
-%% BUDGET FACT (Needed by core/base.lp)
-%% ============================================================================
-
-budget(beta).
+%% Budget constraint enforced by loading constraint/ub_sum.lp
+%% (total unreliability ≤ β)

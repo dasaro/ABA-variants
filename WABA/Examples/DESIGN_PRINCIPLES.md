@@ -89,13 +89,44 @@ This models realistic inference where conclusions depend on both commitments and
 | **Min** | minimum | Threshold on minimum quality |
 | **Count** | count | Threshold on number of attacks |
 
+**CRITICAL REQUIREMENT**: All WABA examples **MUST include budget parameter β**. This is non-negotiable.
+
 **Must**:
+- **Always include** `#const beta = N` in every framework file (provides default value)
+- **Always load the appropriate constraint file** from `WABA/constraint/` in clingo commands
 - State what the budget β represents (e.g., "maximum tolerable harm", "total available resources")
 - Justify why the monoid matches the budget interpretation
 - Ensure normative coherence (e.g., max for "worst-case harm", sum for "total cost")
 
+**Budget Enforcement** (⚠️ CRITICAL):
+
+Optimized monoid files (`*_minimization.lp`, `*_maximization.lp`) use direct `#minimize`/`#maximize` weak constraints for performance. They **do NOT define `extension_cost/1`** as a regular predicate.
+
+**DO NOT** use inline constraints like `:- extension_cost(C), C > beta.` — these **will not work**!
+
+**Instead**, load monoid-specific constraint files:
+
+| Monoid | Constraint File | Semantics |
+|--------|----------------|-----------|
+| SUM | `constraint/ub_sum.lp` | Total cost ≤ β |
+| MAX | `constraint/ub_max.lp` | Worst-case ≤ β |
+| COUNT | `constraint/ub_count.lp` | Number of discards ≤ β |
+| MIN (lower bound) | `constraint/lb_min.lp` | Quality ≥ β |
+
+**Correct usage**:
+```bash
+clingo -c beta=50 \
+  WABA/core/base.lp \
+  WABA/semiring/godel.lp \
+  WABA/monoid/max_minimization.lp \
+  WABA/constraint/ub_max.lp \
+  WABA/filter/standard.lp \
+  WABA/semantics/stable.lp \
+  framework.lp
+```
+
 **Example justification**:
-> *Budget β=50 represents maximum tolerable harm in a single dimension. We use Max monoid because we must ensure no single attack exceeds this threshold (worst-case constraint).*
+> *Budget β=50 represents maximum tolerable harm in a single dimension. We use Max monoid because we must ensure no single attack exceeds this threshold (worst-case constraint). Budget enforced via constraint/ub_max.lp.*
 
 ### 2.3 Optimization Direction: Minimize vs Maximize
 

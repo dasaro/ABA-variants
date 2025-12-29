@@ -37,6 +37,7 @@ clingo -n 0 --opt-mode=opt -c beta=50 \
   WABA/core/base.lp \
   WABA/semiring/tropical.lp \
   WABA/monoid/max_minimization.lp \
+  WABA/constraint/ub_max.lp \
   WABA/filter/standard.lp \
   WABA/semantics/stable.lp \
   WABA/examples/resource_allocation/resource_allocation.lp

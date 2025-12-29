@@ -148,13 +148,8 @@ contrary(assume_need_housing, unfunded_housing).
 contrary(assume_need_infrastructure, unfunded_infrastructure).
 
 %% ============================================================================
-%% BUDGET CONSTRAINT (Worst Deprivation ≤ β)
+%% BUDGET CONSTRAINT
 %% ============================================================================
 
-:- extension_cost(C), C > beta.
-
-%% ============================================================================
-%% BUDGET FACT
-%% ============================================================================
-
-budget(beta).
+%% Budget constraint enforced by loading constraint/ub_max.lp
+%% (worst deprivation ≤ β)

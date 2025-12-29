@@ -37,6 +37,7 @@ clingo -n 0 --opt-mode=opt -c beta=120 \
   WABA/core/base.lp \
   WABA/semiring/tropical.lp \
   WABA/monoid/sum_minimization.lp \
+  WABA/constraint/ub_sum.lp \
   WABA/filter/standard.lp \
   WABA/semantics/stable.lp \
   WABA/examples/scientific_theory/scientific_theory.lp

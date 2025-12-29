@@ -137,16 +137,8 @@ contrary(trust_meta_source, meta_unreliable).   % Meta-source trust defeated by 
 contrary(accept_method_m1, method_flaw_detected). % Methodology defeated by detected flaw
 
 %% ============================================================================
-%% BUDGET CONSTRAINT (Worst Single Override ≤ β)
+%% BUDGET CONSTRAINT
 %% ============================================================================
 
-%% The max_minimization.lp monoid defines extension_cost(C) = max of discarded attack weights.
-%% We enforce: extension_cost ≤ beta (worst credibility override ≤ β)
-
-:- extension_cost(C), C > beta.
-
-%% ============================================================================
-%% BUDGET FACT
-%% ============================================================================
-
-budget(beta).
+%% Budget constraint enforced by loading constraint/ub_max.lp
+%% (worst credibility override ≤ β)

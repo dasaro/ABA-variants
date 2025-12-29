@@ -37,6 +37,7 @@ clingo -n 0 --opt-mode=opt -c beta=2 \
   WABA/core/base.lp \
   WABA/semiring/arctic.lp \
   WABA/monoid/count_minimization.lp \
+  WABA/constraint/ub_count.lp \
   WABA/filter/standard.lp \
   WABA/semantics/stable.lp \
   WABA/examples/practical_deliberation/practical_deliberation.lp

@@ -81,6 +81,7 @@ clingo -n 0 \
   WABA/core/base.lp \
   WABA/semiring/tropical.lp \
   WABA/monoid/count_minimization.lp \
+  WABA/constraint/ub_count.lp \
   WABA/filter/standard.lp \
   WABA/semantics/stable.lp \
   WABA/examples/scientific_discovery_strong_inference/strong_inference.lp
@@ -92,6 +93,7 @@ clingo -n 0 --opt-mode=opt -c beta=2 \
   WABA/core/base.lp \
   WABA/semiring/tropical.lp \
   WABA/monoid/count_minimization.lp \
+  WABA/constraint/ub_count.lp \
   WABA/filter/standard.lp \
   WABA/semantics/stable.lp \
   WABA/examples/scientific_discovery_strong_inference/strong_inference.lp
@@ -103,6 +105,7 @@ clingo -n 0 --opt-mode=opt -c beta=0 \
   WABA/core/base.lp \
   WABA/semiring/tropical.lp \
   WABA/monoid/count_minimization.lp \
+  WABA/constraint/ub_count.lp \
   WABA/filter/standard.lp \
   WABA/semantics/stable.lp \
   WABA/examples/scientific_discovery_strong_inference/strong_inference.lp

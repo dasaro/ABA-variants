@@ -115,16 +115,8 @@ contrary(assume_weather_good, rain_detected).
 contrary(assume_no_meeting, meeting_scheduled).
 
 %% ============================================================================
-%% BUDGET CONSTRAINT (Revision Count ≤ β)
+%% BUDGET CONSTRAINT
 %% ============================================================================
 
-%% The count_minimization.lp monoid defines extension_cost(C) = count of discarded attacks.
-%% We enforce: extension_cost ≤ beta (number of revisions ≤ β)
-
-:- extension_cost(C), C > beta.
-
-%% ============================================================================
-%% BUDGET FACT
-%% ============================================================================
-
-budget(beta).
+%% Budget constraint enforced by loading constraint/ub_count.lp
+%% (revision count ≤ β)

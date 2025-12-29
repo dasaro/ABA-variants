@@ -133,16 +133,8 @@ contrary(assume_duty_beneficence, violates_beneficence).
 contrary(assume_duty_justice, violates_justice).
 
 %% ============================================================================
-%% BUDGET CONSTRAINT (Worst Duty Violation ≤ β)
+%% BUDGET CONSTRAINT
 %% ============================================================================
 
-%% The max_minimization.lp monoid defines extension_cost(C) = max discarded attack weight.
-%% We enforce: extension_cost ≤ beta (worst duty violation ≤ β)
-
-:- extension_cost(C), C > beta.
-
-%% ============================================================================
-%% BUDGET FACT (Needed by core/base.lp)
-%% ============================================================================
-
-budget(beta).
+%% Budget constraint enforced by loading constraint/ub_max.lp
+%% (worst duty violation ≤ β)

@@ -136,16 +136,8 @@ contrary(h2, rejected_h2_placeholder).
 contrary(h4, rejected_h4_placeholder).
 
 %% ============================================================================
-%% BUDGET CONSTRAINT (Error Count ≤ β)
+%% BUDGET CONSTRAINT
 %% ============================================================================
 
-%% The count_minimization.lp monoid defines extension_cost(C) = count of discarded attacks.
-%% We enforce: extension_cost ≤ beta (number of dismissed rejections ≤ β)
-
-:- extension_cost(C), C > beta.
-
-%% ============================================================================
-%% BUDGET FACT
-%% ============================================================================
-
-budget(beta).
+%% Budget constraint enforced by loading constraint/ub_count.lp
+%% (experimental error count ≤ β)

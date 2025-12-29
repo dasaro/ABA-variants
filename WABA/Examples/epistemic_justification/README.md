@@ -147,6 +147,7 @@ clingo -n 0 --opt-mode=opt -c beta=80 -c k=100 \
   WABA/core/base.lp \
   WABA/semiring/lukasiewicz.lp \
   WABA/monoid/sum_minimization.lp \
+  WABA/constraint/ub_sum.lp \
   WABA/filter/standard.lp \
   WABA/semantics/stable.lp \
   WABA/examples/epistemic_justification/epistemic_justification.lp
@@ -159,6 +160,7 @@ clingo -n 0 -c beta=80 -c k=100 \
   WABA/core/base.lp \
   WABA/semiring/lukasiewicz.lp \
   WABA/monoid/sum_minimization.lp \
+  WABA/constraint/ub_sum.lp \
   WABA/filter/standard.lp \
   WABA/semantics/stable.lp \
   WABA/examples/epistemic_justification/epistemic_justification.lp

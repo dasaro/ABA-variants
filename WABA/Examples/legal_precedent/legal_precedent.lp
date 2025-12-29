@@ -126,16 +126,8 @@ contrary(assume_long_duration, precedent_temporal_limit).
 contrary(assume_legitimate_interest, conclusion_void_overbroad).
 
 %% ============================================================================
-%% BUDGET CONSTRAINT (Total Deviation ≤ β)
+%% BUDGET CONSTRAINT
 %% ============================================================================
 
-%% The sum_minimization.lp monoid defines extension_cost(C) = sum of discarded attack weights.
-%% We enforce: extension_cost ≤ beta (total precedent deviation ≤ β)
-
-:- extension_cost(C), C > beta.
-
-%% ============================================================================
-%% BUDGET FACT (Needed by core/base.lp)
-%% ============================================================================
-
-budget(beta).
+%% Budget constraint enforced by loading constraint/ub_sum.lp
+%% (total precedent deviation ≤ β)

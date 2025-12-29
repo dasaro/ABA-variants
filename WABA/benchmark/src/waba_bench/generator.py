@@ -57,8 +57,7 @@ def generate_frameworks_from_plan(plan_entries: List[Dict[str, Any]], output_dir
             D = entry['D']
             body_max = entry['body_max']
             weight_scheme_name = entry['weight_scheme']
-            operator = entry['operator']
-            budget_level = entry.get('budget_level')  # Optional (None if disabled)
+            # operator and budget_level removed from WABA benchmark
             replicate = entry['replicate']
             instance_seed = entry['instance_seed']
             plan_id = entry['plan_id']
@@ -91,7 +90,6 @@ def generate_frameworks_from_plan(plan_entries: List[Dict[str, Any]], output_dir
                 D=D,
                 body_max=body_max,
                 weight_scheme=weight_scheme,
-                budget_level=budget_level or 'medium',  # Default if None
                 instance_seed=instance_seed
             )
 
@@ -112,8 +110,7 @@ def generate_frameworks_from_plan(plan_entries: List[Dict[str, Any]], output_dir
                     'D': D,
                     'body_max': body_max,
                     'weight_scheme': weight_scheme_name,
-                    'operator': operator,
-                    'budget_level': budget_level,  # None if disabled
+                    # operator and budget_level removed from WABA benchmark
                     'replicate': replicate
                 },
                 'seeds': {
@@ -151,7 +148,6 @@ def generate_framework_for_topology(
     D: int,
     body_max: int,
     weight_scheme: WeightScheme,
-    budget_level: str,
     instance_seed: int
 ) -> Dict[str, Any]:
     """
@@ -165,7 +161,6 @@ def generate_framework_for_topology(
         D: Maximum derivation depth
         body_max: Maximum rule body size (used for some topologies)
         weight_scheme: WeightScheme object
-        budget_level: Budget level ('tight', 'medium', 'loose')
         instance_seed: Seed for topology-specific parameters
 
     Returns:
@@ -178,8 +173,7 @@ def generate_framework_for_topology(
     if topology == 'linear':
         predicates = generator.generate_linear(
             A=A, R=R, D=D,
-            weight_scheme=weight_scheme,
-            budget_level=budget_level
+            weight_scheme=weight_scheme
         )
 
     elif topology == 'tree':
@@ -188,8 +182,7 @@ def generate_framework_for_topology(
         predicates = generator.generate_tree(
             A=A, R=R, D=D,
             branching_factor=branching_factor,
-            weight_scheme=weight_scheme,
-            budget_level=budget_level
+            weight_scheme=weight_scheme
         )
 
     elif topology == 'cycle':
@@ -198,15 +191,13 @@ def generate_framework_for_topology(
         predicates = generator.generate_cycle(
             A=A, R=R,
             cycle_length=cycle_length,
-            weight_scheme=weight_scheme,
-            budget_level=budget_level
+            weight_scheme=weight_scheme
         )
 
     elif topology == 'complete':
         predicates = generator.generate_complete(
             A=A, R=R, D=D,
-            weight_scheme=weight_scheme,
-            budget_level=budget_level
+            weight_scheme=weight_scheme
         )
 
     elif topology == 'mixed':
@@ -215,8 +206,7 @@ def generate_framework_for_topology(
         predicates = generator.generate_mixed(
             A=A, R=R, D=D,
             num_clusters=num_clusters,
-            weight_scheme=weight_scheme,
-            budget_level=budget_level
+            weight_scheme=weight_scheme
         )
 
     elif topology == 'isolated':
@@ -225,8 +215,7 @@ def generate_framework_for_topology(
         predicates = generator.generate_isolated(
             A=A, R=R, D=D,
             num_components=num_components,
-            weight_scheme=weight_scheme,
-            budget_level=budget_level
+            weight_scheme=weight_scheme
         )
 
     else:
