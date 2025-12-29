@@ -107,9 +107,11 @@ clingo -c beta=100 WABA/core/base.lp ...
 ```
 
 Common values:
-- `budget(0)` - Strictest (classical ABA, no discarding)
+- `budget(0)` - **Strict**: NO attack discarding (classical ABA/AAF simulation, includes zero-weight attacks)
 - `budget(max_weight)` - Can discard ~1 attack
 - `budget(sum_all)` - Can discard all attacks
+
+**Note**: Budget constraints use `>=` (strict inequality) to ensure `budget(0)` prevents ALL discarding.
 
 
 ### Łukasiewicz Normalization Constant
