@@ -8,7 +8,22 @@
 
 ## Summary
 
-All 8 WABA argumentation semantics have been verified on larger benchmark examples from the benchmark dataset. Tests confirm that subset relations and semantic definitions hold correctly on frameworks with diverse topologies and characteristics.
+All 8 WABA argumentation semantics have been verified on larger benchmark examples from the benchmark dataset.
+
+### Verification Scope
+
+**Theoretical Requirements (MUST hold - Perfect ✅)**:
+- All 9 subset relations between semantics verified (27/27 tests passed)
+- These are formal requirements from argumentation theory
+- **Status**: 100% perfect across all 3 frameworks
+
+**Empirical Observations (Framework-specific - NOT required)**:
+- Observed: Stable = Semi-Stable = Preferred = Complete in these frameworks
+- This equality is NOT a theoretical requirement
+- Other frameworks may show strict subsets (e.g., Complete ⊂ Admissible)
+- Both patterns are correct
+
+Tests confirm that all theoretical requirements (subset relations) hold correctly on frameworks with diverse topologies and characteristics.
 
 ---
 
@@ -162,16 +177,24 @@ Both test suites confirm:
 
 ## Extension Count Analysis
 
-### Pattern: Stable = Semi-Stable = Preferred = Complete
+### Observed Pattern: Stable = Semi-Stable = Preferred = Complete
+
+**Important**: This equality is **NOT a theoretical requirement** - it's an empirical observation specific to these benchmark frameworks.
 
 This equality holds in all benchmark examples (unlike some small examples where they differ).
 
-**Why?** Benchmark frameworks with tight budgets create strong constraints:
-1. Limited attack discarding options (tight budget)
-2. Well-structured topologies (systematic generation)
-3. Power law weight distributions (few heavy attacks)
+**Why does equality occur here?**
+1. **Tight budget constraints** - Limited attack discarding options
+2. **Well-structured topologies** - Systematic generation
+3. **Power law weight distributions** - Few heavy attacks
 
-Result: Most complete extensions are already maximal and stable.
+These properties mean: Most complete extensions are already maximal (preferred) and defeat all out assumptions (stable).
+
+**Counter-examples where they differ (also correct)**:
+- moral_dilemma: Stable=Preferred=Complete (2) ⊂ Admissible (20)
+- practical_deliberation: Stable=Complete (16) ⊂ Admissible (81)
+
+**Both patterns are correct** - the semantics satisfy all theoretical requirements regardless of equality.
 
 ### Admissible vs CF Ratio
 

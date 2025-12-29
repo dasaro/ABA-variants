@@ -91,16 +91,35 @@ All 9 subset relations verified on all 3 frameworks:
 
 ## Key Findings
 
-### 1. Strong Coherence Persists at Scale
+### 1. Subset Relations (Theoretical Requirements) - PERFECT ✅
 
-**Stable = Semi-Stable = Preferred = Complete** in all a10 frameworks
+All 9 subset relations verified on all 3 frameworks:
+- These are **formal requirements** that MUST hold for semantics to be correct
+- **Status**: 27/27 tests passed (100% perfect)
 
-This pattern (first observed in a5) continues at larger scale, indicating:
-- Saturation-based maximality constraints work correctly
-- Tight budgets create strong structural constraints
-- Well-formed frameworks exhibit strong semantic coherence
+### 2. Equality Observation (Framework-Specific) - NOT REQUIRED
 
-### 2. Exactly 2^10 = 1024 Admissible Extensions
+**Observed**: Stable = Semi-Stable = Preferred = Complete in all a10 frameworks
+
+**Important**: This equality is **NOT a theoretical requirement**. It's an empirical observation specific to these benchmark frameworks.
+
+**Why does equality occur here?**
+1. **Tight budget constraints** - Limited attack discarding options
+2. **Systematic generation** - Well-structured topologies
+3. **Power law weight distribution** - Few heavy attacks
+
+These properties mean:
+- Every complete extension is already maximal → Preferred
+- Every complete extension defeats all out assumptions → Stable
+- Every stable extension is maximal w.r.t. range → Semi-Stable
+
+**Counter-example** (from small frameworks where they differ):
+- moral_dilemma: Stable=Preferred=Complete (2) ⊂ Admissible (20) ✓ Expected
+- practical_deliberation: Stable=Complete (16) ⊂ Admissible (81) ✓ Expected
+
+**Both patterns are correct** - the semantics work as intended regardless of equality.
+
+### 3. Exactly 2^10 = 1024 Admissible Extensions
 
 **Remarkable finding**: All 3 frameworks have exactly **1024 admissible extensions**.
 
@@ -111,7 +130,7 @@ This pattern (first observed in a5) continues at larger scale, indicating:
 
 **Note**: Not all CF extensions are admissible (2476-3013 CF vs 1024 admissible)
 
-### 3. Admissibility Filtering Scales Non-Linearly
+### 4. Admissibility Filtering Scales Non-Linearly
 
 | Framework | a5 Ratio | a10 Ratio | Change |
 |-----------|----------|-----------|--------|
@@ -124,7 +143,7 @@ This pattern (first observed in a5) continues at larger scale, indicating:
 - Admissibility becomes more selective at larger scales
 - Cycle topology shows strongest selectivity drop
 
-### 4. Stable Extensions Scale Differently by Topology
+### 5. Stable Extensions Scale Differently by Topology
 
 | Topology | a5 → a10 Growth | Multiplier |
 |----------|----------------|------------|
@@ -134,7 +153,7 @@ This pattern (first observed in a5) continues at larger scale, indicating:
 
 **Cycle shows superlinear growth**: Cycles create more stable configurations as assumptions increase.
 
-### 5. Grounded Extensions Remain Small
+### 6. Grounded Extensions Remain Small
 
 | Framework | a5 | a10 | Notes |
 |-----------|-----|-----|-------|
@@ -202,10 +221,10 @@ All tests completed within **5-minute timeout per semantics**:
 
 ### ✅ Strengths
 
-1. **Correctness at Scale**: All 27 subset relations hold with 1024+ extensions
-2. **Performance**: Complete enumeration in <1 minute per framework
-3. **Robustness**: No timeouts, crashes, or errors
-4. **Consistency**: Stable = Semi-Stable = Preferred = Complete (strong coherence)
+1. **Perfect Correctness**: All 27 subset relations hold (theoretical requirements satisfied)
+2. **Scales to 1024+ Extensions**: Handles large extension sets without errors
+3. **Performance**: Complete enumeration in <1 minute per framework
+4. **Robustness**: No timeouts, crashes, or errors
 
 ### ⚠️ Limitations
 
@@ -275,11 +294,13 @@ python3 semantics/verify_benchmark.py --a10
 
 WABA semantics are **verified correct and production-ready** for frameworks with up to 10 assumptions:
 
-✅ **All subset relations verified** (27/27 tests)
-✅ **Strong semantic coherence** (Stable = Preferred = Complete)
+✅ **All subset relations verified** (27/27 tests - 100% perfect)
+✅ **Theoretical requirements satisfied** (all formal properties hold)
 ✅ **Efficient enumeration** (<1 minute per framework)
 ✅ **Scales correctly** (exponential growth as expected)
 ✅ **Robust implementation** (no errors or timeouts)
+
+**Note**: The observed equality (Stable = Preferred = Complete) in benchmark frameworks is framework-specific, not a theoretical requirement. Both equality and strict subset patterns are correct.
 
 **Recommended usage**:
 - **Research**: Use for systematic benchmark evaluation up to a10
