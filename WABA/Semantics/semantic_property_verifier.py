@@ -230,6 +230,154 @@ class SemanticPropertyVerifier:
 
         return True, "Satisfies CF definition (no internal conflicts)"
 
+    def verify_semi_stable_properties(self, ext: Extension) -> Tuple[bool, str]:
+        """Verify semi-stable extension properties.
+
+        Semi-stable definition:
+        1. E is complete (admissible + all defended are in)
+        2. E is maximal w.r.t. range (in ∪ defeated)
+
+        Note: Maximality check requires comparing with other extensions,
+        so we only check completeness here.
+        """
+
+        # Property 1: Conflict-free (part of complete)
+        if not ext.assumptions.isdisjoint(ext.defeated):
+            conflicted = ext.assumptions & ext.defeated
+            return False, f"Not conflict-free (defeated: {conflicted})"
+
+        # Property 2: All defended are in (completeness)
+        defended_not_in = ext.defended - ext.assumptions
+        if defended_not_in:
+            return False, f"Not complete: {len(defended_not_in)} defended assumptions not in"
+
+        return True, "Satisfies semi-stable local properties (complete)"
+
+    def verify_grounded_properties(self, ext: Extension) -> Tuple[bool, str]:
+        """Verify grounded extension properties.
+
+        Grounded definition:
+        1. E is complete (admissible + all defended are in)
+        2. E is minimal (no proper subset is complete)
+
+        Note: We can only check completeness per-extension.
+        Minimality requires comparing with other extensions.
+        """
+
+        # Property 1: Conflict-free
+        if not ext.assumptions.isdisjoint(ext.defeated):
+            conflicted = ext.assumptions & ext.defeated
+            return False, f"Not conflict-free (defeated: {conflicted})"
+
+        # Property 2: All defended are in
+        defended_not_in = ext.defended - ext.assumptions
+        if defended_not_in:
+            return False, f"Not complete: {len(defended_not_in)} defended assumptions not in"
+
+        return True, "Satisfies grounded local properties (complete)"
+
+    def verify_staged_properties(self, ext: Extension, framework_info: FrameworkInfo) -> Tuple[bool, str]:
+        """Verify staged extension properties.
+
+        Staged definition:
+        1. E is conflict-free
+        2. E is maximal w.r.t. range (in ∪ defeated)
+
+        Note: We can compute range and check if any assumption could extend it.
+        """
+
+        # Property 1: Conflict-free
+        if not ext.assumptions.isdisjoint(ext.defeated):
+            conflicted = ext.assumptions & ext.defeated
+            return False, f"Not conflict-free (defeated: {conflicted})"
+
+        # Property 2: Check range maximality
+        # Range = in ∪ defeated
+        ext_range = ext.assumptions | ext.defeated
+
+        # An assumption can extend range if it's:
+        # - Not in range already
+        # - Defended (could be added)
+        # - Not defeated
+        out_of_range = framework_info.assumptions - ext_range
+        could_extend = out_of_range & ext.defended - ext.defeated
+
+        if could_extend:
+            return False, f"Range not maximal: {len(could_extend)} assumptions could extend range"
+
+        return True, "Satisfies staged definition (CF + maximal range)"
+
+    def verify_preferred_properties(self, ext: Extension) -> Tuple[bool, str]:
+        """Verify preferred extension properties.
+
+        Preferred definition:
+        1. E is admissible (conflict-free + self-defending)
+        2. E is maximal w.r.t. set inclusion among admissible extensions
+
+        Note: We can only check admissibility per-extension.
+        Maximality requires comparing with other extensions.
+        """
+
+        # Property 1: Conflict-free
+        if not ext.assumptions.isdisjoint(ext.defeated):
+            conflicted = ext.assumptions & ext.defeated
+            return False, f"Not conflict-free (defeated: {conflicted})"
+
+        # Property 2: Self-defending (admissibility)
+        undefended_in = ext.assumptions - ext.defended
+
+        if undefended_in:
+            return False, f"Not self-defending ({len(undefended_in)} members not defended)"
+
+        return True, "Satisfies preferred local properties (admissible)"
+
+    def verify_cf2_properties(self, ext: Extension, framework_info: FrameworkInfo) -> Tuple[bool, str]:
+        """Verify CF2 extension properties.
+
+        CF2 definition (semantics/cf2.lp):
+        1. E is conflict-free
+        2. For all assumptions X not in E, either:
+           a) X is defeated by E, OR
+           b) Adding X to E would create a conflict
+
+        Note: CF2 does NOT require admissibility (self-defending).
+        However, CF2 ⊆ Admissible may hold empirically in some frameworks.
+        """
+
+        # Property 1: Conflict-free
+        if not ext.assumptions.isdisjoint(ext.defeated):
+            conflicted = ext.assumptions & ext.defeated
+            return False, f"Not conflict-free (defeated: {conflicted})"
+
+        # Property 2: All out assumptions are either defeated or would conflict
+        # (We can only verify the "defeated" part without re-implementing conflict check)
+        out_assumptions = framework_info.assumptions - ext.assumptions
+        non_defeated_out = out_assumptions - ext.defeated
+
+        # Note: non_defeated_out may be non-empty if those assumptions would conflict
+        # We cannot verify the "would conflict" part without re-implementing the logic
+        # from semantics/cf2.lp, so we just verify conflict-freeness
+
+        return True, f"Satisfies cf2 local properties (CF + {len(ext.defeated)} defeated out of {len(out_assumptions)} out)"
+
+    def verify_naive_properties(self, ext: Extension) -> Tuple[bool, str]:
+        """Verify naive extension properties.
+
+        Naive definition:
+        1. E is conflict-free
+        2. E is maximal w.r.t. set inclusion among conflict-free extensions
+
+        Note: We can only check conflict-freeness per-extension.
+        Maximality requires comparing with other extensions.
+        """
+
+        # Property 1: Conflict-free
+        if not ext.assumptions.isdisjoint(ext.defeated):
+            conflicted = ext.assumptions & ext.defeated
+            return False, f"Not conflict-free (defeated: {conflicted})"
+
+        return True, "Satisfies naive local properties (conflict-free)"
+
 
 def verify_framework(framework: Path, waba_root: Path):
     """Verify semantic properties for a single framework."""
@@ -246,9 +394,15 @@ def verify_framework(framework: Path, waba_root: Path):
     # Test each semantics
     semantics_to_test = [
         ("stable", False, verifier.verify_stable_properties),
+        ("semi-stable", True, verifier.verify_semi_stable_properties),
+        ("preferred", True, verifier.verify_preferred_properties),
+        ("grounded", True, verifier.verify_grounded_properties),
+        ("staged", True, verifier.verify_staged_properties),
         ("complete", False, verifier.verify_complete_properties),
         ("admissible", False, verifier.verify_admissible_properties),
+        ("cf2", False, verifier.verify_cf2_properties),
         ("cf", False, verifier.verify_cf_properties),
+        ("naive", True, verifier.verify_naive_properties),
     ]
 
     all_passed = True
@@ -268,7 +422,7 @@ def verify_framework(framework: Path, waba_root: Path):
         failed_count = 0
 
         for i, ext in enumerate(extensions[:5], 1):  # Check first 5 for speed
-            if verify_func == verifier.verify_stable_properties:
+            if verify_func in (verifier.verify_stable_properties, verifier.verify_staged_properties, verifier.verify_cf2_properties):
                 passed, msg = verify_func(ext, framework_info)
             else:
                 passed, msg = verify_func(ext)

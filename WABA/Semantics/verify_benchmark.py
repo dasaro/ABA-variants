@@ -47,6 +47,8 @@ def run_semantics(semantics: str, framework: Path, use_heuristics: bool = False,
     cmd.extend([
         str(waba_root / "core/base.lp"),
         str(waba_root / "semiring/godel.lp"),
+        str(waba_root / "monoid/max.lp"),  # Use old monoid with extension_cost/1
+        str(waba_root / "constraint/ub_max.lp"),  # CRITICAL: Enforce budget constraint
         str(waba_root / "filter/standard.lp"),
         str(semantics_file),
         str(framework)
@@ -106,7 +108,8 @@ def test_framework(framework: Path):
         ("admissible", False),
         ("grounded", True),
         ("staged", True),
-        ("cf2", False),
+        ("cf2", False),   # CF2 = CF + non-defeated out must conflict
+        ("naive", False), # Naive = maximal CF (explicit maximality constraint)
         ("cf", False),
     ]
 
@@ -150,15 +153,16 @@ def test_framework(framework: Path):
         ("stable", "semi-stable"),
         ("semi-stable", "preferred"),
         ("semi-stable", "complete"),
-        ("preferred", "cf2"),
         ("preferred", "admissible"),
         ("complete", "admissible"),
-        ("cf2", "admissible"),
         ("admissible", "cf"),
-        ("cf2", "cf"),
         ("grounded", "complete"),
         ("stable", "staged"),
         ("staged", "cf"),
+        # CF2 chain: Stable ⊆ CF2 ⊆ Naive ⊆ CF
+        ("stable", "cf2"),
+        ("cf2", "naive"),
+        ("naive", "cf"),
     ]
 
     all_passed = True

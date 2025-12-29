@@ -7,11 +7,15 @@
 %%
 %% Semantics: The highest-cost discarded attack cannot exceed budget (worst-case ceiling)
 %%
-%% Default: β = #sup (permissive - no limit)
-%%   Override with: -c beta=N
-
-#const beta = #sup.
-budget(beta).
+%% Beta must be defined either:
+%%   - In framework file: #const beta = N.
+%%   - Via command line: -c beta=N
+%%
+%% Budget must be defined as:
+%%   budget(beta).
+%% in your framework file.
+%%
+%% DO NOT rely on automatic budget definition - it causes UNSATISFIABLE with beta=0!
 
 %% Reject if maximum cost exceeds budget
 :- C = #max{ W : discarded_attack(_,_,W) }, C > B, budget(B), B != #sup, C != #inf.

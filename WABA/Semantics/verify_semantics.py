@@ -63,17 +63,15 @@ class WABARunner:
         cmd.extend([
             str(self.core),
             str(self.semiring),
+            str(self.waba_root / "monoid/max.lp"),  # Use old monoid with extension_cost/1
+            str(self.waba_root / "constraint/ub_max.lp"),  # CRITICAL: Enforce budget constraint
             str(self.filter),
             str(semantics_file),
             str(framework)
         ])
 
-        # Only add monoid if we want optimization
-        # (for subset relation testing, we DON'T want it as it restricts to optimal cost)
-        if use_optimization:
-            monoid = self.waba_root / "monoid/max_minimization.lp"
-            # Insert monoid before filter
-            cmd.insert(-3, str(monoid))
+        # Note: Budget constraint now enforced via constraint/ub_max.lp
+        # The use_optimization parameter is deprecated - budget enforcement is always on
 
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
@@ -265,6 +263,10 @@ def run_comprehensive_tests(use_benchmark: bool = False):
             ("grounded", "complete", True, False),
             ("stable", "staged", False, True),
             ("staged", "cf", True, False),
+            # CF2 chain: Stable ⊆ CF2 ⊆ Naive ⊆ CF
+            ("stable", "cf2", False, False),
+            ("cf2", "naive", False, True),
+            ("naive", "cf", True, False),
         ]
 
         for sem1, sem2, heur1, heur2 in relations:
