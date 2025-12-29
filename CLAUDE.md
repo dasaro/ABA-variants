@@ -649,18 +649,35 @@ Example: Using `ub.lp` with SUM monoid and `beta=1`:
 
 **Solution**: Use `ub_sum.lp` which only checks SUM aggregate.
 
+### Strict Enforcement with beta=0
+
+**IMPORTANT**: All upper bound constraints use **strict inequality (>=)** to enforce beta=0 as "no discarding":
+- `constraint/ub_max.lp`: Rejects if `max(discarded weights) >= 0`
+- `constraint/ub_sum.lp`: Rejects if `sum(discarded weights) >= 0`
+- `constraint/ub_count.lp`: Rejects if `count(discarded attacks) >= 0`
+
+**Consequence**: With `beta=0`, **NO attacks can be discarded** (including zero-weight attacks).
+
+**For Plain ABA/AAF Simulation**:
+```bash
+# Framework must define: #const beta = 0. and budget(beta).
+clingo -n 0 core/base.lp semiring/godel.lp \
+       constraint/ub_max.lp semantics/admissible_aspartix.lp \
+       framework.lp
+```
+
 ### Usage Examples
 
 ```bash
 # SUM monoid with upper bound
-clingo -c beta=100 WABA/core/base.lp WABA/semiring/tropical.lp \
-       WABA/monoid/sum_minimization.lp WABA/constraint/ub_sum.lp \
-       WABA/filter/standard.lp WABA/semantics/stable.lp framework.lp
+clingo -c beta=100 core/base.lp semiring/tropical.lp \
+       monoid/sum_minimization.lp constraint/ub_sum.lp \
+       filter/standard.lp semantics/stable.lp framework.lp
 
 # MIN monoid with quality threshold (lower bound)
-clingo -c beta=10 WABA/core/base.lp WABA/semiring/tropical.lp \
-       WABA/monoid/min_minimization.lp WABA/constraint/lb_min.lp \
-       WABA/filter/standard.lp WABA/semantics/stable.lp framework.lp
+clingo -c beta=10 core/base.lp semiring/tropical.lp \
+       monoid/min_minimization.lp constraint/lb_min.lp \
+       filter/standard.lp semantics/stable.lp framework.lp
 ```
 
 ### Quick Reference
