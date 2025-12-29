@@ -106,6 +106,7 @@ def test_framework(framework: Path):
         ("admissible", False),
         ("grounded", True),
         ("staged", True),
+        ("cf2", False),
         ("cf", False),
     ]
 
@@ -122,9 +123,12 @@ def test_framework(framework: Path):
         ("stable", "semi-stable"),
         ("semi-stable", "preferred"),
         ("semi-stable", "complete"),
+        ("preferred", "cf2"),
         ("preferred", "admissible"),
         ("complete", "admissible"),
+        ("cf2", "admissible"),
         ("admissible", "cf"),
+        ("cf2", "cf"),
         ("grounded", "complete"),
         ("stable", "staged"),
         ("staged", "cf"),
