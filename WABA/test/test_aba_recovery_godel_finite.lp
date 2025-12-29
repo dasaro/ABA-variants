@@ -3,7 +3,7 @@
 %% Strategy: δ = 100, β = 101
 %% - Any discard: MIN(100, ...) = 100
 %% - LB check: 100 ≥ 101? NO → rejected
-%% - No discards: extension_cost = #sup ≥ 101? YES → accepted
+%% - No discards: cost = #sup ≥ 101? YES → accepted
 
 assumption(a).
 assumption(b).

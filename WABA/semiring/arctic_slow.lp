@@ -43,7 +43,7 @@
 %%   δ = 0        (default weight for unweighted assumptions)
 %%   β = #sup     (budget value - positive infinity)
 %%   Mechanism: MIN(0) = 0 < #sup, rejected by constraint/lb.lp
-%%              No discards: extension_cost = #sup ≥ #sup, accepted
+%%              No discards: cost = #sup ≥ #sup, accepted
 %%
 %% CURRENT IMPLEMENTATION: δ = 0 (see line ~54 below)
 %% This is the natural default for Arctic (multiplicative identity).

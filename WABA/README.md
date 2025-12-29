@@ -87,13 +87,10 @@ Choose how extension costs are computed from discarded attacks:
 
 | Semantics | File | Speed | Display |
 |-----------|------|-------|---------|
-| Standard (slow) | `sum.lp` | Slow (5.87s) | `extension_cost(N)` in answer |
 | **Minimize cost** ⭐ | `sum_minimization.lp` | **Fast (0.005s)** | `Optimization: N` |
 | **Maximize reward** ⭐ | `sum_maximization.lp` | **Fast (0.005s)** | `Optimization: -N` |
 
-**Recommendation:** Use `sum_minimization.lp` for cost minimization or `sum_maximization.lp` for reward maximization (both 1000x+ faster and work in both optimization and enumeration modes).
-
-The grounding explosion in `sum.lp` occurs because it must enumerate all possible sum values (thousands of predicates). The `_minimization` and `_maximization` variants use `#minimize`/`#maximize` directly, avoiding this entirely.
+All monoids now use optimized weak constraint-based approach (1000x+ faster, works in both optimization and enumeration modes).
 
 ### Budget Parameter
 
@@ -229,17 +226,17 @@ Expected output predicates:
 - `in(X)` - Selected assumptions in the extension
 - `supported_with_weight(X, W)` - Supported elements with their weights
 - `attacks_successfully_with_weight(X, Y, W)` - Successful attacks
-- `extension_cost(C)` - Total cost of the extension
+- `Optimization: N` - Cost/reward value (shown by weak constraints)
 
 ## Historical Reference
 
-**Previous Implementation:** The original aggregate-based WABA implementation (pre-December 2025) is preserved in the `WABA_Legacy/` directory for historical reference and backward compatibility.
+**Previous Implementation:** The original aggregate-based WABA implementation (pre-December 2025) is preserved in the `WABA_Legacy/` directory for historical reference.
 
 **Key differences:**
-- **Legacy**: Aggregate-based `extension_cost/1`, slower, monolithic core
-- **Current**: Weak constraint-based, 1000x faster optimization, modular design
+- **Legacy**: Aggregate-based `extension_cost/1` predicate, 1000x slower, supports enumeration of all models
+- **Current**: Direct weak constraint optimization, 1000x faster, **backward incompatible** (no `extension_cost/1`)
 
-See `WABA_Legacy/README.md` for migration guide and performance comparison.
+⚠️ **Breaking change (Dec 2025):** The `extension_cost/1` predicate has been completely removed for efficiency. Old code using `extension_cost/1` will not work. Use weak constraint optimization values instead (shown as `Optimization: N`).
 
 ## License
 

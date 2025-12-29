@@ -23,7 +23,7 @@ weight(c, #inf).
 
 %% With MIN + LB and β = 0:
 %% - Discard one attack: MIN(#inf) = #inf < 0 ✓ (rejected)
-%% - No discards: extension_cost = #sup ≥ 0 ✓ (accepted)
+%% - No discards: cost = #sup ≥ 0 ✓ (accepted)
 %%
 %% Test command:
 %%   clingo -n 0 -c beta=0 core/base.lp semiring/godel.lp monoid/baseline/min.lp \

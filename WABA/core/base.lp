@@ -71,11 +71,12 @@ defeated(X) :- attacks_successfully_with_weight(_,X,_).
 %% Budget Constraints
 %% ====================
 %%
-%% Budget constraints have been moved to constraint/ub.lp and constraint/lb.lp
-%% to support both old monoids (extension_cost/1) and new monoids (weak constraints).
+%% Budget constraints are in constraint/ directory and are monoid-specific.
+%% All monoids now use weak constraints directly (no extension_cost/1 predicate).
 %%
-%% Load constraint/ub.lp for upper bound enforcement (cost ≤ beta)
-%% Load constraint/lb.lp for lower bound enforcement (cost ≥ beta)
-%%
-%% The constraint files work with direct discarded_attack/3 predicates,
-%% supporting all monoid types (sum, max, min, count) without requiring extension_cost/1.
+%% Load appropriate constraint file for budget enforcement:
+%% - constraint/ub_max.lp - Upper bound for MAX monoid (cost ≤ beta)
+%% - constraint/ub_sum.lp - Upper bound for SUM monoid (cost ≤ beta)
+%% - constraint/ub_count.lp - Upper bound for COUNT monoid (cost ≤ beta)
+%% - constraint/lb_min.lp - Lower bound for MIN monoid (cost ≥ beta)
+%% - constraint/no_discard.lp - Plain ABA mode (no attack discarding)

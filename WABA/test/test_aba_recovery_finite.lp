@@ -12,7 +12,7 @@
 %%
 %% 3. Gödel + MIN + LB: δ = 100, β = 101
 %%    → Any discard gives MIN(100) = 100 < 101, rejected (LB)
-%%    → No discards: extension_cost = #sup ≥ 101, accepted
+%%    → No discards: cost = #sup ≥ 101, accepted
 
 assumption(a).
 assumption(b).
@@ -34,7 +34,7 @@ contrary(c, b).
 %%
 %% Extension {a, c}:
 %% - No attacks to discard (b is out)
-%% - extension_cost = 0 (or #sup)
+%% - Cost = 0 (no discarded attacks)
 %% - Check: 0 ≤ 999 ✓
 %%
 %% Extension {a, b, c} (hypothetically):

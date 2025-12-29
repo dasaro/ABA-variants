@@ -230,17 +230,16 @@ WABA uses a **semiring** for weight propagation and a **monoid** for cost aggreg
 - **bottleneck_cost.lp** - Bottleneck-cost semiring: maximum for conjunction, minimum for disjunction, worst-case optimization
 
 **Available Monoids** (in `WABA/monoid/`):
-- **max.lp** - Maximum cost: extension_cost = max of discarded attack weights (original WABA)
-- **sum.lp** - Sum cost: extension_cost = sum of all discarded attack weights
-- **min.lp** - Minimum cost: extension_cost = min of discarded attack weights
-- **count.lp** - Count cost: extension_cost = number of discarded attacks (weight-agnostic)
+
+
+
+
 
 **Optimized variants** (direct `#minimize`/`#maximize`, 1000x faster):
 - **sum_minimization.lp** / **sum_maximization.lp** - Sum minimization/maximization (works in both modes)
 - **max_minimization.lp** / **max_maximization.lp** - Max minimization/maximization (works in both modes)
 - **min_minimization.lp** / **min_maximization.lp** - Min minimization/maximization (works in both modes)
 - **count_minimization.lp** / **count_maximization.lp** - Count minimization/maximization (works in both modes)
-- **lex_minimization.lp** / **lex_maximization.lp** - Lexicographic minimization/maximization (works in both modes)
 
 **Naming convention:** `{monoid}_{direction}.lp` where:
 - `_minimization` = minimize (cost semantics: weights = costs to avoid)
@@ -397,12 +396,7 @@ WABA/
 │   └── base.lp                  # Modular semiring/monoid-independent core
 ├── filter/                      # Output filtering modules
 │   ├── standard.lp              # Standard output filtering
-│   ├── projection.lp            # Projection mode filtering (for stable semantics)
-│   └── lexicographic.lp         # Lexicographic monoid filtering
-├── optimize/                    # Cost optimization modules
-│   ├── minimize.lp              # Minimize extension_cost (for max/sum/count monoids)
-│   ├── maximize.lp              # Maximize extension_cost (for min monoid)
-│   └── lexicographic.lp         # Lexicographic optimization
+│   └── projection.lp            # Projection mode filtering (for stable semantics)
 ├── semiring/                    # Weight propagation modules
 │   ├── godel.lp                 # Gödel/Fuzzy logic (min/max, identity=#sup) - original WABA
 │   ├── tropical.lp              # Tropical semiring (+/min, identity=#sup)
@@ -513,9 +507,10 @@ attacks_successfully_with_weight(X,Y,W) :- attacks_with_weight(X,Y,W),
 defeated(X) :- attacks_successfully_with_weight(_,X,_).
 ```
 
-**Budget Enforcement**: Extension cost cannot exceed budget
+**Budget Enforcement**: Use monoid-specific constraint files (see constraint/ directory)
 ```prolog
-:- extension_cost(C), C > B, budget(B).
+%% Example: constraint/ub_max.lp
+:- C = #max{ W : discarded_attack(_,_,W) }, C > B, budget(B), B != #sup, C != #inf.
 ```
 
 ### 2. Semiring Modules (semiring/*.lp)
@@ -542,17 +537,22 @@ supported_with_weight(X,W) :- supported(X), head(_,X),
 
 ### 3. Monoid Modules (monoid/*.lp)
 
-Define `extension_cost/1` for cost aggregation.
+Use weak constraints directly for cost aggregation (no `extension_cost/1` predicate).
 
-**Max monoid** (max.lp) - Original WABA:
+**Max minimization** (max_minimization.lp):
 ```prolog
-extension_cost(C) :- C = #max{ W, X, Y : discarded_attack(X,Y,W) }.
+%% Minimize the maximum discarded attack weight
+:~ M = #max { W : discarded_attack(_,_,W) }, M != #sup, M != #inf. [M@0]
+:~ M = #max { W : discarded_attack(_,_,W) }, M = #inf. [1@1]
+:~ M = #max { W : discarded_attack(_,_,W) }, M = #sup. [1@2]
 ```
 
-**Sum monoid** (sum.lp):
+**Sum minimization** (sum_minimization.lp):
 ```prolog
-extension_cost(C) :- C = #sum{ W, X, Y : discarded_attack(X,Y,W) }.
-extension_cost(0) :- not discarded_attack(_,_,_).
+%% Minimize the sum of discarded attack weights
+:~ M = #sum { W : discarded_attack(_,_,W) }, M != #sup, M != #inf. [M@0]
+:~ M = #sum { W : discarded_attack(_,_,W) }, M = #inf. [1@1]
+:~ M = #sum { W : discarded_attack(_,_,W) }, M = #sup. [1@2]
 ```
 
 ## Clingo ASP Guidelines
@@ -592,7 +592,7 @@ clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/max.lp \
    - `in/1` - Selected assumptions
    - `supported_with_weight/2` - Supported elements and their weights
    - `attacks_successfully_with_weight/3` - Successful attacks
-   - `extension_cost/1` - Cost of the extension
+   - `Optimization: N` - Cost/reward value (from weak constraints)
 
 6. Check for errors:
    - Syntax errors from clingo
@@ -610,9 +610,9 @@ To add a new semiring or monoid:
 4. Test with existing monoids and all semantics
 
 **New Monoid** (cost aggregation strategy):
-1. Create `WABA/monoid/<name>.lp`
-2. Define `extension_cost(C)` predicate
-3. Document the aggregation function and identity value (usually 0)
+1. Create `WABA/monoid/<name>_minimization.lp` and/or `<name>_maximization.lp`
+2. Use weak constraints (`:~`) to minimize/maximize cost
+3. Handle edge cases (#sup, #inf) with stratified priorities
 4. Test with existing semirings and all semantics
 
 **Testing a new combination**:
