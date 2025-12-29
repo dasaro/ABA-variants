@@ -649,14 +649,26 @@ Example: Using `ub.lp` with SUM monoid and `beta=1`:
 
 **Solution**: Use `ub_sum.lp` which only checks SUM aggregate.
 
-### Strict Enforcement with beta=0
+### Strict Boundary Enforcement
 
-**IMPORTANT**: All upper bound constraints use **strict inequality (>=)** to enforce beta=0 as "no discarding":
-- `constraint/ub_max.lp`: Rejects if `max(discarded weights) >= 0`
-- `constraint/ub_sum.lp`: Rejects if `sum(discarded weights) >= 0`
-- `constraint/ub_count.lp`: Rejects if `count(discarded attacks) >= 0`
+**IMPORTANT**: All budget constraints use **strict inequalities** for exact boundary enforcement:
 
-**Consequence**: With `beta=0`, **NO attacks can be discarded** (including zero-weight attacks).
+**Upper Bounds (>=)** - Prevent exceeding budget:
+- `constraint/ub_max.lp`: Rejects if `max(discarded weights) >= beta`
+- `constraint/ub_sum.lp`: Rejects if `sum(discarded weights) >= beta`
+- `constraint/ub_count.lp`: Rejects if `count(discarded attacks) >= beta`
+
+**Lower Bounds (<=)** - Require minimum quality:
+- `constraint/lb_max.lp`: Rejects if `max(discarded weights) <= beta`
+- `constraint/lb_min.lp`: Rejects if `min(discarded weights) <= beta`
+- `constraint/lb_sum.lp`: Rejects if `sum(discarded weights) <= beta`
+- `constraint/lb_count.lp`: Rejects if `count(discarded attacks) <= beta`
+
+**Consequences**:
+- **Upper bound with beta=0**: NO attacks can be discarded (plain ABA/AAF)
+- **Lower bound with beta=0**: Requires at least one positive-weight discard
+- **Upper bound with beta=N**: Only attacks with cost > N can be discarded
+- **Lower bound with beta=N**: Only combinations with cost > N are accepted
 
 **For Plain ABA/AAF Simulation**:
 ```bash
