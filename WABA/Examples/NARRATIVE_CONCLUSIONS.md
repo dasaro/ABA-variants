@@ -365,7 +365,7 @@ Cost: 85 (prosecutor_fallacy_detected discarded to keep accept_prosecution_logic
 ---
 
 **See Also**:
-- [COUNTERFACTUAL_ANALYSIS.md](COUNTERFACTUAL_ANALYSIS.md) - What-if budget analysis and alternative narratives
+- [COUNTERFACTUAL_NARRATIVES.md](COUNTERFACTUAL_NARRATIVES.md) - What-if budget analysis and alternative narratives
 - [DESIGN_PRINCIPLES.md](DESIGN_PRINCIPLES.md) - Framework design constraints
 - [README.md](README.md) - Example index and coverage statistics
 - Individual example READMEs for detailed analysis

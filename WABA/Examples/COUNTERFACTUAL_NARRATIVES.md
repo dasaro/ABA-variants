@@ -130,6 +130,25 @@ This document analyzes how story conclusions change as budget constraints are re
 
 ---
 
+### 2. Legal Precedent (SUM minimization, β=150)
+
+**All 2 solutions** (ordered by cost):
+
+| Cost | Narrative | Assumptions Accepted |
+|------|-----------|----------------------|
+| **150** | Partially enforceable contract | `assume_broad_scope`, `assume_long_duration` |
+| **225** | Fully enforceable contract | All 3 assumptions |
+
+**Counterfactual stories**:
+
+**β=150 (moderate - recommended)**: "Non-compete agreement **partially enforceable**. Geographic scope (broad) and temporal duration (long) upheld by distinguishing limiting precedents at total cost 150. However, legitimate business interest assumption **defeated** by precedent showing overbreadth (weight 75). Contract survives but is narrowed by common law doctrine."
+
+**β≥225 (permissive)**: "Non-compete agreement **fully enforceable**. All three contractual interpretations upheld: broad geographic scope, long duration, AND legitimate business interest. Total precedent deviation = 225 (within budget). Court distinguishes all limiting precedents, maximizing contract enforceability."
+
+**Interpretation**: Budget controls **common law flexibility**. β=150 enforces doctrinal constraints (partial enforceability); β≥225 permits maximal distinguishing of precedent (full enforceability).
+
+---
+
 ## Examples with Binary Thresholds (Unique Solutions)
 
 These examples show **all-or-nothing behavior** - increasing budget beyond minimum threshold doesn't change outcomes:
@@ -216,14 +235,14 @@ These examples show **all-or-nothing behavior** - increasing budget beyond minim
 | **Practical Deliberation** | 4 | Gradual (β=0,1,2,3) | ⭐⭐⭐ High - smooth cognitive conservatism scale |
 | **Strong Inference** | 3 | Gradual (β=0,1,2) | ⭐⭐⭐ High - Ulam-Rényi m parameter |
 | **NHST** | 4 | Gradual (β=0,100,215,315) | ⭐⭐⭐ High - evidential coherence trade-offs |
-| **Meta-Evidence** | 2 | Binary (β=60/70) | ⭐⭐ Moderate - authority hierarchy flip |
-| **Sally Clark** | 2 | Binary (β=85/180) | ⭐⭐⭐ High - legal evidentiary standards |
+| **Legal Precedent** | 2 | Gradual (β=150/225) | ⭐⭐ Moderate - common law flexibility |
+| **Meta-Evidence** | 2 | Gradual (β=60/70) | ⭐⭐ Moderate - authority hierarchy flip |
+| **Sally Clark** | 2 | Gradual (β=85/180) | ⭐⭐⭐ High - legal evidentiary standards |
 | **Medical Triage** | 1 | Binary (β=80) | ⭐ Low - all-or-nothing universalism |
 | **Epistemic Justification** | 1 | Binary (β=115) | ⭐ Low - cognitive fragmentation ceiling |
 | **Moral Dilemma** | 1 | Binary (β=75) | ⭐ Low - discrete moral threshold |
 | **Resource Allocation** | 1 | Binary (β=80) | ⭐ Low - universal funding threshold |
 | **Scientific Theory** | 1 | Binary (β=275) | ⭐ Low - paradigm pluralism threshold |
-| **Legal Precedent** | 1 | Binary (β=150) | ⭐ Low - fixed legal authority |
 | **AI Safety** | 1 | Binary (β=30) | ⭐ Low - deployment threshold |
 
 ---
