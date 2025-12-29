@@ -117,6 +117,33 @@ def test_framework(framework: Path):
         results[sem] = set(exts)
         print(f"{len(exts):4d} extensions")
 
+    # Test semantic properties
+    print("\n  Semantic Properties:")
+
+    # Check stable is conflict-free
+    if "stable" in results and "cf" in results:
+        if results["stable"].issubset(results["cf"]):
+            print(f"    ✓ Stable extensions are conflict-free")
+        else:
+            print(f"    ✗ Some stable extensions not conflict-free")
+            all_passed = False
+
+    # Check complete is admissible
+    if "complete" in results and "admissible" in results:
+        if results["complete"].issubset(results["admissible"]):
+            print(f"    ✓ Complete extensions are admissible")
+        else:
+            print(f"    ✗ Some complete extensions not admissible")
+            all_passed = False
+
+    # Check admissible is conflict-free
+    if "admissible" in results and "cf" in results:
+        if results["admissible"].issubset(results["cf"]):
+            print(f"    ✓ Admissible extensions are conflict-free")
+        else:
+            print(f"    ✗ Some admissible extensions not conflict-free")
+            all_passed = False
+
     # Test subset relations
     print("\n  Subset Relations:")
     relations = [

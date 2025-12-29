@@ -287,6 +287,39 @@ def run_comprehensive_tests(use_benchmark: bool = False):
         if not passed:
             all_passed = False
 
+        # Test 3b: Semantic Property Verification
+        print("\n3️⃣ᵇ SEMANTIC PROPERTY VERIFICATION")
+
+        # Get all extensions for property checking
+        stable_exts = runner.run_semantics("stable", framework, max_models=0, use_optimization=False)
+        complete_exts = runner.run_semantics("complete", framework, max_models=0, use_optimization=False)
+        admissible_exts = runner.run_semantics("admissible", framework, max_models=0, use_optimization=False)
+
+        # Verify stable properties
+        stable_cf = verifier.verify_conflict_free(stable_exts, framework)
+        if stable_cf:
+            print(f"  ✓ All stable extensions are conflict-free")
+        else:
+            print(f"  ✗ Some stable extensions not conflict-free")
+            all_passed = False
+
+        # Verify complete ⊆ admissible (semantic requirement)
+        complete_adm = all(verifier.verify_admissible_property(ext, admissible_exts, framework)
+                          for ext in complete_exts)
+        if complete_adm:
+            print(f"  ✓ All complete extensions are admissible")
+        else:
+            print(f"  ✗ Some complete extensions not admissible")
+            all_passed = False
+
+        # Verify admissible ⊆ CF (semantic requirement)
+        adm_cf = verifier.verify_conflict_free(admissible_exts, framework)
+        if adm_cf:
+            print(f"  ✓ All admissible extensions are conflict-free")
+        else:
+            print(f"  ✗ Some admissible extensions not conflict-free")
+            all_passed = False
+
         # Test 4: Count all extensions (WITHOUT optimization to see all extensions)
         print("\n4️⃣  EXTENSION COUNTS (all extensions, no cost optimization)")
         semantics_list = [
