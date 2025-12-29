@@ -53,7 +53,9 @@ def run_semantics(semantics: str, framework: Path, use_heuristics: bool = False,
     ])
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        # Increase timeout for larger examples (a10 can take much longer)
+        timeout = 300  # 5 minutes per semantics
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         extensions = parse_extensions(result.stdout)
 
         # Check if we hit the model limit
@@ -62,7 +64,7 @@ def run_semantics(semantics: str, framework: Path, use_heuristics: bool = False,
 
         return extensions
     except subprocess.TimeoutExpired:
-        print(f"  ⚠️  Timeout for {semantics}")
+        print(f"  ⚠️  Timeout for {semantics} (>{timeout}s)")
         return []
 
 
@@ -108,10 +110,11 @@ def test_framework(framework: Path):
     ]
 
     results = {}
-    for sem, use_heur in semantics_to_test:
+    for i, (sem, use_heur) in enumerate(semantics_to_test, 1):
+        print(f"  [{i}/{len(semantics_to_test)}] Testing {sem}...", end=" ", flush=True)
         exts = run_semantics(sem, framework, use_heur)
         results[sem] = set(exts)
-        print(f"  {sem:15s}: {len(exts):4d} extensions")
+        print(f"{len(exts):4d} extensions")
 
     # Test subset relations
     print("\n  Subset Relations:")
@@ -142,19 +145,34 @@ def test_framework(framework: Path):
 
 def main():
     """Test semantics on benchmark examples."""
+    import sys
+
     waba_root = Path("/Users/fdasaro/Desktop/WABA-claude/ABA-variants/WABA")
     benchmark_root = waba_root / "benchmark/frameworks"
 
-    # Test representative frameworks from different topologies (a5 for complete enumeration)
-    frameworks = [
-        benchmark_root / "linear/linear_a5_r2_d1_power_law_tight.lp",
-        benchmark_root / "tree/tree_a5_r2_d1_b2_power_law_tight.lp",
-        benchmark_root / "cycle/cycle_a5_r2_d1_c3_power_law_tight.lp",
-    ]
+    # Check if user wants a10 examples
+    use_a10 = "--a10" in sys.argv or "-a10" in sys.argv
+
+    if use_a10:
+        # Test representative frameworks from different topologies (a10 - larger scale)
+        frameworks = [
+            benchmark_root / "linear/linear_a10_r2_d1_random_tight.lp",
+            benchmark_root / "tree/tree_a10_r2_d1_b2_random_tight.lp",
+            benchmark_root / "cycle/cycle_a10_r2_d1_c3_random_tight.lp",
+        ]
+        size_label = "a10"
+    else:
+        # Test representative frameworks from different topologies (a5 for complete enumeration)
+        frameworks = [
+            benchmark_root / "linear/linear_a5_r2_d1_power_law_tight.lp",
+            benchmark_root / "tree/tree_a5_r2_d1_b2_power_law_tight.lp",
+            benchmark_root / "cycle/cycle_a5_r2_d1_c3_power_law_tight.lp",
+        ]
+        size_label = "a5"
 
     print("=" * 80)
     print("BENCHMARK SEMANTICS VERIFICATION")
-    print("Testing with -n 0 (all models) on small examples (a5)")
+    print(f"Testing with -n 0 (all models) on {size_label} examples")
     print("=" * 80)
 
     all_passed = True

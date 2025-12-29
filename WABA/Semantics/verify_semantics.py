@@ -76,7 +76,7 @@ class WABARunner:
             cmd.insert(-3, str(monoid))
 
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             return self._parse_extensions(result.stdout)
         except subprocess.TimeoutExpired:
             print(f"  ⚠️  Timeout for {semantics}")
@@ -209,21 +209,36 @@ class SemanticsVerifier:
         return True, f"✓ Preferred are maximal admissible ({len(pref)} extensions)"
 
 
-def run_comprehensive_tests():
-    """Run comprehensive verification tests."""
+def run_comprehensive_tests(use_benchmark: bool = False):
+    """Run comprehensive verification tests.
+
+    Args:
+        use_benchmark: If True, test on larger benchmark examples instead of small examples
+    """
 
     waba_root = Path("/Users/fdasaro/Desktop/WABA-claude/ABA-variants/WABA")
     runner = WABARunner(waba_root)
     verifier = SemanticsVerifier(runner)
 
-    # Test frameworks
-    frameworks = [
-        waba_root / "examples/medical_triage/medical_triage.lp",
-        waba_root / "examples/moral_dilemma/moral_dilemma.lp",
-        waba_root / "examples/practical_deliberation/practical_deliberation.lp",
-        waba_root / "examples/resource_allocation/resource_allocation.lp",
-        waba_root / "examples/ai_safety_policy/ai_safety_policy.lp",
-    ]
+    if use_benchmark:
+        # Test larger benchmark frameworks from different topologies
+        benchmark_root = waba_root / "benchmark/frameworks"
+        frameworks = [
+            benchmark_root / "tree/tree_a20_r2_d1_b2_power_law_tight.lp",
+            benchmark_root / "complete/complete_a15_r2_d1_dense_uniform_tight.lp",
+            benchmark_root / "cycle/cycle_a20_r2_d1_c3_power_law_tight.lp",
+            benchmark_root / "mixed/mixed_a20_r2_d1_cl2_power_law_tight.lp",
+            benchmark_root / "linear/linear_a20_r2_d1_power_law_tight.lp",
+        ]
+    else:
+        # Test original small frameworks
+        frameworks = [
+            waba_root / "examples/medical_triage/medical_triage.lp",
+            waba_root / "examples/moral_dilemma/moral_dilemma.lp",
+            waba_root / "examples/practical_deliberation/practical_deliberation.lp",
+            waba_root / "examples/resource_allocation/resource_allocation.lp",
+            waba_root / "examples/ai_safety_policy/ai_safety_policy.lp",
+        ]
 
     print("=" * 80)
     print("WABA SEMANTICS VERIFICATION SUITE")
@@ -326,5 +341,15 @@ def run_comprehensive_tests():
 
 if __name__ == "__main__":
     import sys
-    success = run_comprehensive_tests()
+
+    # Check if benchmark mode is requested
+    use_benchmark = "--benchmark" in sys.argv or "-b" in sys.argv
+
+    if use_benchmark:
+        print("Running verification on BENCHMARK examples (larger frameworks)")
+    else:
+        print("Running verification on SMALL examples")
+    print()
+
+    success = run_comprehensive_tests(use_benchmark=use_benchmark)
     sys.exit(0 if success else 1)
