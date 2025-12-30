@@ -1,12 +1,15 @@
 %% Naive Semantics: Maximal Conflict-Free Extensions
 %%
-%% Usage: clingo -n 0 --heuristic=Domain --enum=domRec <files> semantics/naive.lp
+%% Usage: clingo -n 0 --heuristic=Domain --enum-mode=domRec <files> semantics/naive.lp
 %%
-%% The heuristic prefers including assumptions, and domRec enumeration
-%% explores different ways to maximize the extension.
+%% Uses heuristic to minimize missing assumptions, achieving subset-maximality
+%% for conflict-free extensions.
 
 %% Conflict-freeness
 :- in(X), defeated(X).
 
-%% Maximality heuristic: prefer including assumptions
-#heuristic in(X) : assumption(X). [1,true]
+%% Track missing assumptions
+miss(X) :- assumption(X), not in(X).
+
+%% Maximality heuristic: prefer models with fewer missing assumptions
+#heuristic miss(X) : assumption(X). [1,false]
