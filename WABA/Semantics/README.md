@@ -49,6 +49,24 @@
 - **Encoding**: Conflict-free + heuristic to minimize missing assumptions
 - **Usage**: `clingo -n 0 --heuristic=Domain --enum-mode=domRec core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/naive.lp framework.lp`
 
+### ⚠️ EXPERIMENTAL Semantics
+
+These semantics use heuristics to approximate maximality constraints. They work correctly on tested examples but are not guaranteed to find all maximal extensions or exclude non-maximal ones on all frameworks.
+
+#### Semi-Stable Semantics
+- **File**: `semi-stable.lp`
+- **Definition**: Admissible + maximal range(S) where range(S) = S ∪ S⁺
+- **Encoding**: Admissible + heuristic to minimize not_in_range(X)
+- **Usage**: `clingo -n 0 --heuristic=Domain --enum-mode=domRec core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/semi-stable.lp framework.lp`
+- **Limitation**: Heuristics provide soft preferences, not hard constraints. May miss some maximal extensions or include non-maximal ones on complex frameworks.
+
+#### Staged Semantics
+- **File**: `staged.lp`
+- **Definition**: Conflict-free + maximal range(S) where range(S) = S ∪ S⁺
+- **Encoding**: Conflict-free + heuristic to minimize not_in_range(X)
+- **Usage**: `clingo -n 0 --heuristic=Domain --enum-mode=domRec core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/staged.lp framework.lp`
+- **Limitation**: Heuristics provide soft preferences, not hard constraints. May miss some maximal extensions or include non-maximal ones on complex frameworks.
+
 ### ⚠️ Partial Implementation
 
 #### Ideal Semantics
@@ -94,7 +112,9 @@ clingo -n 0 --heuristic=Domain --enum-mode=domRec \
   filter/standard.lp semantics/preferred.lp framework.lp
 ```
 
-## Heuristic Approach (Preferred & Naive)
+## Heuristic Approach
+
+### Subset-Maximality (Preferred & Naive)
 
 Both preferred and naive use the **miss(X) heuristic** to achieve subset-maximality:
 
@@ -104,6 +124,19 @@ miss(X) :- assumption(X), not in(X).
 ```
 
 This guides the solver to prefer models with fewer missing assumptions, achieving subset-maximality without explicit pairwise comparison or Python callbacks.
+
+### Range-Maximality (Semi-Stable & Staged) - EXPERIMENTAL
+
+Semi-stable and staged use the **not_in_range(X) heuristic** to approximate range-maximality:
+
+```prolog
+in_range(X) :- assumption(X), in(X).
+in_range(X) :- assumption(X), defeated(X).
+not_in_range(X) :- assumption(X), not in_range(X).
+#heuristic not_in_range(X). [1,false]
+```
+
+**Important**: Heuristics are soft preferences, not hard constraints. While this approach works correctly on tested examples, it may fail to achieve strict maximality on complex frameworks. This is a fundamental limitation of heuristic-based approaches in ASP.
 
 ## Testing
 
@@ -120,4 +153,4 @@ See `test/test_aspforaba_corrected.sh` for comprehensive test suite against ASPf
 
 The following experimental/outdated implementations have been removed (available in git history if needed):
 - All `*_aspartix.lp` variants (ASPARTIX-based experiments)
-- `cf2.lp`, `semi-stable.lp`, `staged.lp` (non-standard semantics)
+- `cf2.lp` (non-standard semantics)
