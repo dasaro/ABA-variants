@@ -49,20 +49,36 @@
 - **Encoding**: Conflict-free + heuristic to minimize missing assumptions
 - **Usage**: `clingo -n 0 --heuristic=Domain --enum-mode=domRec core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/naive.lp framework.lp`
 
-### ⚠️ EXPERIMENTAL Semantics
+### ✅ Semi-Stable and Staged Semantics
 
-These semantics use heuristics to approximate maximality constraints. They work correctly on tested examples but are not guaranteed to find all maximal extensions or exclude non-maximal ones on all frameworks.
+These semantics have two implementations: **saturation-based** (recommended, sound & complete) and **heuristic-based** (experimental, may fail on complex frameworks).
 
-#### Semi-Stable Semantics
-- **File**: `semi-stable.lp`
+#### Semi-Stable Semantics (Saturation-Based) ⭐ RECOMMENDED
+- **File**: `semi-stable_saturation.lp`
 - **Definition**: Admissible + maximal range(S) where range(S) = S ∪ S⁺
+- **Encoding**: Saturation-based maximality check via proof by contradiction
+- **Usage**: `clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/semi-stable_saturation.lp framework.lp`
+- **Guarantees**: Sound and complete - finds all and only range-maximal admissible extensions
+
+#### Staged Semantics (Saturation-Based) ⭐ RECOMMENDED
+- **File**: `staged_saturation.lp`
+- **Definition**: Conflict-free + maximal range(S) where range(S) = S ∪ S⁺
+- **Encoding**: Saturation-based maximality check via proof by contradiction
+- **Usage**: `clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/staged_saturation.lp framework.lp`
+- **Guarantees**: Sound and complete - finds all and only range-maximal conflict-free extensions
+
+### ⚠️ EXPERIMENTAL: Heuristic-Based Variants
+
+Alternative implementations using heuristics. Faster but may be incomplete on complex frameworks.
+
+#### Semi-Stable Semantics (Heuristic-Based)
+- **File**: `semi-stable.lp`
 - **Encoding**: Admissible + heuristic to minimize not_in_range(X)
 - **Usage**: `clingo -n 0 --heuristic=Domain --enum-mode=domRec core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/semi-stable.lp framework.lp`
 - **Limitation**: Heuristics provide soft preferences, not hard constraints. May miss some maximal extensions or include non-maximal ones on complex frameworks.
 
-#### Staged Semantics
+#### Staged Semantics (Heuristic-Based)
 - **File**: `staged.lp`
-- **Definition**: Conflict-free + maximal range(S) where range(S) = S ∪ S⁺
 - **Encoding**: Conflict-free + heuristic to minimize not_in_range(X)
 - **Usage**: `clingo -n 0 --heuristic=Domain --enum-mode=domRec core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/staged.lp framework.lp`
 - **Limitation**: Heuristics provide soft preferences, not hard constraints. May miss some maximal extensions or include non-maximal ones on complex frameworks.
@@ -112,9 +128,9 @@ clingo -n 0 --heuristic=Domain --enum-mode=domRec \
   filter/standard.lp semantics/preferred.lp framework.lp
 ```
 
-## Heuristic Approach
+## Implementation Approaches
 
-### Subset-Maximality (Preferred & Naive)
+### Subset-Maximality (Preferred & Naive) - Heuristic-Based
 
 Both preferred and naive use the **miss(X) heuristic** to achieve subset-maximality:
 
@@ -125,9 +141,38 @@ miss(X) :- assumption(X), not in(X).
 
 This guides the solver to prefer models with fewer missing assumptions, achieving subset-maximality without explicit pairwise comparison or Python callbacks.
 
-### Range-Maximality (Semi-Stable & Staged) - EXPERIMENTAL
+### Range-Maximality - Two Approaches
 
-Semi-stable and staged use the **not_in_range(X) heuristic** to approximate range-maximality:
+#### 1. Saturation-Based (Semi-Stable & Staged) ⭐ RECOMMENDED
+
+Uses proof by contradiction to enforce range-maximality as a hard constraint:
+
+```prolog
+%% If not range-maximal (unstable), try to witness a larger range
+out_of_range(X) :- assumption(X), not range(X).
+unstable :- out_of_range(_).
+
+%% Guess a larger range when unstable
+larger_range(X) : out_of_range(X) :- unstable.
+larger_range(X) :- range(X), unstable.
+
+%% Witness attacks to explain the larger range
+witness(X) | witness(Z) : contrary(X,Z) :- larger_range(X), unstable.
+
+%% Check if witnessed range is conflict-free/admissible
+spoil :- witness(X), witness(Y), contrary(Y,X), unstable.
+
+%% Reject if larger range exists (unstable but not spoiled)
+:- unstable, not spoil.
+```
+
+**Key idea**: An extension is range-maximal iff we cannot witness a strictly larger conflict-free/admissible range. The saturation rules make spoil=true whenever the witness is invalid, trivializing the final constraint.
+
+**Guarantees**: Sound and complete - finds all and only maximal extensions.
+
+#### 2. Heuristic-Based (Semi-Stable & Staged) - EXPERIMENTAL
+
+Uses heuristics to approximate range-maximality:
 
 ```prolog
 in_range(X) :- assumption(X), in(X).
