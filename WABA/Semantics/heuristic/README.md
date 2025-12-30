@@ -15,14 +15,14 @@ These implementations use ASP heuristics to guide the solver toward maximal exte
 - **Method**: `#heuristic miss(X). [1,false]` to minimize missing assumptions
 - **Guarantees**: Works on tested examples, not guaranteed in general
 - **Usage**: `clingo -n 0 --heuristic=Domain --enum-mode=domRec <files> semantics/heuristic/preferred.lp framework.lp`
-- **Recommended**: Use `semantics/preferred_saturation.lp` for guaranteed correctness
+- **Recommended**: Use `semantics/preferred.lp` for guaranteed correctness
 
 #### naive.lp
 - **Definition**: Maximal (w.r.t. ⊆) conflict-free extensions
 - **Method**: `#heuristic miss(X). [1,false]` to minimize missing assumptions
 - **Guarantees**: Works on tested examples, not guaranteed in general
 - **Usage**: `clingo -n 0 --heuristic=Domain --enum-mode=domRec <files> semantics/heuristic/naive.lp framework.lp`
-- **Recommended**: Use `semantics/naive_saturation.lp` for guaranteed correctness
+- **Recommended**: Use `semantics/naive.lp` for guaranteed correctness
 
 ### Range-Maximality (range(S) = S ∪ S⁺)
 
@@ -32,7 +32,7 @@ These implementations use ASP heuristics to guide the solver toward maximal exte
 - **Method**: `#heuristic not_in_range(X). [1,false]` to maximize range
 - **Guarantees**: Approximate only - may miss maximal extensions or include non-maximal ones
 - **Usage**: `clingo -n 0 --heuristic=Domain --enum-mode=domRec <files> semantics/heuristic/semi-stable.lp framework.lp`
-- **Recommended**: Use `semantics/semi-stable_saturation.lp` for guaranteed correctness
+- **Recommended**: Use `semantics/semi-stable.lp` for guaranteed correctness
 
 #### staged.lp
 - **Status**: ⚠️ EXPERIMENTAL
@@ -40,7 +40,7 @@ These implementations use ASP heuristics to guide the solver toward maximal exte
 - **Method**: `#heuristic not_in_range(X). [1,false]` to maximize range
 - **Guarantees**: Approximate only - may miss maximal extensions or include non-maximal ones
 - **Usage**: `clingo -n 0 --heuristic=Domain --enum-mode=domRec <files> semantics/heuristic/staged.lp framework.lp`
-- **Recommended**: Use `semantics/staged_saturation.lp` for guaranteed correctness
+- **Recommended**: Use `semantics/staged.lp` for guaranteed correctness
 
 ## Why Use Heuristic Versions?
 
@@ -85,6 +85,6 @@ clingo -n 0 \
   semiring/godel.lp \
   constraint/ub_max.lp \
   filter/standard.lp \
-  semantics/<semantic>_saturation.lp \
+  semantics/<semantic>.lp \
   framework.lp
 ```

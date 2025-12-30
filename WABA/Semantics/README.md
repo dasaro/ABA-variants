@@ -12,10 +12,10 @@ semantics/
 ├── stable.lp                       # Stable semantics
 ├── grounded.lp                     # Grounded semantics
 ├── cf.lp                           # Conflict-free semantics
-├── preferred_saturation.lp         # ⭐ Preferred (saturation-based)
-├── naive_saturation.lp             # ⭐ Naive (saturation-based)
-├── semi-stable_saturation.lp       # ⭐ Semi-stable (saturation-based)
-├── staged_saturation.lp            # ⭐ Staged (saturation-based)
+├── preferred.lp         # ⭐ Preferred (saturation-based)
+├── naive.lp             # ⭐ Naive (saturation-based)
+├── semi-stable.lp       # ⭐ Semi-stable (saturation-based)
+├── staged.lp            # ⭐ Staged (saturation-based)
 ├── heuristic/                      # Alternative heuristic-based implementations
 │   ├── README.md
 │   ├── preferred.lp                # Preferred (heuristic)
@@ -56,10 +56,10 @@ clingo -n 0 \
 | Stable | `stable.lp` | `clingo -n 0 ...` |
 | Grounded | `grounded.lp` | `clingo -n 1 ...` (unique extension) |
 | Conflict-Free | `cf.lp` | `clingo -n 0 ...` |
-| **Preferred** | `preferred_saturation.lp` ⭐ | `clingo -n 0 ...` |
-| **Naive** | `naive_saturation.lp` ⭐ | `clingo -n 0 ...` |
-| **Semi-Stable** | `semi-stable_saturation.lp` ⭐ | `clingo -n 0 ...` |
-| **Staged** | `staged_saturation.lp` ⭐ | `clingo -n 0 ...` |
+| **Preferred** | `preferred.lp` ⭐ | `clingo -n 0 ...` |
+| **Naive** | `naive.lp` ⭐ | `clingo -n 0 ...` |
+| **Semi-Stable** | `semi-stable.lp` ⭐ | `clingo -n 0 ...` |
+| **Staged** | `staged.lp` ⭐ | `clingo -n 0 ...` |
 
 ## Classical ABA Semantics
 
@@ -99,7 +99,7 @@ clingo -n 0 \
 These semantics use **saturation-based maximality checks** via proof by contradiction. They are **sound and complete** - guaranteed to find all and only maximal extensions.
 
 ### Preferred Semantics (⊆-maximal Complete)
-- **File**: `preferred_saturation.lp` ⭐ **RECOMMENDED**
+- **File**: `preferred.lp` ⭐ **RECOMMENDED**
 - **Definition**: Maximal (w.r.t. ⊆) complete extensions
 - **Method**: Saturation-based subset-maximality check
 - **Guarantees**: Sound and complete
@@ -111,14 +111,14 @@ These semantics use **saturation-based maximality checks** via proof by contradi
 3. If witness fails (all larger extensions violate completeness), accept as maximal
 
 ### Naive Semantics (⊆-maximal Conflict-Free)
-- **File**: `naive_saturation.lp` ⭐ **RECOMMENDED**
+- **File**: `naive.lp` ⭐ **RECOMMENDED**
 - **Definition**: Maximal (w.r.t. ⊆) conflict-free extensions
 - **Method**: Saturation-based subset-maximality check
 - **Guarantees**: Sound and complete
 - **Invocation**: `clingo -n 0` (no heuristics needed!)
 
 ### Semi-Stable Semantics (Range-Maximal Admissible)
-- **File**: `semi-stable_saturation.lp` ⭐ **RECOMMENDED**
+- **File**: `semi-stable.lp` ⭐ **RECOMMENDED**
 - **Definition**: Admissible + maximal range(S) where range(S) = S ∪ S⁺
 - **Method**: Saturation-based range-maximality check
 - **Guarantees**: Sound and complete
@@ -127,7 +127,7 @@ These semantics use **saturation-based maximality checks** via proof by contradi
 **Range definition**: range(S) = S ∪ S⁺ where S⁺ = {b ∈ A | ∃a ∈ S: (a,b) ∈ attacks}
 
 ### Staged Semantics (Range-Maximal Conflict-Free)
-- **File**: `staged_saturation.lp` ⭐ **RECOMMENDED**
+- **File**: `staged.lp` ⭐ **RECOMMENDED**
 - **Definition**: Conflict-free + maximal range(S) where range(S) = S ∪ S⁺
 - **Method**: Saturation-based range-maximality check
 - **Guarantees**: Sound and complete
@@ -224,7 +224,7 @@ clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp \
 
 # Test preferred (saturation-based)
 clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp \
-  filter/standard.lp semantics/preferred_saturation.lp \
+  filter/standard.lp semantics/preferred.lp \
   test/aspforaba_journal_example.lp
 
 # Expected: 2 preferred extensions {a,b}, {a,c,d}
