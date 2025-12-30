@@ -6,8 +6,7 @@
 %%
 %% Where range(S) = S ∪ S⁺ (assumptions in S or attacked by S)
 %%
-%% Usage: clingo -n 0 --opt-mode=optN <files> semantics/semi-stable.lp
-%%        (use optN to enumerate all range-maximal extensions)
+%% Usage: clingo -n 0 --heuristic=Domain --enum-mode=domRec <files> semantics/semi-stable.lp
 %%
 %% Intuition: "Admissible, and attacks as much as possible"
 
@@ -30,6 +29,10 @@ attacked_by_undefeated(X) :- contrary(X,Y), derived_from_undefeated(Y).
 in_range(X) :- assumption(X), in(X).
 in_range(X) :- assumption(X), defeated(X).
 
-%% Maximize range (minimize assumptions not in range)
-%% Use weak constraint to prefer extensions with larger ranges
-:~ not in_range(X), assumption(X). [1,X]
+%% Track assumptions not in range
+not_in_range(X) :- assumption(X), not in_range(X).
+
+%% Triple heuristics: maximize range from multiple angles
+#heuristic in_range(X). [3,true]           % Maximize in_range atoms (highest priority)
+#heuristic in(X) : assumption(X). [2,true] % Maximize in assumptions
+#heuristic not_in_range(X). [2,false]      % Minimize not_in_range atoms
