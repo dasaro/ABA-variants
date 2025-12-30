@@ -16,6 +16,7 @@ semantics/
 ├── naive.lp             # ⭐ Naive (saturation-based)
 ├── semi-stable.lp       # ⭐ Semi-stable (saturation-based)
 ├── staged.lp            # ⭐ Staged (saturation-based)
+├── ideal.lp             # ⭐ Ideal (saturation-based)
 ├── heuristic/                      # Alternative heuristic-based implementations
 │   ├── README.md
 │   ├── preferred.lp                # Preferred (heuristic)
@@ -60,6 +61,7 @@ clingo -n 0 \
 | **Naive** | `naive.lp` ⭐ | `clingo -n 0 ...` |
 | **Semi-Stable** | `semi-stable.lp` ⭐ | `clingo -n 0 ...` |
 | **Staged** | `staged.lp` ⭐ | `clingo -n 0 ...` |
+| **Ideal** | `ideal.lp` ⭐ | `clingo -n 1 ...` (unique) |
 
 ## Classical ABA Semantics
 
@@ -84,9 +86,10 @@ clingo -n 0 \
 ### Grounded Semantics
 - **File**: `grounded.lp`
 - **Definition**: Unique minimal complete extension (least fixpoint)
-- **Encoding**: Iterative timestamped construction (ASPforABA)
+- **Encoding**: Least fixpoint with constraint-based matching
 - **Invocation**: `clingo -n 1` (only one extension exists)
-- **Status**: ✅ Fully working, proven correct
+- **Status**: ✅ Fully working, verified correct
+- **Implementation**: Computes grounded in `g_in/1`, constrains `in/1` to match exactly
 
 ### Conflict-Free Semantics
 - **File**: `cf.lp`
@@ -132,6 +135,18 @@ These semantics use **saturation-based maximality checks** via proof by contradi
 - **Method**: Saturation-based range-maximality check
 - **Guarantees**: Sound and complete
 - **Invocation**: `clingo -n 0` (no heuristics needed!)
+
+### Ideal Semantics (Greatest Admissible in Intersection of Preferred)
+- **File**: `ideal.lp` ⭐ **RECOMMENDED**
+- **Definition**: The unique greatest admissible subset of ⋂Pref(F)
+- **Method**: Two-phase saturation (compute intersection + maximize admissibility)
+- **Guarantees**: Sound and complete
+- **Invocation**: `clingo -n 1` (unique extension!)
+
+**How it works:**
+1. Phase 1: For each assumption X, determine if X ∈ ⋂Pref(F) by trying to witness a preferred extension without X
+2. Phase 2: Find maximal admissible subset of {X | X ∈ ⋂Pref(F)}
+3. Result: The unique ideal extension (greatest admissible contained in all preferred)
 
 ## Saturation Approach Explained
 
@@ -243,6 +258,7 @@ clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp \
 | Naive | ⭐ Saturation | Sound & complete | Proof by contradiction |
 | Semi-Stable | ⭐ Saturation | Sound & complete | Proof by contradiction |
 | Staged | ⭐ Saturation | Sound & complete | Proof by contradiction |
+| Ideal | ⭐ Saturation | Sound & complete | Two-phase witness |
 
 ## References
 

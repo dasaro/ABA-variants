@@ -1,38 +1,26 @@
-%% Grounded Semantics
-%% Based on ASPforABA implementation (Lehtonen et al. 2021)
+%% Grounded Semantics - Least Fixpoint Approach
+%% Based on ASPforABA (Lehtonen et al. 2021)
 %%
 %% The grounded extension is the unique minimal (w.r.t. set inclusion) complete extension.
-%% Computed via iterative construction: least fixpoint of unattacked assumptions.
+%% Computed via least fixpoint: the set of all assumptions that defeat all their attackers.
 %%
 %% Usage: clingo -n 1 <files> semantics/grounded.lp
 %%        (Use -n 1 since grounded extension is unique)
+%%
+%% This encoding works with WABA's core/base.lp by:
+%% 1. Computing the grounded extension in g_in/1 via fixpoint
+%% 2. Constraining the choice-based in/1 to match g_in/1 exactly
 
-%% Setup iteration bounds
-n_assumptions(N) :- #count{X : assumption(X)} = N.
-iteration(0..N) :- n_assumptions(N).
+%% Grounded extension as least fixpoint
+%% An assumption is defeated if a grounded assumption attacks it
+g_defeated(X) :- assumption(X), g_in(Y), contrary(X,Y).
 
-%% Support computation (with iteration tracking)
-supported(X,I) :- assumption(X), in(X,I).
-supported(X,I) :- head(R,X), triggered_by_in(R,I).
-triggered_by_in(R,I) :- iteration(I), head(R,_), supported(X,I) : body(R,X).
+%% An assumption is in the grounded extension if it defeats all its attackers
+%% (i.e., all assumptions with this one as contrary are defeated)
+g_in(X) :- assumption(X), g_defeated(Y) : contrary(X,Y).
 
-%% Conflict freeness (per iteration)
-:- in(X,I), contrary(X,Y), supported(Y,I).
+%% Enforce that the guessed in/1 (from core/base.lp) matches grounded exactly
+:- g_in(X), not in(X).  % If in grounded, must be in extension
+:- in(X), not g_in(X).  % If in extension, must be in grounded
 
-%% Defeat tracking (per iteration)
-defeated(X,I) :- supported(Y,I), contrary(X,Y).
-
-%% Closure under undefeated (per iteration)
-derived_from_undefeated(X,I) :- iteration(I), assumption(X), not defeated(X,I).
-derived_from_undefeated(X,I) :- head(R,X), triggered_by_undefeated(R,I).
-triggered_by_undefeated(R,I) :- iteration(I), head(R,_), derived_from_undefeated(X,I) : body(R,X).
-
-%% Attacked by undefeated (per iteration)
-attacked_by_undefeated(X,I) :- contrary(X,Y), derived_from_undefeated(Y,I).
-
-%% Iterative construction: add unattacked assumptions
-in(X,I) :- iteration(J), assumption(X), not attacked_by_undefeated(X,J), J+1=I.
-
-%% Final extension (at fixpoint)
-in(X) :- in(X,N), n_assumptions(N).
-supported(X) :- supported(X,N), n_assumptions(N).
+#show in/1.
