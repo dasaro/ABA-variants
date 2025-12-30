@@ -5,7 +5,9 @@
 
 ## Summary
 
-Implemented classical ABA semantics for WABA based on ASPforABA's proven-correct encodings. Six semantics attempted, four fully working in pure ASP, two require external processing.
+Implemented classical ABA semantics for WABA based on ASPforABA's proven-correct encodings. **Five out of six semantics fully working in pure ASP**, one requires external processing.
+
+**Breakthrough**: Preferred semantics now working using domain heuristics to achieve subset-maximality!
 
 ## Fully Implemented (Pure ASP)
 
@@ -33,21 +35,16 @@ Implemented classical ABA semantics for WABA based on ASPforABA's proven-correct
 - **Encoding**: ASPforABA's iterative timestamped construction
 - **Test**: `test_aspforaba_corrected.sh` - **PASS**
 
-## Partially Implemented (Require External Processing)
-
-### ⚠️ Preferred Semantics
+### ✅ Preferred Semantics
 - **File**: `WABA/semantics/preferred.lp`
-- **Status**: **PARTIAL** - Returns all complete extensions (not filtered to maximal)
-- **Reason**: Subset-maximality cannot be expressed in pure ASP without:
-  - Multi-shot solving
-  - Python refinement callbacks (ASPforABA's `_ee_pref` approach)
-  - Complex SAT-based encoding
-- **Current Behavior**: Equivalent to complete semantics (3 extensions)
-- **Expected Behavior**: Subset-maximal complete (2 extensions: {a,b}, {a,c,d})
-- **ASPforABA Approach**: Uses Python `_maximize` callback to iteratively test extensibility
-- **Test**: `test_aspforaba_corrected.sh` - **PASS** (with note that it returns complete)
+- **Status**: **COMPLETE** - Returns correct count (2 extensions: {a,b}, {a,c,d})
+- **Encoding**: Complete + heuristic to minimize missing assumptions
+- **Approach**: Domain heuristics with `#heuristic miss(X) : assumption(X). [1,false]`
+- **Usage**: `clingo -n 0 --heuristic=Domain --enum-mode=domRec`
+- **Test**: `test_aspforaba_corrected.sh` - **PASS**
+- **Key Insight**: Heuristics guide solver to prefer models with fewer OUT assumptions, achieving subset-maximality without explicit comparison
 
-**Technical Challenge**: {a,b} and {a,c,d} have different cardinalities (2 vs 3), but both are preferred because neither is a proper subset of the other. Simple cardinality maximization fails.
+## Partially Implemented (Require External Processing)
 
 ### ⚠️ Ideal Semantics
 - **File**: `WABA/semantics/ideal.lp`

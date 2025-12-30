@@ -57,12 +57,10 @@ echo "$OUTPUT" | grep -A 1 "^Answer:" | grep "in(" | sed 's/ supported.*//' | se
 echo ""
 
 echo "4. Preferred (expect 2: {a,b}, {a,c,d})"
-echo "   NOTE: Current implementation returns all complete extensions (3)."
-echo "   Subset-maximal filtering requires external processing (Python/bash)."
-OUTPUT=$(clingo -n 0 $CORE $SEMIRING $CONSTRAINT $FILTER ../semantics/preferred.lp $FRAMEWORK 2>/dev/null)
+OUTPUT=$(clingo -n 0 --heuristic=Domain --enum-mode=domRec $CORE $SEMIRING $CONSTRAINT $FILTER ../semantics/preferred.lp $FRAMEWORK 2>/dev/null)
 COUNT=$(count_extensions "$OUTPUT")
 echo "   Found: $COUNT extensions"
-if [ "$COUNT" -eq 3 ]; then echo "   ✓ PASS (returns complete)"; else echo "   ✗ FAIL"; fi
+if [ "$COUNT" -eq 2 ]; then echo "   ✓ PASS"; else echo "   ✗ FAIL"; fi
 echo "$OUTPUT" | grep -A 1 "^Answer:" | grep "in(" | sed 's/ supported.*//' | sed 's/ attacks.*//'
 echo ""
 
@@ -103,10 +101,10 @@ echo "   ..."
 echo ""
 
 echo "2. Preferred (expect 2: {b,d}, {b,c})"
-echo "   NOTE: Current implementation returns all complete extensions."
-OUTPUT=$(clingo -n 0 $CORE $SEMIRING $CONSTRAINT $FILTER ../semantics/preferred.lp $FRAMEWORK 2>/dev/null)
+OUTPUT=$(clingo -n 0 --heuristic=Domain --enum-mode=domRec $CORE $SEMIRING $CONSTRAINT $FILTER ../semantics/preferred.lp $FRAMEWORK 2>/dev/null)
 COUNT=$(count_extensions "$OUTPUT")
-echo "   Found: $COUNT extensions (complete)"
+echo "   Found: $COUNT extensions"
+if [ "$COUNT" -eq 2 ]; then echo "   ✓ PASS"; else echo "   ✗ FAIL"; fi
 echo "$OUTPUT" | grep -A 1 "^Answer:" | grep "in(" | sed 's/ supported.*//' | sed 's/ attacks.*//'
 echo ""
 

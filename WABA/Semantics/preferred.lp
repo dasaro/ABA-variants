@@ -1,16 +1,12 @@
 %% Preferred Semantics
-%% NOTE: This is currently equivalent to complete semantics.
-%% Filtering to maximal (subset-maximal) extensions requires external processing.
+%% Heuristic-based approach: minimize missing assumptions to prefer maximal complete extensions
 %%
-%% In pure ASP, preferred semantics for ABA requires complex encodings or multi-shot solving.
-%% ASPforABA uses Python callbacks for refinement (see _ee_pref in aba_solver.py).
-%%
-%% For WABA testing: Generate all complete extensions, then filter to subset-maximal ones externally.
-%%
-%% Usage: clingo -n 0 <files> semantics/preferred.lp
+%% Usage: clingo -n 0 --heuristic=Domain --enum-mode=domRec <files> semantics/preferred.lp
 %%
 %% Complete: Admissible + contains all defended assumptions
 %% Preferred: Maximal complete (w.r.t. set inclusion)
+%%
+%% Approach: Use domain heuristics to prefer models with fewer OUT assumptions
 
 %% Conflict-freeness
 :- in(X), defeated(X).
@@ -29,5 +25,9 @@ attacked_by_undefeated(X) :- contrary(X,Y), derived_from_undefeated(Y).
 %% Completeness: All unattacked (defended) assumptions must be in
 :- out(X), not attacked_by_undefeated(X).
 
-%% TODO: Implement subset-maximality check in pure ASP
-%% For now, this generates complete extensions only
+%% Track missing assumptions
+miss(X) :- assumption(X), not in(X).
+
+%% Heuristic: prefer models with fewer missing assumptions (prefer including assumptions)
+%% This should guide the solver toward subset-maximal complete extensions
+#heuristic miss(X) : assumption(X). [1,false]
