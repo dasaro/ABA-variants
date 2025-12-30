@@ -1,4 +1,4 @@
-%% Semi-Stable Semantics
+%% Semi-Stable Semantics (EXPERIMENTAL)
 %%
 %% Definition: S is semi-stable iff:
 %%   1. S is admissible, and
@@ -9,6 +9,10 @@
 %% Usage: clingo -n 0 --heuristic=Domain --enum-mode=domRec <files> semantics/semi-stable.lp
 %%
 %% Intuition: "Admissible, and attacks as much as possible"
+%%
+%% WARNING: Uses heuristics to approximate range-maximality. May miss some
+%% maximal extensions or include non-maximal ones on complex frameworks.
+%% Works correctly on tested examples but not guaranteed in general.
 
 %% Conflict-freeness
 :- in(X), defeated(X).
@@ -32,7 +36,5 @@ in_range(X) :- assumption(X), defeated(X).
 %% Track assumptions not in range
 not_in_range(X) :- assumption(X), not in_range(X).
 
-%% Triple heuristics: maximize range from multiple angles
-#heuristic in_range(X). [3,true]           % Maximize in_range atoms (highest priority)
-#heuristic in(X) : assumption(X). [2,true] % Maximize in assumptions
-#heuristic not_in_range(X). [2,false]      % Minimize not_in_range atoms
+%% Heuristic: minimize not_in_range to approximate range-maximality
+#heuristic not_in_range(X). [1,false]
