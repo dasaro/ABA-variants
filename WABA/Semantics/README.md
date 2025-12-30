@@ -30,12 +30,19 @@
 - **Encoding**: Iterative timestamped construction
 - **Usage**: `clingo -n 1 core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/grounded.lp framework.lp`
 
-#### Preferred Semantics
+#### Preferred Semantics (Saturation-Based) ⭐ RECOMMENDED
+- **File**: `preferred_saturation.lp`
+- **Definition**: Maximal (w.r.t. set inclusion) complete extensions
+- **Encoding**: Saturation-based subset-maximality check via proof by contradiction
+- **Usage**: `clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/preferred_saturation.lp framework.lp`
+- **Guarantees**: Sound and complete - finds all and only ⊆-maximal complete extensions
+
+#### Preferred Semantics (Heuristic-Based)
 - **File**: `preferred.lp`
 - **Definition**: Maximal (w.r.t. set inclusion) complete extensions
 - **Encoding**: Complete + heuristic to minimize missing assumptions
 - **Usage**: `clingo -n 0 --heuristic=Domain --enum-mode=domRec core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/preferred.lp framework.lp`
-- **Key Feature**: Uses domain heuristics to achieve subset-maximality in pure ASP (improvement over ASPforABA's Python approach!)
+- **Note**: Heuristic approach - works on tested examples but saturation-based version is recommended
 
 #### Conflict-Free Semantics
 - **File**: `cf.lp`
@@ -43,11 +50,19 @@
 - **Encoding**: Minimal (1 line)
 - **Usage**: `clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/cf.lp framework.lp`
 
-#### Naive Semantics
+#### Naive Semantics (Saturation-Based) ⭐ RECOMMENDED
+- **File**: `naive_saturation.lp`
+- **Definition**: Maximal (w.r.t. set inclusion) conflict-free extensions
+- **Encoding**: Saturation-based subset-maximality check via proof by contradiction
+- **Usage**: `clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/naive_saturation.lp framework.lp`
+- **Guarantees**: Sound and complete - finds all and only ⊆-maximal conflict-free extensions
+
+#### Naive Semantics (Heuristic-Based)
 - **File**: `naive.lp`
 - **Definition**: Maximal (w.r.t. set inclusion) conflict-free extensions
 - **Encoding**: Conflict-free + heuristic to minimize missing assumptions
 - **Usage**: `clingo -n 0 --heuristic=Domain --enum-mode=domRec core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/naive.lp framework.lp`
+- **Note**: Heuristic approach - works on tested examples but saturation-based version is recommended
 
 ### ✅ Semi-Stable and Staged Semantics
 
@@ -130,16 +145,49 @@ clingo -n 0 --heuristic=Domain --enum-mode=domRec \
 
 ## Implementation Approaches
 
-### Subset-Maximality (Preferred & Naive) - Heuristic-Based
+### Subset-Maximality - Two Approaches
 
-Both preferred and naive use the **miss(X) heuristic** to achieve subset-maximality:
+#### 1. Saturation-Based (Preferred & Naive) ⭐ RECOMMENDED
+
+Uses proof by contradiction to enforce subset-maximality as a hard constraint:
+
+```prolog
+%% If not subset-maximal (unstable), try to witness a larger extension
+miss(X) :- assumption(X), not in(X).
+unstable :- miss(_).
+
+%% Guess a strictly larger extension
+larger_ext(X) : miss(X) :- unstable.
+larger_ext(X) :- in(X), unstable.
+:- unstable, { larger_ext(X) : miss(X) } = 0.  % Must be strictly larger
+
+%% Check if larger extension is conflict-free/complete
+supported_larger(X) :- assumption(X), larger_ext(X).
+supported_larger(X) :- head(R,X), triggered_larger(R).
+defeated_larger(X) :- attacks_larger(_,X).
+
+%% spoil if larger extension violates constraints
+spoil :- larger_ext(X), defeated_larger(X), unstable.  % Not conflict-free
+% (For preferred: also check admissibility and completeness)
+
+%% Reject if larger valid extension exists (unstable but not spoiled)
+:- unstable, not spoil.
+```
+
+**Key idea**: An extension is subset-maximal iff we cannot witness a strictly larger valid (conflict-free/complete) extension. The saturation rules handle the proof by contradiction.
+
+**Guarantees**: Sound and complete - finds all and only maximal extensions.
+
+#### 2. Heuristic-Based (Preferred & Naive)
+
+Uses heuristics to approximate subset-maximality:
 
 ```prolog
 miss(X) :- assumption(X), not in(X).
 #heuristic miss(X) : assumption(X). [1,false]
 ```
 
-This guides the solver to prefer models with fewer missing assumptions, achieving subset-maximality without explicit pairwise comparison or Python callbacks.
+This guides the solver to prefer models with fewer missing assumptions. Works on tested examples but saturation-based approach is recommended for guaranteed correctness.
 
 ### Range-Maximality - Two Approaches
 
