@@ -110,17 +110,17 @@ def main():
     print("=" * 70)
 
     test_cases = [
-        ("stable", "semi-stable", "test/strict_inclusions/stable_subset_semistable_v2.lp", "stable ⊂ semi-stable"),
-        ("semi-stable", "preferred", "test/strict_inclusions/semistable_subset_preferred_v2.lp", "semi-stable ⊂ preferred"),
+        ("stable", "semi-stable", "test/strict_inclusions/stable_semistable_bystander.lp", "stable ⊂ semi-stable"),
+        ("semi-stable", "preferred", "test/strict_inclusions/semistable_preferred_asym.lp", "semi-stable ⊂ preferred"),
         ("preferred", "complete", "test/strict_inclusions/grounded_subset_complete.lp", "preferred ⊂ complete"),
         ("complete", "admissible", "test/strict_inclusions/complete_subset_admissible.lp", "complete ⊂ admissible"),
         ("admissible", "cf", "test/strict_inclusions/admissible_subset_cf.lp", "admissible ⊂ cf"),
         ("grounded", "complete", "test/strict_inclusions/grounded_subset_complete.lp", "grounded ⊂ complete"),
-        ("stable", "staged", "test/strict_inclusions/stable_subset_staged_v2.lp", "stable ⊂ staged"),
+        ("stable", "staged", "test/strict_inclusions/stable_staged_3cycle.lp", "stable ⊂ staged"),
         ("staged", "cf", "test/strict_inclusions/staged_subset_cf.lp", "staged ⊂ cf"),
         ("stable", "naive", "test/strict_inclusions/stable_subset_naive.lp", "stable ⊂ naive"),
         ("naive", "cf", "test/strict_inclusions/naive_subset_cf.lp", "naive ⊂ cf"),
-        ("grounded", "ideal", "test/strict_inclusions/grounded_subset_ideal_v2.lp", "grounded ⊂ ideal"),
+        ("grounded", "ideal", "test/strict_inclusions/grounded_ideal_selfattack.lp", "grounded ⊂ ideal"),
         ("ideal", "complete", "test/strict_inclusions/ideal_subset_complete.lp", "ideal ⊂ complete"),
     ]
 
