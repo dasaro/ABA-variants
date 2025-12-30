@@ -1,12 +1,16 @@
 %% Preferred Semantics
-%% Based on ASPforABA implementation (Lehtonen et al. 2021)
+%% NOTE: This is currently equivalent to complete semantics.
+%% Filtering to maximal (subset-maximal) extensions requires external processing.
 %%
-%% An extension is preferred if it is a maximal (w.r.t. set inclusion) complete set.
+%% In pure ASP, preferred semantics for ABA requires complex encodings or multi-shot solving.
+%% ASPforABA uses Python callbacks for refinement (see _ee_pref in aba_solver.py).
+%%
+%% For WABA testing: Generate all complete extensions, then filter to subset-maximal ones externally.
 %%
 %% Usage: clingo -n 0 <files> semantics/preferred.lp
 %%
 %% Complete: Admissible + contains all defended assumptions
-%% Preferred: Maximal complete (handled via heuristic)
+%% Preferred: Maximal complete (w.r.t. set inclusion)
 
 %% Conflict-freeness
 :- in(X), defeated(X).
@@ -25,5 +29,5 @@ attacked_by_undefeated(X) :- contrary(X,Y), derived_from_undefeated(Y).
 %% Completeness: All unattacked (defended) assumptions must be in
 :- out(X), not attacked_by_undefeated(X).
 
-%% Maximality preference: prefer larger extensions
-#heuristic in(X) : assumption(X). [1,true].
+%% TODO: Implement subset-maximality check in pure ASP
+%% For now, this generates complete extensions only
