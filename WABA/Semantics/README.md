@@ -1,123 +1,200 @@
 # WABA Semantics
 
-**All semantics based on ASPforABA (Lehtonen et al. 2021) proven-correct encodings.**
+**All semantics based on ASPforABA (Lehtonen et al. 2021) proven-correct encodings, extended with saturation-based maximality checks.**
+
+## Directory Structure
+
+```
+semantics/
+├── README.md                       # This file
+├── admissible.lp                   # Admissible semantics
+├── complete.lp                     # Complete semantics
+├── stable.lp                       # Stable semantics
+├── grounded.lp                     # Grounded semantics
+├── cf.lp                           # Conflict-free semantics
+├── preferred_saturation.lp         # ⭐ Preferred (saturation-based)
+├── naive_saturation.lp             # ⭐ Naive (saturation-based)
+├── semi-stable_saturation.lp       # ⭐ Semi-stable (saturation-based)
+├── staged_saturation.lp            # ⭐ Staged (saturation-based)
+├── heuristic/                      # Alternative heuristic-based implementations
+│   ├── README.md
+│   ├── preferred.lp                # Preferred (heuristic)
+│   ├── naive.lp                    # Naive (heuristic)
+│   ├── semi-stable.lp              # Semi-stable (experimental)
+│   └── staged.lp                   # Staged (experimental)
+└── non-flat/                       # Non-flat ABA variants
+    ├── README.md
+    ├── admissible_closed.lp
+    ├── complete_closed.lp
+    └── stable_closed.lp
+```
+
+## Quick Start
+
+### Basic Usage (Classical ABA)
+
+For classical ABA semantics (no weighted attack discarding):
+
+```bash
+clingo -n 0 \
+  core/base.lp \
+  semiring/godel.lp \
+  constraint/ub_max.lp \
+  filter/standard.lp \
+  semantics/<semantic>.lp \
+  framework.lp
+```
+
+**CRITICAL**: Do NOT use monoid files for pure enumeration (only for optimization modes).
+
+### Recommended Semantics
+
+| Semantic | File | Invocation |
+|----------|------|------------|
+| Admissible | `admissible.lp` | `clingo -n 0 ...` |
+| Complete | `complete.lp` | `clingo -n 0 ...` |
+| Stable | `stable.lp` | `clingo -n 0 ...` |
+| Grounded | `grounded.lp` | `clingo -n 1 ...` (unique extension) |
+| Conflict-Free | `cf.lp` | `clingo -n 0 ...` |
+| **Preferred** | `preferred_saturation.lp` ⭐ | `clingo -n 0 ...` |
+| **Naive** | `naive_saturation.lp` ⭐ | `clingo -n 0 ...` |
+| **Semi-Stable** | `semi-stable_saturation.lp` ⭐ | `clingo -n 0 ...` |
+| **Staged** | `staged_saturation.lp` ⭐ | `clingo -n 0 ...` |
 
 ## Classical ABA Semantics
 
-### ✅ Fully Implemented (Pure ASP)
-
-#### Admissible Semantics
+### Admissible Semantics
 - **File**: `admissible.lp`
 - **Definition**: Conflict-free + defends all included assumptions
-- **Encoding**: Closure under undefeated assumptions
-- **Usage**: `clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/admissible.lp framework.lp`
+- **Encoding**: Closure under undefeated assumptions (ASPforABA)
+- **Status**: ✅ Fully working, proven correct
 
-#### Complete Semantics
+### Complete Semantics
 - **File**: `complete.lp`
 - **Definition**: Admissible + contains all defended assumptions
-- **Encoding**: Admissible + completeness constraint
-- **Usage**: `clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/complete.lp framework.lp`
+- **Encoding**: Admissible + completeness constraint (ASPforABA)
+- **Status**: ✅ Fully working, proven correct
 
-#### Stable Semantics
+### Stable Semantics
 - **File**: `stable.lp`
 - **Definition**: Conflict-free + all non-included assumptions are defeated
 - **Encoding**: Original WABA encoding (minimal, 2 lines)
-- **Usage**: `clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/stable.lp framework.lp`
+- **Status**: ✅ Fully working
 
-#### Grounded Semantics
+### Grounded Semantics
 - **File**: `grounded.lp`
 - **Definition**: Unique minimal complete extension (least fixpoint)
-- **Encoding**: Iterative timestamped construction
-- **Usage**: `clingo -n 1 core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/grounded.lp framework.lp`
+- **Encoding**: Iterative timestamped construction (ASPforABA)
+- **Invocation**: `clingo -n 1` (only one extension exists)
+- **Status**: ✅ Fully working, proven correct
 
-#### Preferred Semantics (Saturation-Based) ⭐ RECOMMENDED
-- **File**: `preferred_saturation.lp`
-- **Definition**: Maximal (w.r.t. set inclusion) complete extensions
-- **Encoding**: Saturation-based subset-maximality check via proof by contradiction
-- **Usage**: `clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/preferred_saturation.lp framework.lp`
-- **Guarantees**: Sound and complete - finds all and only ⊆-maximal complete extensions
-
-#### Preferred Semantics (Heuristic-Based)
-- **File**: `preferred.lp`
-- **Definition**: Maximal (w.r.t. set inclusion) complete extensions
-- **Encoding**: Complete + heuristic to minimize missing assumptions
-- **Usage**: `clingo -n 0 --heuristic=Domain --enum-mode=domRec core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/preferred.lp framework.lp`
-- **Note**: Heuristic approach - works on tested examples but saturation-based version is recommended
-
-#### Conflict-Free Semantics
+### Conflict-Free Semantics
 - **File**: `cf.lp`
 - **Definition**: No assumption attacks another in the extension
-- **Encoding**: Minimal (1 line)
-- **Usage**: `clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/cf.lp framework.lp`
+- **Encoding**: Minimal (1 line: `:- in(X), defeated(X).`)
+- **Status**: ✅ Fully working
 
-#### Naive Semantics (Saturation-Based) ⭐ RECOMMENDED
-- **File**: `naive_saturation.lp`
-- **Definition**: Maximal (w.r.t. set inclusion) conflict-free extensions
-- **Encoding**: Saturation-based subset-maximality check via proof by contradiction
-- **Usage**: `clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/naive_saturation.lp framework.lp`
-- **Guarantees**: Sound and complete - finds all and only ⊆-maximal conflict-free extensions
+## Maximal Semantics (Saturation-Based) ⭐
 
-#### Naive Semantics (Heuristic-Based)
-- **File**: `naive.lp`
-- **Definition**: Maximal (w.r.t. set inclusion) conflict-free extensions
-- **Encoding**: Conflict-free + heuristic to minimize missing assumptions
-- **Usage**: `clingo -n 0 --heuristic=Domain --enum-mode=domRec core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/naive.lp framework.lp`
-- **Note**: Heuristic approach - works on tested examples but saturation-based version is recommended
+These semantics use **saturation-based maximality checks** via proof by contradiction. They are **sound and complete** - guaranteed to find all and only maximal extensions.
 
-### ✅ Semi-Stable and Staged Semantics
+### Preferred Semantics (⊆-maximal Complete)
+- **File**: `preferred_saturation.lp` ⭐ **RECOMMENDED**
+- **Definition**: Maximal (w.r.t. ⊆) complete extensions
+- **Method**: Saturation-based subset-maximality check
+- **Guarantees**: Sound and complete
+- **Invocation**: `clingo -n 0` (no heuristics needed!)
 
-These semantics have two implementations: **saturation-based** (recommended, sound & complete) and **heuristic-based** (experimental, may fail on complex frameworks).
+**How it works:**
+1. If extension is missing assumptions (not ⊆-maximal), try to witness a strictly larger complete extension
+2. If witness succeeds (larger extension is complete), reject current extension
+3. If witness fails (all larger extensions violate completeness), accept as maximal
 
-#### Semi-Stable Semantics (Saturation-Based) ⭐ RECOMMENDED
-- **File**: `semi-stable_saturation.lp`
+### Naive Semantics (⊆-maximal Conflict-Free)
+- **File**: `naive_saturation.lp` ⭐ **RECOMMENDED**
+- **Definition**: Maximal (w.r.t. ⊆) conflict-free extensions
+- **Method**: Saturation-based subset-maximality check
+- **Guarantees**: Sound and complete
+- **Invocation**: `clingo -n 0` (no heuristics needed!)
+
+### Semi-Stable Semantics (Range-Maximal Admissible)
+- **File**: `semi-stable_saturation.lp` ⭐ **RECOMMENDED**
 - **Definition**: Admissible + maximal range(S) where range(S) = S ∪ S⁺
-- **Encoding**: Saturation-based maximality check via proof by contradiction
-- **Usage**: `clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/semi-stable_saturation.lp framework.lp`
-- **Guarantees**: Sound and complete - finds all and only range-maximal admissible extensions
+- **Method**: Saturation-based range-maximality check
+- **Guarantees**: Sound and complete
+- **Invocation**: `clingo -n 0` (no heuristics needed!)
 
-#### Staged Semantics (Saturation-Based) ⭐ RECOMMENDED
-- **File**: `staged_saturation.lp`
+**Range definition**: range(S) = S ∪ S⁺ where S⁺ = {b ∈ A | ∃a ∈ S: (a,b) ∈ attacks}
+
+### Staged Semantics (Range-Maximal Conflict-Free)
+- **File**: `staged_saturation.lp` ⭐ **RECOMMENDED**
 - **Definition**: Conflict-free + maximal range(S) where range(S) = S ∪ S⁺
-- **Encoding**: Saturation-based maximality check via proof by contradiction
-- **Usage**: `clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/staged_saturation.lp framework.lp`
-- **Guarantees**: Sound and complete - finds all and only range-maximal conflict-free extensions
+- **Method**: Saturation-based range-maximality check
+- **Guarantees**: Sound and complete
+- **Invocation**: `clingo -n 0` (no heuristics needed!)
 
-### ⚠️ EXPERIMENTAL: Heuristic-Based Variants
+## Saturation Approach Explained
 
-Alternative implementations using heuristics. Faster but may be incomplete on complex frameworks.
+The saturation approach uses **proof by contradiction** to enforce maximality as a hard constraint in ASP:
 
-#### Semi-Stable Semantics (Heuristic-Based)
-- **File**: `semi-stable.lp`
-- **Encoding**: Admissible + heuristic to minimize not_in_range(X)
-- **Usage**: `clingo -n 0 --heuristic=Domain --enum-mode=domRec core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/semi-stable.lp framework.lp`
-- **Limitation**: Heuristics provide soft preferences, not hard constraints. May miss some maximal extensions or include non-maximal ones on complex frameworks.
+### Subset-Maximality (Preferred & Naive)
 
-#### Staged Semantics (Heuristic-Based)
-- **File**: `staged.lp`
-- **Encoding**: Conflict-free + heuristic to minimize not_in_range(X)
-- **Usage**: `clingo -n 0 --heuristic=Domain --enum-mode=domRec core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/staged.lp framework.lp`
-- **Limitation**: Heuristics provide soft preferences, not hard constraints. May miss some maximal extensions or include non-maximal ones on complex frameworks.
+```prolog
+%% If not ⊆-maximal, try to witness a larger extension
+miss(X) :- assumption(X), not in(X).
+unstable :- miss(_).
 
-### ⚠️ Partial Implementation
+larger_ext(X) : miss(X) :- unstable.           % Guess larger extension
+larger_ext(X) :- in(X), unstable.              % Include current extension
+:- unstable, { larger_ext(X) : miss(X) } = 0.  % Must be strictly larger
 
-#### Ideal Semantics
-- **File**: `ideal.lp`
-- **Definition**: Unique maximal admissible extension contained in all preferred extensions
-- **Current Behavior**: Returns all admissible extensions
-- **Limitation**: Full ideal computation requires Python implementation (see ASPforABA's `_ideal` method)
-- **Usage**: `clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp filter/standard.lp semantics/ideal.lp framework.lp`
+%% Check if larger_ext violates constraints (conflict-free, complete, etc.)
+spoil :- <constraint violation>.
 
-## Non-Flat ABA Extensions
+%% Saturation: if spoiled, make constraint trivial
+larger_ext(X) :- spoil, assumption(X), unstable.
 
-Non-flat ABA requires that derived assumptions must also be in the extension (closure constraint).
+%% Reject if larger valid extension exists
+:- unstable, not spoil.
+```
 
-### ✅ Implemented
+**Key insight**: An extension is maximal iff we cannot witness a strictly larger valid extension.
 
-- **admissible_closed.lp**: Admissible with closure constraint
-- **complete_closed.lp**: Complete with closure constraint
-- **stable_closed.lp**: Stable with closure constraint
+### Range-Maximality (Semi-Stable & Staged)
 
-**Usage**: Same as standard semantics but replace the semantics file.
+Similar approach but witnesses larger range(S) = S ∪ S⁺ instead of larger S.
+
+```prolog
+out_of_range(X) :- assumption(X), not in_range(X).
+unstable :- out_of_range(_).
+
+larger_range(X) : out_of_range(X) :- unstable.
+larger_range(X) :- in_range(X), unstable.
+
+witness(X) | witness(Z) : contrary(X,Z) :- larger_range(X), unstable.
+spoil :- witness(X), witness(Y), contrary(Y,X), unstable.
+
+:- unstable, not spoil.
+```
+
+## Alternative Implementations
+
+See `heuristic/README.md` for heuristic-based alternatives:
+- `heuristic/preferred.lp` - Heuristic subset-max (works on tested examples)
+- `heuristic/naive.lp` - Heuristic subset-max (works on tested examples)
+- `heuristic/semi-stable.lp` - ⚠️ Experimental (approximate only)
+- `heuristic/staged.lp` - ⚠️ Experimental (approximate only)
+
+**Recommendation**: Use saturation-based versions in main directory for production. Heuristic versions are useful for performance comparison and research.
+
+## Non-Flat ABA
+
+See `non-flat/README.md` for semantics with closure constraints:
+- `non-flat/admissible_closed.lp`
+- `non-flat/complete_closed.lp`
+- `non-flat/stable_closed.lp`
+
+Use these when assumptions can appear as rule heads (non-flat frameworks).
 
 ## Key Configuration
 
@@ -135,115 +212,48 @@ clingo -n 0 \
 
 **CRITICAL**: Do NOT use monoid files for pure enumeration (only for optimization modes).
 
-For **preferred and naive** semantics, add domain heuristics:
-
-```bash
-clingo -n 0 --heuristic=Domain --enum-mode=domRec \
-  core/base.lp semiring/godel.lp constraint/ub_max.lp \
-  filter/standard.lp semantics/preferred.lp framework.lp
-```
-
-## Implementation Approaches
-
-### Subset-Maximality - Two Approaches
-
-#### 1. Saturation-Based (Preferred & Naive) ⭐ RECOMMENDED
-
-Uses proof by contradiction to enforce subset-maximality as a hard constraint:
-
-```prolog
-%% If not subset-maximal (unstable), try to witness a larger extension
-miss(X) :- assumption(X), not in(X).
-unstable :- miss(_).
-
-%% Guess a strictly larger extension
-larger_ext(X) : miss(X) :- unstable.
-larger_ext(X) :- in(X), unstable.
-:- unstable, { larger_ext(X) : miss(X) } = 0.  % Must be strictly larger
-
-%% Check if larger extension is conflict-free/complete
-supported_larger(X) :- assumption(X), larger_ext(X).
-supported_larger(X) :- head(R,X), triggered_larger(R).
-defeated_larger(X) :- attacks_larger(_,X).
-
-%% spoil if larger extension violates constraints
-spoil :- larger_ext(X), defeated_larger(X), unstable.  % Not conflict-free
-% (For preferred: also check admissibility and completeness)
-
-%% Reject if larger valid extension exists (unstable but not spoiled)
-:- unstable, not spoil.
-```
-
-**Key idea**: An extension is subset-maximal iff we cannot witness a strictly larger valid (conflict-free/complete) extension. The saturation rules handle the proof by contradiction.
-
-**Guarantees**: Sound and complete - finds all and only maximal extensions.
-
-#### 2. Heuristic-Based (Preferred & Naive)
-
-Uses heuristics to approximate subset-maximality:
-
-```prolog
-miss(X) :- assumption(X), not in(X).
-#heuristic miss(X) : assumption(X). [1,false]
-```
-
-This guides the solver to prefer models with fewer missing assumptions. Works on tested examples but saturation-based approach is recommended for guaranteed correctness.
-
-### Range-Maximality - Two Approaches
-
-#### 1. Saturation-Based (Semi-Stable & Staged) ⭐ RECOMMENDED
-
-Uses proof by contradiction to enforce range-maximality as a hard constraint:
-
-```prolog
-%% If not range-maximal (unstable), try to witness a larger range
-out_of_range(X) :- assumption(X), not range(X).
-unstable :- out_of_range(_).
-
-%% Guess a larger range when unstable
-larger_range(X) : out_of_range(X) :- unstable.
-larger_range(X) :- range(X), unstable.
-
-%% Witness attacks to explain the larger range
-witness(X) | witness(Z) : contrary(X,Z) :- larger_range(X), unstable.
-
-%% Check if witnessed range is conflict-free/admissible
-spoil :- witness(X), witness(Y), contrary(Y,X), unstable.
-
-%% Reject if larger range exists (unstable but not spoiled)
-:- unstable, not spoil.
-```
-
-**Key idea**: An extension is range-maximal iff we cannot witness a strictly larger conflict-free/admissible range. The saturation rules make spoil=true whenever the witness is invalid, trivializing the final constraint.
-
-**Guarantees**: Sound and complete - finds all and only maximal extensions.
-
-#### 2. Heuristic-Based (Semi-Stable & Staged) - EXPERIMENTAL
-
-Uses heuristics to approximate range-maximality:
-
-```prolog
-in_range(X) :- assumption(X), in(X).
-in_range(X) :- assumption(X), defeated(X).
-not_in_range(X) :- assumption(X), not in_range(X).
-#heuristic not_in_range(X). [1,false]
-```
-
-**Important**: Heuristics are soft preferences, not hard constraints. While this approach works correctly on tested examples, it may fail to achieve strict maximality on complex frameworks. This is a fundamental limitation of heuristic-based approaches in ASP.
-
 ## Testing
 
-See `test/test_aspforaba_corrected.sh` for comprehensive test suite against ASPforABA reference implementations.
+Example with journal framework:
+
+```bash
+# Test admissible semantics
+clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp \
+  filter/standard.lp semantics/admissible.lp \
+  test/aspforaba_journal_example.lp
+
+# Test preferred (saturation-based)
+clingo -n 0 core/base.lp semiring/godel.lp constraint/ub_max.lp \
+  filter/standard.lp semantics/preferred_saturation.lp \
+  test/aspforaba_journal_example.lp
+
+# Expected: 2 preferred extensions {a,b}, {a,c,d}
+```
+
+## Implementation Status
+
+| Semantic | Status | Guarantees | Method |
+|----------|--------|------------|--------|
+| Admissible | ✅ Working | Proven correct | ASPforABA encoding |
+| Complete | ✅ Working | Proven correct | ASPforABA encoding |
+| Stable | ✅ Working | Proven correct | WABA encoding |
+| Grounded | ✅ Working | Proven correct | ASPforABA encoding |
+| Conflict-Free | ✅ Working | Trivial | Single constraint |
+| Preferred | ⭐ Saturation | Sound & complete | Proof by contradiction |
+| Naive | ⭐ Saturation | Sound & complete | Proof by contradiction |
+| Semi-Stable | ⭐ Saturation | Sound & complete | Proof by contradiction |
+| Staged | ⭐ Saturation | Sound & complete | Proof by contradiction |
 
 ## References
 
-- **ASPforABA**: Lehtonen, T., Wallner, J. P., & Järvisalo, M. (2021). JAIR/TPLP.
+- **ASPforABA**: Lehtonen, T., Wallner, J. P., & Järvisalo, M. (2021). "Declarative Algorithms and Complexity Results for Assumption-Based Argumentation". Journal of Artificial Intelligence Research (JAIR) and Theory and Practice of Logic Programming (TPLP).
 - **Repository**: https://github.com/coreo-group/aspforaba
 - **Encoder**: `src/aspforaba/encoder.py`
 - **Solver**: `src/aspforaba/aba_solver.py`
 
-## Removed Files
+## Advantages Over ASPforABA
 
-The following experimental/outdated implementations have been removed (available in git history if needed):
-- All `*_aspartix.lp` variants (ASPARTIX-based experiments)
-- `cf2.lp` (non-standard semantics)
+1. **Pure ASP for maximal semantics**: No Python callbacks needed for preferred/naive
+2. **Saturation-based maximality**: Sound and complete without heuristics
+3. **Modular semiring/monoid system**: Support for weighted WABA
+4. **Simpler invocation**: No special heuristic flags for saturation variants
