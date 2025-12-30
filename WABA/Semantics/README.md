@@ -86,10 +86,11 @@ clingo -n 0 \
 ### Grounded Semantics
 - **File**: `grounded.lp`
 - **Definition**: Unique minimal complete extension (least fixpoint)
-- **Encoding**: Least fixpoint with constraint-based matching
+- **Encoding**: Least fixpoint with constraint-based matching (**custom WABA implementation**)
 - **Invocation**: `clingo -n 1` (only one extension exists)
 - **Status**: ✅ Fully working, verified correct
 - **Implementation**: Computes grounded in `g_in/1`, constrains `in/1` to match exactly
+- **Note**: NOT based on ASPforABA (their iterative approach conflicts with WABA's choice-based core)
 
 ### Conflict-Free Semantics
 - **File**: `cf.lp`

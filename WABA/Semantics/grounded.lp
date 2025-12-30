@@ -1,5 +1,8 @@
 %% Grounded Semantics - Least Fixpoint Approach
-%% Based on ASPforABA (Lehtonen et al. 2021)
+%%
+%% NOTE: This is a custom WABA implementation, NOT based on ASPforABA.
+%% ASPforABA's iterative construction conflicts with WABA's choice-based core/base.lp.
+%% This implementation uses a direct fixpoint computation with constraint-based matching.
 %%
 %% The grounded extension is the unique minimal (w.r.t. set inclusion) complete extension.
 %% Computed via least fixpoint: the set of all assumptions that defeat all their attackers.
