@@ -17,15 +17,23 @@ def extract_extensions(semantic: str, framework: str) -> List[FrozenSet[str]]:
 
     n_models = 1 if semantic in ["grounded", "ideal"] else 0
 
-    cmd = [
-        "clingo", "-n", str(n_models), "-c", "beta=0",
+    # Semantics that require heuristics for maximality
+    heuristic_semantics = ["preferred", "semi-stable", "staged", "naive"]
+
+    cmd = ["clingo", "-n", str(n_models), "-c", "beta=0"]
+
+    # Add heuristic flags for semantics that need them
+    if semantic in heuristic_semantics:
+        cmd.extend(["--heuristic=Domain", "--enum-mode=domRec"])
+
+    cmd.extend([
         "core/base.lp",
         "semiring/godel.lp",
         "constraint/ub_max.lp",
         "filter/standard.lp",
         f"semantics/{semantic}.lp",
         framework
-    ]
+    ])
 
     result = subprocess.run(cmd, capture_output=True, text=True)
 

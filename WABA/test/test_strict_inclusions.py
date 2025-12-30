@@ -13,15 +13,23 @@ def extract_extensions(semantic: str, framework: str) -> List[FrozenSet[str]]:
 
     n_models = 1 if semantic in ["grounded", "ideal"] else 0
 
-    cmd = [
-        "clingo", "-n", str(n_models), "-c", "beta=0",
+    # Semantics that require heuristics for maximality
+    heuristic_semantics = ["preferred", "semi-stable", "staged", "naive"]
+
+    cmd = ["clingo", "-n", str(n_models), "-c", "beta=0"]
+
+    # Add heuristic flags for semantics that need them
+    if semantic in heuristic_semantics:
+        cmd.extend(["--heuristic=Domain", "--enum-mode=domRec"])
+
+    cmd.extend([
         "core/base.lp",
         "semiring/godel.lp",
         "constraint/ub_max.lp",
         "filter/standard.lp",
         f"semantics/{semantic}.lp",
         framework
-    ]
+    ])
 
     result = subprocess.run(cmd, capture_output=True, text=True)
 
@@ -110,7 +118,7 @@ def main():
     print("=" * 70)
 
     test_cases = [
-        ("stable", "semi-stable", "test/strict_inclusions/stable_semistable_bystander.lp", "stable ⊂ semi-stable"),
+        ("stable", "semi-stable", "test/strict_inclusions/stable_semistable_bad_assumption.lp", "stable ⊂ semi-stable"),
         ("semi-stable", "preferred", "test/strict_inclusions/semistable_preferred_asym.lp", "semi-stable ⊂ preferred"),
         ("preferred", "complete", "test/strict_inclusions/grounded_subset_complete.lp", "preferred ⊂ complete"),
         ("complete", "admissible", "test/strict_inclusions/complete_subset_admissible.lp", "complete ⊂ admissible"),
