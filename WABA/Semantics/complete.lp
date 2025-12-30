@@ -1,4 +1,6 @@
 %% Complete Semantics
+%% Based on ASPforABA implementation (Lehtonen et al. 2021)
+%%
 %% An extension is complete if it is admissible and contains all assumptions it defends.
 %%
 %% Admissible: Conflict-free + self-defending
@@ -7,16 +9,16 @@
 %% Conflict-freeness
 :- in(X), defeated(X).
 
-%% Defended assumption: X is defended if all its attackers are defeated
-defended(X) :- assumption(X),
-               not undefended_attack(X).
+%% Compute closure under undefeated assumptions
+derived_from_undefeated(X) :- assumption(X), not defeated(X).
+derived_from_undefeated(X) :- head(R,X), triggered_by_undefeated(R).
+triggered_by_undefeated(R) :- head(R,_), derived_from_undefeated(X) : body(R,X).
 
-undefended_attack(X) :- assumption(X),
-                        attacks_successfully_with_weight(Y,X,_),
-                        not defeated(Y).
+%% Attacked by undefeated assumptions
+attacked_by_undefeated(X) :- contrary(X,Y), derived_from_undefeated(Y).
 
-%% Admissibility: All in assumptions must be defended
-:- in(X), not defended(X).
+%% Admissibility: in assumptions must not be attacked by undefeated
+:- in(X), attacked_by_undefeated(X).
 
-%% Completeness: All defended assumptions must be in
-:- defended(X), out(X).
+%% Completeness: All unattacked (defended) assumptions must be in
+:- out(X), not attacked_by_undefeated(X).

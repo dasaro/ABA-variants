@@ -1,0 +1,22 @@
+# Acceptence for non-flat Assumption-based Argumentation
+Code for the IJCAI'24 paper Instantiations and Computational Aspects of Non-Flat Assumption-based Argumentation (https://arxiv.org/pdf/2404.11431)
+
+## REQUIREMENTS
+python 3
+
+clingo version >= 5.5.1 (https://potassco.org/clingo/)
+
+To install requirements, run: `pip install clingo`
+
+## USAGE
+`./solver.py -f FILE -p {DC-CO,DC-ST,DC-AD} -a QUERY`
+
+## INPUT FORMAT
+One line per element:
+```
+assumption(a).      a is an assumption
+head(i,h).          rule with index j has x as the head
+body(i,b).          rule with index j has b in the rule body
+contrary(a,x).      x is the contrary of a
+```
+

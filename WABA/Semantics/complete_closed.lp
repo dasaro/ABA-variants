@@ -1,15 +1,22 @@
-%% Preferred Semantics
-%% Based on ASPforABA implementation (Lehtonen et al. 2021)
+%% Complete Semantics with Closure Constraint (Non-Flat ABA)
+%% Based on ASPforABA IJCAI'24 implementation
 %%
-%% An extension is preferred if it is a maximal (w.r.t. set inclusion) complete set.
+%% Extension must be:
+%% 1. Admissible with closure
+%% 2. Complete: contains all unattacked assumptions
 %%
-%% Usage: clingo -n 0 <files> semantics/preferred.lp
-%%
-%% Complete: Admissible + contains all defended assumptions
-%% Preferred: Maximal complete (handled via heuristic)
+%% Usage: clingo -n 0 <files> semantics/complete_closed.lp
 
 %% Conflict-freeness
 :- in(X), defeated(X).
+
+%% Compute what is derived from the extension
+derived(X) :- assumption(X), in(X).
+derived(X) :- head(R,X), triggered_by_in(R).
+triggered_by_in(R) :- head(R,_), derived(X) : body(R,X).
+
+%% Closure constraint: all derived assumptions must be in
+:- assumption(X), derived(X), not in(X).
 
 %% Compute closure under undefeated assumptions
 derived_from_undefeated(X) :- assumption(X), not defeated(X).
@@ -24,6 +31,3 @@ attacked_by_undefeated(X) :- contrary(X,Y), derived_from_undefeated(Y).
 
 %% Completeness: All unattacked (defended) assumptions must be in
 :- out(X), not attacked_by_undefeated(X).
-
-%% Maximality preference: prefer larger extensions
-#heuristic in(X) : assumption(X). [1,true].

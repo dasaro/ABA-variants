@@ -1,0 +1,24 @@
+[project]
+name = "aspforaba"
+version = "1.1.0"
+description = "A solver for the argumentation formalism assumption-based argumentation (ABA)"
+authors = [
+    {name = "Tuomo Lehtonen", email = "tuomo.lehtonen@aalto.fi"},
+]
+dependencies = [
+    "clingo>=5.6.2",
+]
+requires-python = ">=3.9"
+readme = "README.md"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[tool.pdm]
+distribution = true
+
+[project.scripts]
+aspforaba = "aspforaba.__main__:main"
