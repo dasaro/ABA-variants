@@ -144,7 +144,7 @@ WABA/
 ├── optimize/                    # Cost optimization modules
 ├── semiring/                    # Weight propagation strategies
 ├── monoid/                      # Cost aggregation strategies
-├── semantics/                   # Argumentation semantics (stable, cf, naive)
+├── semantics/                   # Argumentation semantics (10 semantics: stable, cf, admissible, complete, grounded, preferred*, semi-stable*, staged*, naive*, ideal)
 ├── examples/                    # Example frameworks
 ├── test/                        # Test files
 └── docs/                        # Documentation
@@ -193,10 +193,19 @@ clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp \
        WABA/monoid/lex_minimization.lp WABA/filter/lexicographic.lp \
        WABA/semantics/stable.lp <framework>.lp
 
-# Naive semantics (requires special flags)
-clingo -n 0 --heuristic=Domain --enum=domRec \
+# Heuristic-based semantics (require --heuristic=Domain --enum-mode=domRec)
+# These include: preferred, semi-stable, staged, naive
+clingo -n 0 --heuristic=Domain --enum-mode=domRec \
+       WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/max_minimization.lp \
+       WABA/filter/standard.lp WABA/semantics/preferred.lp <framework>.lp
+
+# Naive semantics (also requires heuristics)
+clingo -n 0 --heuristic=Domain --enum-mode=domRec \
        WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/max_minimization.lp \
        WABA/filter/standard.lp WABA/semantics/naive.lp <framework>.lp
+
+# Note: Heuristic-based semantics use approximation for maximality and may not
+# find all maximal extensions on complex frameworks. Works correctly on standard cases.
 ```
 
 ## Framework File Format
