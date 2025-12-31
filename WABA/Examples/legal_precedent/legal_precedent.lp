@@ -1,12 +1,12 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% LEGAL PRECEDENT REASONING - Non-Compete Clause Enforceability
 %%
-%% STORY (ASYMMETRIC - Narrow Scope Clearly Enforceable):
-%% A court evaluates a non-compete clause with TWO key provisions: geographic
-%% scope (narrow: 50-mile radius) and duration (short: 1 year). A weak precedent
-%% (low authority) suggests even narrow restrictions may be void, but strong
-%% precedent (Supreme Court) clearly allows reasonable restrictions. The narrow,
-%% time-limited clause is clearly enforceable under binding precedent.
+%% STORY:
+%% A court must decide whether to enforce a non-compete clause. The decision
+%% depends on defeasible legal interpretations (assumptions) of contract terms,
+%% which when combined with established binding precedents (derived atoms),
+%% yield legal conclusions. Precedents can defeat interpretations by establishing
+%% contrary legal principles (e.g., geographic/temporal limits on non-competes).
 %%
 %% WEIGHT INTERPRETATION:
 %% Weights represent precedent authority strength (0-100), where higher values
@@ -47,63 +47,83 @@
 %%   WABA/monoid/sum_minimization.lp \
 %%   WABA/filter/standard.lp \
 %%   WABA/semantics/stable.lp \
-%%   WABA/constraint/ub_sum.lp \
 %%   WABA/examples/legal_precedent/legal_precedent.lp
-%%
-%% EXPECTED: Extension {assume_narrow_scope, assume_short_duration, assume_legitimate_interest}
-%% (All assumptions hold, weak precedent distinguished, clause enforceable)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Budget parameter (override via -c beta=N)
 #const beta = 150.
 
-%% Budget constraint (requires constraint/ub_sum.lp to be loaded)
-budget(beta).
-
 %% ============================================================================
 %% ASSUMPTIONS (Defeasible Legal Interpretations)
 %% ============================================================================
 
-assumption(assume_narrow_scope).        % Non-compete limited to 50-mile radius (reasonable)
-assumption(assume_short_duration).      % 1-year restriction (clearly reasonable)
-assumption(assume_legitimate_interest). % Employer has trade secrets to protect
+assumption(assume_broad_scope).       % Non-compete covers entire industry
+assumption(assume_long_duration).     % 3-year restriction is reasonable
+assumption(assume_legitimate_interest). % Employer has protectable interest
 
 %% ============================================================================
 %% WEIGHTS (Precedent Authority Strength)
 %% ============================================================================
 
-%% Assumption weights - ASYMMETRIC (narrow/short clearly reasonable)
-weight(assume_narrow_scope, 80).         % Strong: narrow scope is reasonable
-weight(assume_short_duration, 75).       % Strong: 1 year is clearly reasonable
-weight(assume_legitimate_interest, 85).  % Strong: trade secrets are protectable
+%% Assumption weights (strength of interpretation before precedent challenge)
+weight(assume_broad_scope, 40).
+weight(assume_long_duration, 35).
+weight(assume_legitimate_interest, 50).
 
-%% Weak precedent challenging narrow scope (low authority - easily distinguished)
-weight(weak_precedent_anti_noncompete, 20).  % Low authority: general anti-restriction view
+%% Precedent weights (authority strength - higher = more binding)
+weight(precedent_geographic_limit, 80).  % Strong precedent: geographic limits required
+weight(precedent_temporal_limit, 70).    % Strong precedent: temporal limits required
+weight(conclusion_void_overbroad, 90).   % Very strong: void if overreaching
 
-%% Conclusion weights
-weight(conclusion_enforceable, 90).      % Strong conclusion if all assumptions hold
+%% Derived conclusion weights
+weight(conclusion_enforceable, 60).
 
 %% ============================================================================
 %% RULES (Legal Reasoning Chains)
 %% ============================================================================
 
-%% r1: All three reasonable assumptions → enforceable conclusion
-head(r1, conclusion_enforceable).
-body(r1, assume_narrow_scope).
-body(r1, assume_short_duration).
-body(r1, assume_legitimate_interest).
+%% r1: Broad scope interpretation → derives geographic limit precedent
+%% (Mixed body: assumption + legal doctrine)
+head(r1, precedent_geographic_limit).
+body(r1, assume_broad_scope).
+body(r1, established_doctrine_limits). % Derived: doctrine requires limits
 
-%% r2: Weak anti-restriction precedent (always holds as a minority view)
-head(r2, weak_precedent_anti_noncompete).
-% No body - this represents a weak, outlier precedent that's easily distinguished
+%% r2: Long duration interpretation → derives temporal limit precedent
+head(r2, precedent_temporal_limit).
+body(r2, assume_long_duration).
+body(r2, established_doctrine_limits).
+
+%% r3: Broad scope + long duration → conclusion of overreach (void)
+head(r3, conclusion_void_overbroad).
+body(r3, assume_broad_scope).
+body(r3, assume_long_duration).
+
+%% r4: Legitimate interest + limited scope → enforceable conclusion
+head(r4, conclusion_enforceable).
+body(r4, assume_legitimate_interest).
+body(r4, geographic_limited).  % Derived: scope is geographically limited
+body(r4, temporal_limited).    % Derived: duration is temporally limited
+
+%% r5: Established legal doctrine (always holds, models background law)
+head(r5, established_doctrine_limits).
+% No body - this is a "fact" of established law
+
+%% r6: Geographic limiting conditions (derives from non-broad scope)
+%% This creates a logical dependency: if broad scope is defeated, limits apply
+head(r6, geographic_limited).
+body(r6, precedent_geographic_limit).
+
+%% r7: Temporal limiting conditions
+head(r7, temporal_limited).
+body(r7, precedent_temporal_limit).
 
 %% ============================================================================
 %% CONTRARIES (Precedent-Based Defeats)
 %% ============================================================================
 
-% Weak precedent attacks narrow scope (but easily distinguished due to low authority)
-contrary(assume_narrow_scope, weak_precedent_anti_noncompete).
-% Other assumptions unattacked - clearly reasonable
+contrary(assume_broad_scope, precedent_geographic_limit).
+contrary(assume_long_duration, precedent_temporal_limit).
+contrary(assume_legitimate_interest, conclusion_void_overbroad).
 
 %% ============================================================================
 %% BUDGET CONSTRAINT
