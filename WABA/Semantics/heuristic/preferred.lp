@@ -16,8 +16,9 @@ derived_from_undefeated(X) :- assumption(X), not defeated(X).
 derived_from_undefeated(X) :- head(R,X), triggered_by_undefeated(R).
 triggered_by_undefeated(R) :- head(R,_), derived_from_undefeated(X) : body(R,X).
 
-%% Attacked by undefeated assumptions
-attacked_by_undefeated(X) :- contrary(X,Y), derived_from_undefeated(Y).
+%% Attacked by undefeated assumptions (respecting budget-based attack discarding)
+attacked_by_undefeated(X) :- contrary(X,Y), derived_from_undefeated(Y), supported(Y), not discarded_attack(Y,X,_).
+attacked_by_undefeated(X) :- contrary(X,Y), derived_from_undefeated(Y), assumption(Y), not supported(Y).
 
 %% Admissibility: in assumptions must not be attacked by undefeated
 :- in(X), attacked_by_undefeated(X).
