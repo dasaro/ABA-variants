@@ -1,12 +1,12 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% PRACTICAL DELIBERATION - Commonsense Default Reasoning for Daily Planning
 %%
-%% STORY:
+%% STORY (ASYMMETRIC - Partial Disruption):
 %% An agent planning a Sunday routine relies on four defeasible default beliefs:
-%% traffic is light on Sundays, gym opens at 7am, no rain expected, no meetings.
-%% These defaults generate action plans. Unexpected events (gym_closed,
-%% traffic_heavy, rain_detected, meeting_scheduled) defeat defaults, forcing
-%% belief revision. We minimize revision count (cognitive parsimony).
+%% traffic is light, gym opens at 7am, no rain, no meetings. On this PARTICULAR
+%% Sunday, only ONE disruption occurs: the gym is unexpectedly closed for repairs.
+%% All other defaults hold. The agent must decide: maintain the gym default
+%% (ignore reality, high revision cost) or adapt the plan (low revision cost).
 %%
 %% WEIGHT INTERPRETATION:
 %% Weights represent cognitive revision cost (1-10, belief entrenchment).
@@ -37,11 +37,18 @@
 %%   WABA/monoid/count_minimization.lp \
 %%   WABA/filter/standard.lp \
 %%   WABA/semantics/stable.lp \
+%%   WABA/constraint/ub_count.lp \
 %%   WABA/examples/practical_deliberation/practical_deliberation.lp
+%%
+%% EXPECTED: Extension {assume_traffic_light, assume_weather_good, assume_no_meeting}
+%% (Accept gym is closed, maintain other defaults, revision count = 0)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Budget parameter (override via -c beta=N)
 #const beta = 2.
+
+%% Budget constraint (requires constraint/ub_count.lp to be loaded)
+budget(beta).
 
 %% ============================================================================
 %% ASSUMPTIONS (Commonsense Defaults)
@@ -89,21 +96,13 @@ body(r2, assume_traffic_light).
 head(r3, plan_outdoor_run).
 body(r3, assume_weather_good).
 
-%% r4: Gym closed observed → disruption
+%% r4: Gym closed observed → THE ONLY DISRUPTION that occurs
 head(r4, gym_closed).
-% No body - this is an observed fact (gym unexpectedly closed on Sundays)
+% No body - this is an observed fact (gym unexpectedly closed today)
 
-%% r5: Traffic report shows heavy traffic → disruption
-head(r5, traffic_heavy).
-% No body - unexpected traffic due to event
-
-%% r6: Weather update shows rain → disruption
-head(r6, rain_detected).
-% No body - forecast updated
-
-%% r7: Meeting invitation received → disruption
-head(r7, meeting_scheduled).
-% No body - unexpected Sunday meeting
+%% Other potential disruptions DO NOT occur on this Sunday
+%% (traffic_heavy, rain_detected, meeting_scheduled are not derived)
+%% This creates asymmetry: only ONE default is challenged
 
 %% ============================================================================
 %% CONTRARIES (Disruptions Defeat Defaults)

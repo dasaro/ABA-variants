@@ -1,14 +1,12 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% EPISTEMIC JUSTIFICATION - Coherent Belief Revision Under Uncertainty
 %%
-%% STORY:
-%% An agent receives conflicting perceptual reports about the same event
-%% (whether it is raining). Four defeasible sensory observations clash:
-%% visual perception says rain, auditory perception says no rain sounds,
-%% tactile perception says ground is wet, weather forecast says dry.
-%% These observations, combined with background theories, generate predictions
-%% that contradict each other, forcing the agent to revise some perceptual
-%% beliefs to maintain epistemic coherence.
+%% STORY (ASYMMETRIC - Clear Visual Dominance):
+%% An agent sees rain (visual perception - highly reliable) but the weather
+%% forecast predicted dry conditions (less reliable, often wrong). Only these
+%% TWO sources conflict. The agent must decide: trust direct visual perception
+%% (low unreliability cost) or trust the forecast (high unreliability cost).
+%% Visual perception clearly wins as it's direct observation vs. prediction.
 %%
 %% WEIGHT INTERPRETATION:
 %% Weights represent epistemic unreliability (0-100) of sensory sources.
@@ -43,7 +41,11 @@
 %%   WABA/monoid/sum_minimization.lp \
 %%   WABA/filter/standard.lp \
 %%   WABA/semantics/stable.lp \
+%%   WABA/constraint/ub_sum.lp \
 %%   WABA/examples/epistemic_justification/epistemic_justification.lp
+%%
+%% EXPECTED: Extension {assume_visual_rain}
+%% (Trust direct visual perception, reject unreliable forecast)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Budget parameter (override via -c beta=N)
@@ -52,84 +54,51 @@
 %% Łukasiewicz K parameter (saturation bound, override via -c k=N)
 #const k = 100.
 
+%% Budget constraint (requires constraint/ub_sum.lp to be loaded)
+budget(beta).
+
 %% ============================================================================
 %% ASSUMPTIONS (Defeasible Perceptual Beliefs)
 %% ============================================================================
 
-assumption(assume_visual_rain).      % Visual perception: it's raining
-assumption(assume_audio_no_rain).    % Auditory perception: no rain sounds
-assumption(assume_tactile_wet).      % Tactile perception: ground feels wet
-assumption(assume_forecast_dry).     % Testimony: weather forecast says dry
+assumption(assume_visual_rain).      % Visual perception: it's raining (highly reliable)
+assumption(assume_forecast_dry).     % Weather forecast: dry conditions (less reliable)
+% Removed: audio and tactile perceptions (simplified to 2-way conflict)
 
 %% ============================================================================
 %% WEIGHTS (Epistemic Unreliability)
 %% ============================================================================
 
-%% Perceptual source unreliability (0-100, higher = less reliable)
-weight(assume_visual_rain, 20).      % Vision relatively reliable
-weight(assume_audio_no_rain, 30).    % Hearing moderately reliable
-weight(assume_tactile_wet, 25).      % Touch relatively reliable
-weight(assume_forecast_dry, 40).     % Forecasts less reliable (prediction)
+%% Perceptual source unreliability (0-100, higher = less reliable) - ASYMMETRIC
+weight(assume_visual_rain, 10).      % Direct observation - very reliable
+weight(assume_forecast_dry, 50).     % Prediction - often wrong, unreliable
 
-%% Conflict unreliability weights (reflects severity of contradiction)
-weight(contradicts_visual_evidence, 20).
-weight(contradicts_audio_evidence, 30).
-weight(contradicts_tactile_evidence, 25).
-weight(contradicts_forecast, 40).
-
-%% Theoretical prediction weights
-weight(predict_wet_ground, 15).
-weight(predict_rain_sounds, 20).
+%% Conflict unreliability weights
+weight(contradicts_visual_evidence, 10).  % Low cost to discard (trust vision)
+weight(contradicts_forecast, 50).         % High cost to discard (distrust vision)
 
 %% ============================================================================
 %% RULES (Perceptual Beliefs → Theoretical Predictions → Conflicts)
 %% ============================================================================
 
-%% r1: Visual rain perception + theory → predicts wet ground
-%% (Mixed body: perception assumption + background theory)
-head(r1, predict_wet_ground).
+%% r1: Direct perceptual conflict - visual rain vs. forecast dry
+head(r1, contradicts_forecast).
 body(r1, assume_visual_rain).
-body(r1, theory_rain_wets_ground).  % Background theory (derived)
+body(r1, assume_forecast_dry).
 
-%% r2: Visual rain perception + theory → predicts rain sounds
-head(r2, predict_rain_sounds).
+%% r2: Symmetric conflict - forecast contradicts visual evidence
+head(r2, contradicts_visual_evidence).
+body(r2, assume_forecast_dry).
 body(r2, assume_visual_rain).
-body(r2, theory_rain_is_audible).
 
-%% r3: Background theory: rain wets ground (always holds)
-head(r3, theory_rain_wets_ground).
-% No body - this is a standing background belief
-
-%% r4: Background theory: rain is audible (always holds)
-head(r4, theory_rain_is_audible).
-
-%% r5: Auditory "no rain" + prediction of rain sounds → conflict
-head(r5, contradicts_audio_evidence).
-body(r5, assume_audio_no_rain).
-body(r5, predict_rain_sounds).
-
-%% r6: Dry forecast + tactile wet perception → conflict
-head(r6, contradicts_tactile_evidence).
-body(r6, assume_forecast_dry).
-body(r6, assume_tactile_wet).
-
-%% r7: Dry forecast + wet ground prediction → conflict
-head(r7, contradicts_forecast).
-body(r7, assume_forecast_dry).
-body(r7, predict_wet_ground).
-
-%% r8: Visual rain + auditory no-rain → direct perceptual conflict
-head(r8, contradicts_visual_evidence).
-body(r8, assume_visual_rain).
-body(r8, assume_audio_no_rain).
+%% Simplified: removed background theories and intermediate predictions
+%% Only direct 2-way conflict between visual perception and forecast
 
 %% ============================================================================
 %% CONTRARIES (Evidential Conflicts Defeat Perceptual Beliefs)
 %% ============================================================================
 
 contrary(assume_visual_rain, contradicts_visual_evidence).
-contrary(assume_audio_no_rain, contradicts_audio_evidence).
-contrary(assume_tactile_wet, contradicts_tactile_evidence).
 contrary(assume_forecast_dry, contradicts_forecast).
 
 %% ============================================================================

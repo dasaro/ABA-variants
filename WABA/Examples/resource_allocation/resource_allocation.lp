@@ -1,12 +1,12 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% RESOURCE ALLOCATION - Stakeholder Needs Under Budget Constraints
 %%
-%% STORY:
-%% A nonprofit must allocate limited funding across competing stakeholder needs
-%% (education, healthcare, housing, infrastructure). Each need is a defeasible
-%% claim (assumption) that generates allocation decisions. When needs exceed
-%% available resources, some must remain unfunded (contraries), creating
-%% deprivation. We minimize worst-case deprivation (maximin equity).
+%% STORY (ASYMMETRIC - Clear Priority):
+%% A nonprofit can only fund TWO of four critical needs: emergency healthcare
+%% (life-threatening), education (important), housing (significant), infrastructure
+%% (deferrable). Healthcare has absolute priority (lives at stake). The choice
+%% is between funding healthcare+education vs. healthcare+housing, where education
+%% wins due to long-term impact. Infrastructure is clearly deferrable.
 %%
 %% WEIGHT INTERPRETATION:
 %% Weights represent deprivation severity (0-100) if a need is unfunded.
@@ -40,11 +40,18 @@
 %%   WABA/monoid/max_minimization.lp \
 %%   WABA/filter/standard.lp \
 %%   WABA/semantics/stable.lp \
+%%   WABA/constraint/ub_max.lp \
 %%   WABA/examples/resource_allocation/resource_allocation.lp
+%%
+%% EXPECTED: Extension {assume_need_healthcare, assume_need_education}
+%% (Fund life-threatening healthcare + education, defer housing & infrastructure)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Budget parameter (override via -c beta=N)
 #const beta = 50.
+
+%% Budget constraint (requires constraint/ub_max.lp to be loaded)
+budget(beta).
 
 %% ============================================================================
 %% ASSUMPTIONS (Stakeholder Needs)
@@ -59,17 +66,17 @@ assumption(assume_need_infrastructure). % Infrastructure funding requested
 %% WEIGHTS (Deprivation Severity)
 %% ============================================================================
 
-%% Need weights (priority/urgency)
-weight(assume_need_education, 70).
-weight(assume_need_healthcare, 80).
-weight(assume_need_housing, 75).
-weight(assume_need_infrastructure, 60).
+%% Need weights (priority/urgency) - ASYMMETRIC HIERARCHY
+weight(assume_need_education, 65).
+weight(assume_need_healthcare, 95).   % Life-threatening - absolute priority
+weight(assume_need_housing, 50).
+weight(assume_need_infrastructure, 25).  % Deferrable - lowest priority
 
-%% Unfunded deprivation weights (severity if need not met)
-weight(unfunded_education, 70).      % Severe: education deprivation
-weight(unfunded_healthcare, 80).     % Most severe: health deprivation
-weight(unfunded_housing, 75).        % Very severe: housing deprivation
-weight(unfunded_infrastructure, 60). % Moderate: infrastructure deprivation
+%% Unfunded deprivation weights (severity if need not met) - CLEAR GRADATION
+weight(unfunded_education, 45).       % Moderate: education delay acceptable
+weight(unfunded_healthcare, 95).      % Critical: health deprivation life-threatening
+weight(unfunded_housing, 30).         % Manageable: temporary housing solutions exist
+weight(unfunded_infrastructure, 15).  % Low: infrastructure can wait
 
 %% Funding outcome weights
 weight(funded_education, 30).
@@ -116,27 +123,28 @@ head(r7, unfunded_infrastructure).
 body(r7, assume_need_infrastructure).
 body(r7, insufficient_resources_infrastructure).
 
-%% r8-r11: Resource sufficiency checks (modeling scarcity)
-%% If 3+ needs are claimed, at least one must be unfunded
+%% r8-r10: Resource constraints (can only fund healthcare + ONE other)
+%% Healthcare has absolute priority - if education+housing both claimed, education loses
 head(r8, insufficient_resources_education).
 body(r8, assume_need_healthcare).
-body(r8, assume_need_housing).
-body(r8, assume_need_infrastructure).
+body(r8, assume_need_housing).  % Education blocked if healthcare+housing claimed
 
-head(r9, insufficient_resources_healthcare).
+%% Housing blocked if healthcare+education claimed
+head(r9, insufficient_resources_housing).
+body(r9, assume_need_healthcare).
 body(r9, assume_need_education).
-body(r9, assume_need_housing).
-body(r9, assume_need_infrastructure).
 
-head(r10, insufficient_resources_housing).
-body(r10, assume_need_education).
+%% Infrastructure blocked if healthcare+any other claimed
+head(r10, insufficient_resources_infrastructure).
 body(r10, assume_need_healthcare).
-body(r10, assume_need_infrastructure).
+body(r10, assume_need_education).
 
 head(r11, insufficient_resources_infrastructure).
-body(r11, assume_need_education).
 body(r11, assume_need_healthcare).
 body(r11, assume_need_housing).
+
+%% Healthcare NEVER insufficient (absolute priority)
+% No rule derives insufficient_resources_healthcare
 
 %% ============================================================================
 %% CONTRARIES (Unfunded Needs Defeat Assumptions)
