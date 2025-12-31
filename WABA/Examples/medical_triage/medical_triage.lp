@@ -47,8 +47,11 @@
 %%   WABA/examples/medical_triage/medical_triage.lp
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% Budget parameter (override via -c beta=N)
-#const beta = 50.
+%% Budget parameter (set via -c beta=N)
+%% Removed: #const beta = 50 (was causing issues)
+
+%% Budget constraint (requires constraint/ub_max.lp to be loaded)
+budget(beta).
 
 %% ============================================================================
 %% ASSUMPTIONS (Defeasible Patient Conditions)
