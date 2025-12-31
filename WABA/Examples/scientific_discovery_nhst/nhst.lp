@@ -1,171 +1,161 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% NHST-STYLE HYPOTHESIS TESTING - Statistical Significance as Argumentation
+%% NHST-STYLE HYPOTHESIS TESTING (faithful + WABA-compatible, drop-in)
 %%
-%% STORY:
-%% A researcher tests null hypothesis H0 (no effect) against alternatives H1, H2
-%% (effect exists). Statistical tests yield p-values; significant results
-%% (p ≤ α) attack H0. Discarding an attack = ignoring strong statistical evidence.
-%% We minimize total ignored evidence strength while deciding which hypothesis
-%% to accept. Practical decisions require both statistical significance AND
-%% effect size (mixed-body rules).
+%% STORY (NHST-style):
+%% - H0: no effect (null)
+%% - H1: positive effect
+%% - H2: adverse side effects
 %%
-%% WEIGHT INTERPRETATION:
-%% Weights represent evidence strength = floor(100 * (1 - p)). Higher p-value
-%% (weaker evidence) → lower weight. p=0.001 → weight=99 (very strong).
-%% p=0.05 → weight=95 (marginally significant).
+%% Tests yield p-values. If p <= alpha, the corresponding “significant_*” node
+%% is derivable and can (i) reject H0, and (ii) create pressure between H1/H2.
 %%
-%% SEMIRING: Tropical (sum/min)
-%% JUSTIFICATION: Evidence strength accumulates across multiple independent tests.
-%% When multiple tests reject H0, their evidential strength combines additively
-%% (meta-analytic accumulation of evidence).
+%% KEY MODELLING CHOICES (to match NHST better):
+%% 1) “Reject H0” is driven by *significant results* (p <= alpha), not by
+%%    accepting H1/H2. This mirrors NHST’s primary move: reject/fail-to-reject H0.
+%% 2) Evidence is *independent of the hypothesis choices*: tests are observational.
+%% 3) Discarding an attack = “ignoring evidence”, cost = evidence strength.
+%% 4) We DO NOT require H1/H2 to be “proved”; they are defeasible commitments
+%%    constrained by evidence and budget.
 %%
-%% MONOID: Sum
-%% JUSTIFICATION: Extension cost = total strength of ignored evidence. Each
-%% discarded significant result contributes its evidence strength to the total
-%% ignored evidence budget.
+%% WEIGHTS:
+%% Evidence strength = floor(100*(1-p)).
+%% We encode p as basis points (bp): p=0.001 -> 10bp, p=0.030 -> 300bp, p=0.045 -> 450bp
+%% Then 100*p = bp/100, so:
+%%   strength = floor(100 - bp/100) = 100 - ceil(bp/100)
+%% Implemented as: 100 - ((bp + 99) / 100).
 %%
-%% OPTIMIZATION: Minimize
-%% JUSTIFICATION: Minimize total ignored evidence strength (evidential conservatism).
+%% SEMIRING: Tropical (⊗ = +, ⊕ = min)
+%% MONOID:   Sum (total ignored evidence)
+%% OPT:      Minimize (ignore as little evidence as possible)
 %%
-%% BUDGET β: Upper bound on total ignored evidence strength.
-%% β = 100 means "can ignore ≤100 units of evidence strength" (e.g., 1 very strong
-%% result OR 2 moderate results).
+%% BUDGET beta (upper bound on total ignored evidence strength):
+%% This file ENFORCES beta directly (so you don’t *need* constraint/ub.lp),
+%% by summing discarded attack weights.
 %%
-%% DISCARDED ATTACK INTERPRETATION:
-%% Overriding a significant result = dismissing statistical evidence as
-%% unreliable/spurious (cost = evidence strength). We sum how much evidence we
-%% chose to disregard.
-%%
-%% USAGE:
+%% USAGE (example):
 %% clingo -n 0 --opt-mode=opt -c beta=100 -c alpha=5 \
 %%   WABA/core/base.lp \
 %%   WABA/semiring/tropical.lp \
 %%   WABA/monoid/sum_minimization.lp \
 %%   WABA/filter/standard.lp \
-%%   WABA/semantics/stable.lp \
+%%   WABA/semantics/<your_semantics>.lp \
+%%   WABA/constraint/ub_sum.lp \
 %%   WABA/examples/scientific_discovery_nhst/nhst.lp
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% Budget parameter (override via -c beta=N)
-#const beta = 100.
-
-%% Significance level α (as integer percentage: α=5 means p≤0.05)
-#const alpha = 5.
+#const beta  = 100.
+#const alpha = 5.   % alpha as percent (5 means 0.05)
 
 %% ============================================================================
-%% ASSUMPTIONS (Hypotheses Under Test)
+%% ASSUMPTIONS (Hypotheses)
 %% ============================================================================
 
-assumption(h0).  % Null hypothesis: no treatment effect
-assumption(h1).  % Alternative: treatment increases performance
-assumption(h2).  % Alternative: treatment decreases performance (side effects)
+assumption(h0).  % Null: no effect
+assumption(h1).  % Positive effect
+assumption(h2).  % Side effects
+
+%% Optional priors (these only matter if your semiring module uses weight/2 for assumptions)
+weight(h0,40).
+weight(h1,50).
+weight(h2,60).
 
 %% ============================================================================
-%% WEIGHTS (Evidence Strength)
+%% OBSERVATIONAL TEST OUTCOMES (p-values as facts)
 %% ============================================================================
 
-%% Hypothesis weights (prior plausibility - for Tropical accumulation)
-weight(h0, 40).  % Null has moderate prior (status quo)
-weight(h1, 50).  % Treatment effect plausible
-weight(h2, 60).  % Side effects less plausible but important to test
+%% p-values in basis points (bp): p * 10000
+pval_bp(test_perf, 10).    % 0.001
+pval_bp(test_safe, 300).   % 0.030
+pval_bp(test_repl, 450).   % 0.045
 
-%% Test result weights (statistical evidence strength)
-weight(test_performance_increase, 70).  % Test for positive effect
-weight(test_safety_profile, 65).        % Test for adverse effects
-weight(test_replication, 60).           % Independent replication
+%% “Tests happened” as observational facts (encoded as empty-body rules).
+head(r1, test_perf).
+head(r2, test_safe).
+head(r3, test_repl).
 
-%% P-value derived atoms (evidence strength = floor(100 * (1-p)))
-weight(pval_001_performance, 99).  % p=0.001 → very strong evidence
-weight(pval_030_safety, 97).       % p=0.030 → moderate evidence
-weight(pval_045_replication, 95).  % p=0.045 → marginally significant
-
-%% Significance indicators (p ≤ α)
-weight(significant_performance, 99).
-weight(significant_safety, 97).
-weight(significant_replication, 95).
-
-%% Rejection tokens (significant result rejects H0)
-weight(rejects_h0_performance, 99).
-weight(rejects_h0_replication, 95).
-
-%% Aggregate rejection
-weight(rejected_h0, 100).  % H0 rejected by multiple significant tests
-
-%% Mixed-body derived atoms
-weight(effect_size_large, 80).          % Clinical significance (beyond stats)
-weight(accept_practical_policy, 90).    % Policy decision requires both
+%% Evidence strength from p-values:
+%% strength = 100 - ceil(bp/100) = 100 - ((bp+99)/100)
+weight(T,W) :- pval_bp(T,BP), W = 100 - ((BP + 99) / 100).
 
 %% ============================================================================
-%% RULES (Tests → P-values → Significance → Rejections)
+%% SIGNIFICANCE GATING (depends on alpha)
 %% ============================================================================
 
-%% r1-r3: Statistical tests always performed (observational facts)
-head(r1, test_performance_increase).
-head(r2, test_safety_profile).
-head(r3, test_replication).
+%% alpha threshold in bp: alpha% = alpha * 100 bp
+alpha_bp(A) :- A = alpha * 100.
 
-%% r4-r6: Tests yield p-values (observational outcomes)
-head(r4, pval_001_performance).
-body(r4, test_performance_increase).
+%% “alpha allows this p-value” as derived facts (empty-body rules generated conditionally)
+%% These atoms exist iff p <= alpha.
+head(r_ok_perf, alpha_ok_perf) :- pval_bp(test_perf,BP), alpha_bp(A), BP <= A.
+head(r_ok_safe, alpha_ok_safe) :- pval_bp(test_safe,BP), alpha_bp(A), BP <= A.
+head(r_ok_repl, alpha_ok_repl) :- pval_bp(test_repl,BP), alpha_bp(A), BP <= A.
 
-head(r5, pval_030_safety).
-body(r5, test_safety_profile).
+%% Neutral weights for alpha_ok_* (so they don’t change evidence strength under Tropical sum)
+weight(alpha_ok_perf,0).
+weight(alpha_ok_safe,0).
+weight(alpha_ok_repl,0).
 
-head(r6, pval_045_replication).
-body(r6, test_replication).
+%% Significant results (derived only when p <= alpha)
+head(r4, significant_perf).
+body(r4, test_perf).
+body(r4, alpha_ok_perf).
 
-%% r7-r9: P-values ≤ α → significant results
-head(r7, significant_performance).
-body(r7, pval_001_performance).  % p=0.001 ≤ 0.05
+head(r5, significant_safe).
+body(r5, test_safe).
+body(r5, alpha_ok_safe).
 
-head(r8, significant_safety).
-body(r8, pval_030_safety).  % p=0.030 ≤ 0.05
-
-head(r9, significant_replication).
-body(r9, pval_045_replication).  % p=0.045 ≤ 0.05
-
-%% r10-r11: Significant results generate rejection tokens for H0
-head(r10, rejects_h0_performance).
-body(r10, significant_performance).
-
-head(r11, rejects_h0_replication).
-body(r11, significant_replication).
-
-%% r12: Aggregate rejection (multiple significant results → stronger case)
-head(r12, rejected_h0).
-body(r12, rejects_h0_performance).   % Weight 99
-body(r12, rejects_h0_replication).   % Weight 95
-% Tropical sum: 99 + 95 = 194 (cumulative evidence strength)
-
-%% r13: Effect size assessment (statistical + practical significance)
-head(r13, effect_size_large).
-body(r13, significant_performance).
-body(r13, test_replication).  % Confirmed by replication
-
-%% r14: MIXED-BODY RULE - Practical policy acceptance requires both
-%%      statistical significance (H1) AND clinical significance (effect_size_large)
-head(r14, accept_practical_policy).
-body(r14, h1).                    % Assumption (alternative hypothesis accepted)
-body(r14, effect_size_large).     % Derived atom (clinical significance confirmed)
+head(r6, significant_repl).
+body(r6, test_repl).
+body(r6, alpha_ok_repl).
 
 %% ============================================================================
-%% CONTRARIES (Significant Results Defeat Null Hypothesis)
+%% NHST CORE: SIGNIFICANCE ATTACKS THE NULL
 %% ============================================================================
 
-contrary(h0, rejected_h0).  % Null hypothesis defeated by cumulative evidence
+%% Each significant result produces a distinct “rejection token” attacking H0.
+%% This makes “ignoring evidence” granular (you can discard one token but not the other).
+head(r7, rejects_h0_by_perf).
+body(r7, significant_perf).
 
-%% Note: H1 and H2 not directly attacked by statistical tests (only H0 tested).
-%% To satisfy totality, we include contraries based on logical incompatibility:
-contrary(h1, rejected_h1_by_h2).  % If H2 strongly supported, H1 defeated
-contrary(h2, rejected_h2_by_h1).  % If H1 strongly supported, H2 defeated
+head(r8, rejects_h0_by_repl).
+body(r8, significant_repl).
 
-%% r15-r16: Mutual exclusion of H1 and H2 (if one accepted with strong evidence, other defeated)
-head(r15, rejected_h2_by_h1).
-body(r15, accept_practical_policy).  % H1 accepted with strong effect
+contrary(h0, rejects_h0_by_perf).
+contrary(h0, rejects_h0_by_repl).
 
-head(r16, rejected_h1_by_h2).
-body(r16, significant_safety).  % Safety concerns (H2) significant
-body(r16, h2).                  % H2 accepted
+%% ============================================================================
+%% COMPETING INTERPRETATIONS (H1 vs H2) + PRACTICAL DECISION
+%% ============================================================================
+
+%% Evidence that supports *efficacy* (kept simple: driven by the main efficacy test)
+head(r9,  efficacy_evidence).
+body(r9,  significant_perf).
+
+%% Evidence that supports *side-effects* (driven by safety test)
+head(r10, side_effects_evidence).
+body(r10, significant_safe).
+
+%% Competing pressure:
+%% - Side-effects evidence attacks committing to “approve” (H1)
+%% - Efficacy evidence attacks committing to “harmful/side-effect hypothesis dominates” (H2)
+contrary(h1, side_effects_evidence).
+contrary(h2, efficacy_evidence).
+
+%% Practical/clinical significance:
+%% Require both efficacy significance + independent replication to claim “large effect”.
+head(r11, effect_size_large).
+body(r11, significant_perf).
+body(r11, significant_repl).
+
+weight(effect_size_large,80).
+
+%% Policy acceptance is a mixed-body conclusion:
+%% you must commit to H1 and have large-effect support.
+head(r12, accept_practical_policy).
+body(r12, h1).
+body(r12, effect_size_large).
+
+weight(accept_practical_policy,90).
 
 %% ============================================================================
 %% BUDGET CONSTRAINT
@@ -173,3 +163,4 @@ body(r16, h2).                  % H2 accepted
 
 %% Budget constraint enforced by loading constraint/ub_sum.lp
 %% (total ignored evidence ≤ β)
+budget(beta).
