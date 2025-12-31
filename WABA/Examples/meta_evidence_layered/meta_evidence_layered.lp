@@ -1,11 +1,11 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% META-EVIDENCE LAYERED ARGUMENTATION - Credibility Chains & Non-Monotonic Flip
 %%
-%% STORY:
-%% A researcher evaluates claims supported by studies S1, S2. Meta-evidence
-%% reveals methodological flaws undermining study reliability. Meta-meta-evidence
-%% challenges the meta-source itself, creating epistemic reversal:
-%% claim supported → claim rejected → claim reinstated (3-layer defeaters).
+%% STORY (ASYMMETRIC - Clear Trust in S1):
+%% A claim is supported by TWO studies: S1 (rigorous, peer-reviewed, no flaws)
+%% and S2 (minor methodological concerns). A meta-analysis questions S2 but
+%% finds S1 impeccable. Clear decision: trust S1 (no credibility issues),
+%% accept weak concerns about S2 (low penalty), claim supported.
 %%
 %% WEIGHT INTERPRETATION:
 %% Credibility penalty (0-100). Higher = more severe methodological flaw or
@@ -38,45 +38,41 @@
 %%   WABA/monoid/max_minimization.lp \
 %%   WABA/filter/standard.lp \
 %%   WABA/semantics/stable.lp \
+%%   WABA/constraint/ub_max.lp \
 %%   WABA/examples/meta_evidence_layered/meta_evidence_layered.lp
+%%
+%% EXPECTED: Extension {trust_study_s1, trust_study_s2}
+%% (Trust both studies, accept minor concern about S2, claim supported)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Budget parameter (override via -c beta=N)
 #const beta = 60.
 
+%% Budget constraint (requires constraint/ub_max.lp to be loaded)
+budget(beta).
+
 %% ============================================================================
 %% ASSUMPTIONS (Defeasible Trust Commitments)
 %% ============================================================================
 
-assumption(trust_study_s1).      % Trust Study 1 is methodologically sound
-assumption(trust_study_s2).      % Trust Study 2 is methodologically sound
-assumption(accept_method_m1).    % Accept underlying measurement methodology
-assumption(trust_meta_source).   % Trust the meta-analysis / critique source
+assumption(trust_study_s1).      % Trust Study 1 (rigorous, peer-reviewed, no flaws)
+assumption(trust_study_s2).      % Trust Study 2 (minor methodological concerns)
 
 %% ============================================================================
 %% WEIGHTS (Credibility Penalties)
 %% ============================================================================
 
-%% Assumption weights (trust value - for Gödel min)
-weight(trust_study_s1, 70).      % Moderately strong initial trust
-weight(trust_study_s2, 65).      % Slightly weaker initial trust
-weight(accept_method_m1, 75).    % Strong methodological confidence
-weight(trust_meta_source, 60).   % Moderate meta-source trust
+%% Assumption weights - ASYMMETRIC (S1 excellent, S2 has minor issue)
+weight(trust_study_s1, 95).      % Excellent study - no credibility issues
+weight(trust_study_s2, 85).      % Good study - minor concerns
 
-%% Layer 1: Object-level data weights
-weight(data_s1_positive, 80).    % Study 1 positive data strength
-weight(data_s2_positive, 75).    % Study 2 positive data strength
-weight(supports_claim, 85).      % Claim support strength
+%% Object-level data weights
+weight(data_s1_positive, 95).    % Study 1 strong positive data
+weight(data_s2_positive, 85).    % Study 2 good positive data
+weight(supports_claim, 90).      % Strong claim support
 
-%% Layer 2: Meta-evidence weights (credibility penalties)
-weight(meta_report_bias, 55).          % Meta-source reports bias (moderate severity)
-weight(method_flaw_detected, 50).      % Methodological flaw severity
-weight(unreliable_s1, 70).             % Study 1 unreliability severity
-weight(unreliable_s2, 65).             % Study 2 unreliability severity
-
-%% Layer 3: Meta-meta-evidence weights (meta-source critique)
-weight(meta_conflict_of_interest, 55). % Meta-source conflict severity
-weight(meta_unreliable, 60).           % Meta-source unreliability severity
+%% Minor methodological concern about S2 (low severity - easily accepted)
+weight(minor_method_concern_s2, 30).  % Low severity: minor issue in S2
 
 %% ============================================================================
 %% RULES (Layer 1: Object-level Evidence)
@@ -86,55 +82,26 @@ weight(meta_unreliable, 60).           % Meta-source unreliability severity
 head(r1, data_s1_positive).  % Study 1 collected positive data
 head(r2, data_s2_positive).  % Study 2 collected positive data
 
-%% r3: MIXED-BODY RULE - Claim support requires trusting studies + having data
+%% r3: Claim support requires trusting both studies + having data
 head(r3, supports_claim).
-body(r3, trust_study_s1).    % Assumption
-body(r3, trust_study_s2).    % Assumption
-body(r3, data_s1_positive).  % Derived atom
+body(r3, trust_study_s1).    % S1 trusted (no credibility issues)
+body(r3, trust_study_s2).    % S2 trusted (minor concern accepted)
+body(r3, data_s1_positive).  % S1 data available
+body(r3, data_s2_positive).  % S2 data available
 
-%% ============================================================================
-%% RULES (Layer 2: Meta-Evidence - Undermines Studies)
-%% ============================================================================
+%% r4: Minor methodological concern about S2 (only issue)
+head(r4, minor_method_concern_s2).
+% No body - this is the single finding: S2 has minor methodology issue
 
-%% r4: Meta-source reports bias (derived from trust_meta_source)
-head(r4, meta_report_bias).
-body(r4, trust_meta_source).  % Only reports bias if we trust meta-source
-
-%% r5: Methodological flaw detected (requires accepting methodology + observing flaw)
-head(r5, method_flaw_detected).
-body(r5, accept_method_m1).   % Assumption
-body(r5, meta_report_bias).   % Derived (flaw only detected via meta-report)
-
-%% r6: MIXED-BODY RULE - Study 1 unreliable if meta-source trusted AND reports bias
-head(r6, unreliable_s1).
-body(r6, trust_meta_source).  % Assumption
-body(r6, meta_report_bias).   % Derived atom
-
-%% r7: MIXED-BODY RULE - Study 2 unreliable if meta-source trusted AND method flaw detected
-head(r7, unreliable_s2).
-body(r7, trust_meta_source).  % Assumption
-body(r7, method_flaw_detected). % Derived atom
-
-%% ============================================================================
-%% RULES (Layer 3: Meta-Meta-Evidence - Undermines Meta-Source)
-%% ============================================================================
-
-%% r8: Meta-source has conflicts of interest (observational fact)
-head(r8, meta_conflict_of_interest).
-% No body - this is observed (e.g., funding source revealed)
-
-%% r9: Meta-source unreliable if conflicts detected
-head(r9, meta_unreliable).
-body(r9, meta_conflict_of_interest).
+%% Simplified: S1 is impeccable (no concerns), S2 has minor issue
 
 %% ============================================================================
 %% CONTRARIES (Derived Defeats Only)
 %% ============================================================================
 
-contrary(trust_study_s1, unreliable_s1).        % Study 1 trust defeated by derived unreliability
-contrary(trust_study_s2, unreliable_s2).        % Study 2 trust defeated by derived unreliability
-contrary(trust_meta_source, meta_unreliable).   % Meta-source trust defeated by meta-meta-evidence
-contrary(accept_method_m1, method_flaw_detected). % Methodology defeated by detected flaw
+% Only S2 has minor concern (low severity, easily accepted)
+contrary(trust_study_s2, minor_method_concern_s2).
+% S1 unattacked - impeccable study
 
 %% ============================================================================
 %% BUDGET CONSTRAINT

@@ -1,14 +1,12 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% AI SAFETY POLICY - Deployment Decision Under Safety Requirements
 %%
-%% STORY:
-%% A regulatory body must decide whether to approve an AI system for deployment.
-%% Four defeasible safety requirements (assumptions) must be satisfied:
-%% adversarial robustness, interpretability, fairness, and adequate monitoring.
-%% Evidence suggests some requirements may be violated. The decision balances
-%% minimum safety thresholds (maximin across dimensions) against deployment
-%% benefits. Violations defeat safety requirements, forcing acceptance of
-%% residual risk in some dimensions.
+%% STORY (ASYMMETRIC - Clear Approval with Minor Risk):
+%% An AI system passes THREE critical safety checks (interpretability, fairness,
+%% monitoring) but shows MINOR weakness in adversarial robustness (85% assurance
+%% instead of ideal 95%). The regulator must decide: reject over minor robustness
+%% gap (high cost), or approve with minimal risk acceptance (low cost, 85% is
+%% still strong). Clear decision: approve with accepted minor robustness risk.
 %%
 %% WEIGHT INTERPRETATION:
 %% Weights represent safety assurance level (0-100), where higher values
@@ -47,11 +45,19 @@
 %%   WABA/monoid/min_maximization.lp \
 %%   WABA/filter/standard.lp \
 %%   WABA/semantics/stable.lp \
+%%   WABA/constraint/lb_min.lp \
 %%   WABA/examples/ai_safety_policy/ai_safety_policy.lp
+%%
+%% EXPECTED: Extension {assume_adversarial_robustness, assume_interpretability,
+%%                      assume_fairness, assume_monitoring}
+%% (All requirements hold, accept minor robustness gap at 85%, approval granted)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Budget parameter (override via -c beta=N)
 #const beta = 60.
+
+%% Budget constraint (requires constraint/lb_min.lp to be loaded)
+budget(beta).
 
 %% ============================================================================
 %% ASSUMPTIONS (Defeasible Safety Requirements)
@@ -66,94 +72,42 @@ assumption(assume_monitoring).             % Ongoing oversight adequate
 %% WEIGHTS (Safety Assurance Level - REWARD interpretation)
 %% ============================================================================
 
-%% Safety requirement weights (assurance level 0-100, higher = more assured)
-weight(assume_adversarial_robustness, 75).
-weight(assume_interpretability, 70).
-weight(assume_fairness, 80).
-weight(assume_monitoring, 65).
+%% Safety requirement weights - ASYMMETRIC (3 pass, 1 minor issue)
+weight(assume_adversarial_robustness, 95).  % Ideal: 95% needed
+weight(assume_interpretability, 90).        % PASSED: fully transparent
+weight(assume_fairness, 92).                % PASSED: no bias detected
+weight(assume_monitoring, 88).              % PASSED: excellent oversight
 
-%% Violation weights (safety assurance lost if violated)
-weight(violates_robustness, 75).     % Robustness failure reduces assurance by 75
-weight(violates_interpretability, 70). % Explainability failure reduces by 70
-weight(violates_fairness, 80).       % Bias detected reduces by 80
-weight(violates_monitoring, 65).     % Oversight inadequate reduces by 65
+%% Minor robustness gap violation (low cost to accept)
+weight(minor_robustness_gap, 85).    % Still 85% assurance (strong, just below ideal)
 
 %% Deployment decision weights
-weight(approval_granted, 85).
-weight(approval_conditional, 70).
-
-%% Evidence weights (testing results)
-weight(test_results_robustness, 60).  % Robustness testing shows 60% assurance
-weight(test_results_fairness, 50).    % Fairness testing shows 50% assurance
+weight(approval_granted, 95).        % Strong approval if all critical checks pass
 
 %% ============================================================================
 %% RULES (Safety Requirements → Testing → Violations → Decisions)
 %% ============================================================================
 
-%% r1: Testing results (derived from evaluation process)
-head(r1, test_results_robustness).
-head(r2, test_results_fairness).
+%% r1: Minor robustness gap detected (only violation that occurs)
+head(r1, minor_robustness_gap).
+% No body - this is the single finding: robustness at 85% (below 95% ideal)
 
-%% r3: Robustness assumption + weak test results → violation detected
-head(r3, violates_robustness).
-body(r3, assume_adversarial_robustness).
-body(r3, test_results_robustness).
-body(r3, threshold_not_met_robustness). % Testing below threshold
+%% r2: All four safety requirements met → approval granted
+head(r2, approval_granted).
+body(r2, assume_adversarial_robustness).  % Accept 85% robustness (minor gap)
+body(r2, assume_interpretability).        % Fully transparent (passes)
+body(r2, assume_fairness).                % No bias (passes)
+body(r2, assume_monitoring).              % Excellent oversight (passes)
 
-%% r4: Fairness assumption + weak test results → violation detected
-head(r4, violates_fairness).
-body(r4, assume_fairness).
-body(r4, test_results_fairness).
-body(r4, threshold_not_met_fairness).
-
-%% r5: Interpretability assumption + black-box detection → violation
-head(r5, violates_interpretability).
-body(r5, assume_interpretability).
-body(r5, black_box_detected).  % Model is not interpretable
-
-%% r6: Monitoring assumption + insufficient oversight → violation
-head(r6, violates_monitoring).
-body(r6, assume_monitoring).
-body(r6, oversight_gaps_found).
-
-%% r7: Threshold checks (derived from test results vs. requirements)
-head(r7, threshold_not_met_robustness).
-body(r7, test_results_robustness).  % Testing shows <75% assurance needed
-
-head(r8, threshold_not_met_fairness).
-body(r8, test_results_fairness).    % Testing shows <80% assurance needed
-
-%% r9: Model architecture analysis reveals black-box
-head(r9, black_box_detected).
-% No body - this is a finding from architecture review
-
-%% r10: Monitoring assessment reveals gaps
-head(r10, oversight_gaps_found).
-% No body - this is a finding from oversight audit
-
-%% r11: All safety requirements met → full approval
-head(r11, approval_granted).
-body(r11, assume_adversarial_robustness).
-body(r11, assume_interpretability).
-body(r11, assume_fairness).
-body(r11, assume_monitoring).
-
-%% r12: Some requirements met + monitoring → conditional approval
-head(r12, approval_conditional).
-body(r12, assume_monitoring).  % At least monitoring must hold
-body(r12, some_requirements_met).
-
-head(r13, some_requirements_met).
-body(r13, assume_fairness).  % Fairness is critical
+%% Simplified: Only robustness has minor issue, all others clearly pass
 
 %% ============================================================================
 %% CONTRARIES (Dimension-Specific Violations Defeat Requirements)
 %% ============================================================================
 
-contrary(assume_adversarial_robustness, violates_robustness).
-contrary(assume_interpretability, violates_interpretability).
-contrary(assume_fairness, violates_fairness).
-contrary(assume_monitoring, violates_monitoring).
+% Only robustness has minor gap (85% vs 95% ideal)
+contrary(assume_adversarial_robustness, minor_robustness_gap).
+% Other requirements unattacked - all pass their checks
 
 %% ============================================================================
 %% BUDGET CONSTRAINT
