@@ -17,17 +17,14 @@
 %% Conflict-freeness
 :- in(X), defeated(X).
 
-%% Compute closure under undefeated assumptions
-derived_from_undefeated(X) :- assumption(X), not defeated(X).
-derived_from_undefeated(X) :- head(R,X), triggered_by_undefeated(R).
-triggered_by_undefeated(R) :- head(R,_), derived_from_undefeated(X) : body(R,X).
-
-%% Attacked by undefeated assumptions (respecting budget-based attack discarding)
-attacked_by_undefeated(X) :- contrary(X,Y), derived_from_undefeated(Y), supported(Y), not discarded_attack(Y,X,_).
-attacked_by_undefeated(X) :- contrary(X,Y), derived_from_undefeated(Y), assumption(Y), not supported(Y).
+%% Admissibility: X must be defended against all attackers (actual and potential)
+%% Case 1: Y is an assumption - potential attacker even if OUT
+not_defended(X) :- contrary(X,Y), assumption(Y), not defeated(Y), not discarded_attack(Y,X,_).
+%% Case 2: Y is supported - actual attacker (covers derived elements and IN assumptions)
+not_defended(X) :- contrary(X,Y), supported(Y), not defeated(Y), not discarded_attack(Y,X,_).
 
 %% Admissibility: in assumptions must not be attacked by undefeated
-:- in(X), attacked_by_undefeated(X).
+:- in(X), not_defended(X).
 
 %% Range: assumptions that are in the extension OR defeated by it
 %% range(S) = S ∪ S⁺
