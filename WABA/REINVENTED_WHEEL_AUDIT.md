@@ -32,30 +32,34 @@ Replaced custom `attacked(Y) :- in(X), att(X,Y).` with `defeated/1` from core/ba
 
 ---
 
-## ✅ FIXED: Redundant `out/1` Definition
+## ✅ FIXED: Redundant Helper Predicates
 
 **Files Affected** (now cleaned up):
-- semantics/naive.lp (line 21 removed)
-- semantics/preferred.lp (line 21 removed)
-- semantics/semi-stable.lp (line 22 removed)
-- semantics/staged.lp (line 22 removed)
+- semantics/naive.lp
+- semantics/preferred.lp
+- semantics/semi-stable.lp
+- semantics/staged.lp
 
-**Issue**:
-```prolog
-arg(X) :- assumption(X).
-out(X) :- arg(X), not in(X).  % ← Redundant!
-```
+**Issues Removed**:
+1. **Redundant `out/1` definition** (removed earlier)
+   ```prolog
+   out(X) :- arg(X), not in(X).  % Redundant with core/base.lp
+   ```
 
-**Already Defined in core/base.lp**:
-```prolog
-out(X) :- assumption(X), not in(X).
-```
+2. **Redundant `arg/1` helper** (removed in refactoring)
+   ```prolog
+   arg(X) :- assumption(X).  % Just use assumption(X) directly
+   ```
 
-**Analysis**:
-Since `arg(X) ≡ assumption(X)` in these files, the `out/1` definition was redundant. ASP derived `out/1` from both rules, which was harmless but inefficient.
+3. **Inline CF constraint** (replaced with #include)
+   ```prolog
+   :- in(X), defeated(X).  % Now from #include "cf.lp"
+   ```
 
 **Fix Applied**: ✅
-Removed redundant `out/1` definitions from all saturation semantics files.
+- Removed `arg/1` helper, replaced all uses with `assumption(X)`
+- Added `#include "cf.lp"` for conflict-free constraint
+- Net reduction: **166 lines** removed from saturation semantics
 
 ---
 
