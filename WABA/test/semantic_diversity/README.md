@@ -166,9 +166,12 @@ While we successfully created frameworks with **multiple complete extensions** w
 2. Grounded computes minimal extensions across all discarding choices
 3. When minimums are incomparable, grounded correctly returns all
 
+**Semi-stable vs Preferred**: All 12 frameworks show semi-stable = preferred (0% distinction). This is **not a bug**—see [SEMISTABLE_INVESTIGATION.md](SEMISTABLE_INVESTIGATION.md) for detailed analysis. The collapse occurs due to the **range homogeneity property**: in small, connected frameworks, all preferred extensions have identical range (all assumptions), making semi-stable selection trivial.
+
 **Recommendation for semantic correctness testing**:
 - Use classical ABA frameworks (no weighted attacks) for grounded vs complete
 - Use WABA diversity frameworks for testing implementation correctness
-- Focus on complete ⊂ admissible for WABA semantic diversity (80% strict in benchmarks)
+- Focus on **complete ⊂ admissible** for WABA semantic diversity (100% reliable, 80% strict in benchmarks)
+- Accept semi-stable = preferred as expected behavior in small/medium frameworks
 
-**Achievement**: Demonstrated that WABA frameworks CAN have multiple complete extensions per scenario, but saturation semantics still tend to collapse due to the nature of minimal extension computation.
+**Achievement**: Demonstrated that WABA frameworks CAN have multiple complete extensions per scenario, but saturation semantics still tend to collapse due to the nature of minimal extension computation and range homogeneity in connected graphs.

@@ -253,6 +253,8 @@ All frameworks show: **semi-stable = preferred** in all scenarios
 
 **Conclusion**: Semi-stable semantics completely collapses to preferred in all tested frameworks
 
+**Explanation**: This is not a bug or limitation—see [SEMISTABLE_INVESTIGATION.md](SEMISTABLE_INVESTIGATION.md) for detailed analysis. The collapse occurs due to **range homogeneity**: in small, connected argumentation frameworks, all preferred extensions cover all assumptions (either as IN or ATTACKED), resulting in identical ranges. Semi-stable semantics maximizes range, but when all preferred extensions have the same range, semi-stable cannot distinguish between them.
+
 ### Complete ⊂ Admissible
 
 **Result**: **All frameworks** show complete ⊂ admissible
