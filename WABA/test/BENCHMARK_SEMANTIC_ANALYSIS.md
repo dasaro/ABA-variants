@@ -60,7 +60,29 @@ Note: Naive semantics times out on frameworks with ≥10 assumptions due to `--h
 
 ### Why Saturation Semantics Collapse
 
-When a framework has **exactly one complete extension** (observed in 100% of benchmarks):
+**Key Insight**: In WABA, each "extension" is a pair **(assumptions, discarded_attacks)** representing an attack resolution scenario. Within each scenario, benchmarks have **exactly one complete extension**.
+
+#### Attack Resolution Scenarios
+
+WABA allows choosing which attacks to discard (within budget):
+```prolog
+{ discarded_attack(X,Y,W) : attacks_with_weight(X,Y,W) }  % Choice rule
+:- extension_cost(C), C > B, budget(B).                    % Budget constraint
+```
+
+Different discarding choices create different attack graphs, each with its own semantics.
+
+**Example** (linear_a5, β=40):
+- **Scenario 1**: Discard 5 attacks → Complete extension: {a1,a2,a3,a4,a5}
+- **Scenario 2**: Discard 4 attacks → Complete extension: {a1,a2,a3,a5}
+- **Scenario 3**: Discard 4 attacks → Complete extension: {a1,a3,a4,a5}
+- **Scenario 4**: Discard 3 attacks → Complete extension: {a1,a3,a5}
+
+Each scenario has **exactly 1 complete extension**.
+
+#### Collapse Within Each Scenario
+
+When a scenario has **exactly one complete extension**:
 
 1. **Preferred = Complete**
    Preferred extensions are maximal complete extensions. If only 1 exists, it's trivially maximal.
@@ -69,12 +91,26 @@ When a framework has **exactly one complete extension** (observed in 100% of ben
    Semi-stable extensions maximize range. If only 1 complete extension exists, it trivially has maximal range.
 
 3. **Grounded = Complete**
-   Grounded is the unique minimal complete extension. If only 1 complete extension exists, it's both minimal and maximal.
+   Grounded is the least fixpoint of the characteristic operator. If only 1 complete extension exists, it's both minimal and maximal.
 
 4. **Stable = Complete**
-   Observed in all tests. All benchmarks have a unique stable extension that is also the unique complete extension.
+   Observed in all tests. Each scenario has a unique stable extension that is also the unique complete extension.
 
-**Result**: The entire saturation hierarchy collapses to a single point.
+**Result**: Within each attack resolution scenario, the entire saturation hierarchy collapses:
+```
+grounded = stable = semi-stable = preferred = complete
+```
+
+#### Multiple "Extensions" vs. Uniqueness
+
+What we call "4 extensions" means:
+- **4 attack resolution scenarios** (4 ways to discard attacks within budget)
+- **Each scenario has 1 complete extension** (uniqueness per scenario)
+- **All saturation semantics agree** on that 1 extension within the scenario
+
+This is fundamentally different from classical ABA:
+- **Classical ABA**: Fixed attack graph → one grounded, possibly multiple complete/preferred
+- **WABA**: Multiple attack graphs (via discarding) → one complete **per graph** → saturation collapse **per graph**
 
 ---
 
@@ -127,24 +163,36 @@ Tested three clingo optimization modes on 60 frameworks:
 
 ---
 
-## Why Do Benchmarks Collapse?
+## Why Do Benchmarks Have Per-Scenario Uniqueness?
+
+The key question is: **Why does each attack resolution scenario produce exactly one complete extension?**
 
 ### Hypothesis 1: Generator Design
 WABA benchmark generator creates "well-behaved" frameworks:
 - Designed for performance testing, not semantic diversity
-- 70% derived-only attacks (indirect attack chains) reduce semantic complexity
-- Creates frameworks with clear "winning" extensions
+- 70% derived-only attacks (indirect attack chains via intermediate atoms)
+- Each attack discarding scenario resolves to a unique "winner"
+- Linear/tree topologies particularly prone to unique solutions per scenario
 
-### Hypothesis 2: Budget Constraints
-Budget constraints force unique solutions:
-- Low budgets: UNSAT (no valid solution)
-- Medium budgets: Only one extension survives filtering
-- High budgets: Framework structure still creates uniqueness
+### Hypothesis 2: Attack Graph Structure After Discarding
+Once attacks are discarded, the remaining attack graph has special properties:
+- Derived-only attacks create long chains, not cycles
+- Discarding breaks cycles, leaving DAG-like structures
+- DAG structures tend to have unique complete extensions
+- Budget constraint selects specific "cut points" in the attack graph
 
-### Hypothesis 3: Self-Attack Patterns
+### Hypothesis 3: Self-Attack Resolution
 Many frameworks show assumptions attacking themselves via derived atoms:
 - Example: `a1 → d2 → (+a1) → c_a1 → attacks a1`
-- Forces specific resolution patterns
+- Self-attacks must be resolved (a1 either in or out)
+- Once resolved, cascading effects determine entire extension uniquely
+- Different discarding choices resolve self-attacks differently → different scenarios
+
+### Verified: Not Global Uniqueness
+**Critical finding**: Benchmarks do NOT have globally unique complete extensions!
+- Example: linear_a5 at β=40 has **4 complete extensions** (4 scenarios)
+- But **each scenario** has exactly 1 complete extension
+- Collapse is **per-scenario**, not global
 
 ---
 
@@ -246,15 +294,19 @@ To create semantic diversity in benchmarks:
 
 ## Key Takeaways
 
-1. **Saturation collapse is structural, not a bug**: All implementations are correct. The collapse is a mathematical consequence of unique complete extensions.
+1. **Saturation collapse is per-scenario, not global**: Each attack resolution scenario has exactly one complete extension, causing saturation semantics to collapse within that scenario. Multiple "extensions" represent different attack discarding scenarios, not semantic diversity within a scenario.
 
-2. **Only admissibility shows diversity**: complete ⊂ admissible (80% strict) is the most reliable semantic distinction in benchmarks.
+2. **WABA extension = (assumptions, discarded_attacks)**: Unlike classical ABA with fixed attack graphs, WABA explores multiple attack graphs via discarding. Each graph produces one complete extension.
 
-3. **Budget matters**: Strictness is budget-dependent. Testing at single budget gives incomplete picture.
+3. **All implementations are correct**: The collapse is a mathematical consequence of per-scenario uniqueness, not a bug. Verified across 144 tests (12 frameworks × 6 budgets × 2 inclusions) with zero violations.
 
-4. **Optimization mode matters**: Use `enum`, never `opt` for semantic testing.
+4. **Only admissibility shows diversity**: complete ⊂ admissible (80% strict) is the most reliable semantic distinction in benchmarks, likely because admissibility can have multiple extensions even when complete has only one.
 
-5. **Benchmarks unsuitable for saturation testing**: Use hand-crafted frameworks for semantic correctness, benchmarks for performance.
+5. **Budget affects scenarios, not collapse**: Different budgets enable different attack discarding scenarios (UNSAT→1→4 extensions), but saturation collapse persists within each scenario at all budget levels.
+
+6. **Optimization mode matters**: Use `enum`, never `opt` for semantic testing. The `opt` mode finds incomplete extensions.
+
+7. **Benchmarks unsuitable for saturation diversity testing**: Use hand-crafted frameworks for testing semantic distinctions (preferred vs complete, semi-stable vs preferred). Use benchmarks for performance testing where saturation collapse provides consistent baseline.
 
 ---
 

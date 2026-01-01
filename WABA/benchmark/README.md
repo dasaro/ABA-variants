@@ -128,7 +128,9 @@ Automatically selects `<monoid>_minimization.lp` or `<monoid>_maximization.lp` b
 grounded = stable = semi-stable = preferred = complete
 ```
 
-All benchmark frameworks have **unique complete extensions**, causing all saturation semantics to return identical results by mathematical necessity.
+**Why**: In WABA, each "extension" is a pair (assumptions, discarded_attacks) representing an attack resolution scenario. Benchmark frameworks have **exactly one complete extension per scenario**, causing saturation semantics to collapse within each scenario by mathematical necessity.
+
+**Example**: A framework may have 4 "extensions" representing 4 different ways to discard attacks (within budget), but each scenario produces exactly 1 complete extension where all saturation semantics agree.
 
 **What benchmarks CAN test**:
 - ✅ Performance and scalability
