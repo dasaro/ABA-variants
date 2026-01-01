@@ -121,10 +121,17 @@ cf.lp (base conflict-free)
 │   └── complete.lp (admissible + completeness)
 └── stable.lp (cf + stability)
 
-grounded.lp (standalone, no includes)
+Standalone (no #include):
+├── naive.lp (saturation)
+├── preferred.lp (saturation)
+├── semi-stable.lp (saturation)
+├── staged.lp (saturation)
+└── grounded.lp (fixpoint)
 ```
 
 **Verification Results**:
+
+### Files Using #include
 
 1. **cf.lp → admissible.lp**: ✅
    - cf.lp only defines constraint (no predicates)
@@ -138,11 +145,34 @@ grounded.lp (standalone, no includes)
    - stable.lp only adds stability constraint
    - No predicates redefined
 
-4. **grounded.lp**: ✅
-   - Defines `att/2` and `arg/1` locally (same as saturation semantics)
-   - No conflicts since semantics files are mutually exclusive (only one loaded at a time)
+### Standalone Files (core/base.lp verification)
 
-**Conclusion**: No redefinition conflicts via #include directives. The inclusion hierarchy is properly designed.
+**Verified predicates NOT redefined** (all files clean):
+- ✅ `defeated/1` - Used from core/base.lp (not redefined)
+- ✅ `supported/1` - Used from core/base.lp (not redefined)
+- ✅ `triggered_by_in/1` - Used from core/base.lp (not redefined)
+- ✅ `attacks_with_weight/3` - Used from core/base.lp (not redefined)
+- ✅ `attacks_successfully_with_weight/3` - Used from core/base.lp (not redefined)
+- ✅ `discarded_attack/3` - Used from core/base.lp (not redefined)
+- ✅ `rule/1`, `is_head/1`, `has_body/1`, `derived_atom/1` - Used from core/base.lp (not redefined)
+
+**Intentional design patterns in standalone files**:
+- `in/1` - Saturation semantics use choice rule (intentional override, documented)
+- `arg/1` - Local helper predicate (not in base.lp, no conflict)
+- `att/2` - Local shorthand for `attacks_successfully_with_weight/3` (no conflict)
+- CF constraint `:- in(X), defeated(X).` - Inline implementation (acceptable for standalone files)
+
+**File-specific predicates** (all clean):
+- naive.lp: ✅ `in2/1`, `out2/1` (witness extension predicates)
+- preferred.lp: ✅ `attacked/1`, `defended/1`, `undefended/1`, `attacked2/1`, `defended2/1`, `undefended2/1` (defense logic)
+- semi-stable.lp: ✅ Same as preferred + `range/1`, `range2/1` (range predicates)
+- staged.lp: ✅ `range/1`, `range2/1` (range predicates)
+- grounded.lp: ✅ `g_in/1`, `g_in_step/2`, `acceptable/2`, `countered/2`, `n_assum/1`, `step/1` (fixpoint predicates)
+
+**Conclusion**:
+- No redefinition conflicts via #include directives ✅
+- No standalone files reinvent critical base.lp predicates ✅
+- All custom predicates are semantics-specific and properly scoped ✅
 
 ---
 
