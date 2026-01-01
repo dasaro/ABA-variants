@@ -1,47 +1,49 @@
-%% Naive Semantics (Saturation-Based)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% NAIVE SEMANTICS (SATURATION, NO WEAK CONSTRAINTS)
 %%
-%% Definition: Maximal (w.r.t. set inclusion) conflict-free extensions
+%% Naive = maximal (⊇) conflict-free extensions
 %%
-%% Usage: clingo -n 0 <files> semantics/naive_saturation.lp
+%% Uses saturation: rejects extensions where a witness has strictly larger size
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+#include "cf.lp".
+
+%% -------------------------------------------------------------------------
+%% Use successful attacks (after discarding) for conflict-free checking
+%% -------------------------------------------------------------------------
+att(A,B) :- attacks_successfully_with_weight(A,B,_).
+
+%% -------------------------------------------------------------------------
+%% Primary candidate extension (choice over assumptions)
+%% Note: out/1 is already defined in core/base.lp
+%% -------------------------------------------------------------------------
+{ in(X) } :- assumption(X).
+
+%% -------------------------------------------------------------------------
+%% Witness extension in2/out2 (another CONFLICT-FREE extension)
+%% -------------------------------------------------------------------------
+{ in2(X) } :- assumption(X).
+out2(X) :- assumption(X), not in2(X).
+
+%% Conflict-free (witness) - use defeated/1 from core/base.lp
+:- in2(X), defeated(X).
+
+%% -------------------------------------------------------------------------
+%% "Better witness" = witness has STRICTLY more assumptions than current
 %%
-%% Approach: Saturation-based subset-maximality check
-%% - If not ⊆-maximal (unstable), try to witness a strictly larger conflict-free extension
-%% - If witness succeeds (spoil=false), reject the extension
-%% - If witness fails (spoil=true), accept (extension is maximal)
+%% Superset check:
+%%   bad_witness if witness misses something in current extension.
+%% Strictness:
+%%   witness adds at least one assumption not in current extension.
+%% -------------------------------------------------------------------------
+bad_witness :- in(X), not in2(X).
 
-%% Conflict-freeness
-:- in(X), defeated(X).
+adds_new :- in2(X), not in(X).
 
-%% Check if subset-maximal
-miss(X) :- assumption(X), not in(X).
-unstable :- miss(_).
+better_witness :- not bad_witness, adds_new.
 
-%% When unstable, guess a strictly larger extension
-larger_ext(X) : miss(X) :- unstable.
-larger_ext(X) :- in(X), unstable.
+%% Naive condition: forbid existence of a better witness
+:- better_witness.
 
-%% Ensure larger_ext is strictly larger (at least one miss assumption added)
-:- unstable, { larger_ext(X) : miss(X) } = 0.
-
-%% Compute what's supported under larger_ext
-supported_larger(X) :- assumption(X), larger_ext(X).
-supported_larger(X) :- head(R,X), triggered_larger(R).
-triggered_larger(R) :- head(R,_), supported_larger(X) : body(R,X).
-
-%% Compute attacks under larger_ext (no weights needed for conflict-freeness check)
-attacks_larger(X,Y) :- supported_larger(X), assumption(Y), contrary(Y,X).
-
-%% Compute what's defeated under larger_ext
-defeated_larger(X) :- attacks_larger(_,X), assumption(X).
-
-%% Check if larger_ext is conflict-free
-%% spoil=true if larger_ext contains a defeated assumption (not conflict-free)
-spoil :- larger_ext(X), defeated_larger(X), unstable.
-
-%% Saturation: if spoiled, make all assumptions part of larger_ext
-larger_ext(X) :- spoil, assumption(X), unstable.
-
-%% Reject if we found a valid larger conflict-free extension (unstable but not spoiled)
-:- unstable, not spoil.
-
+#project in/1.
 #show in/1.
