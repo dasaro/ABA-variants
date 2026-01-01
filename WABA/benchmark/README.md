@@ -120,6 +120,35 @@ Automatically selects `<monoid>_minimization.lp` or `<monoid>_maximization.lp` b
 
 ---
 
+## Semantic Properties of Benchmark Frameworks
+
+**IMPORTANT**: Benchmark frameworks exhibit **100% saturation semantics collapse**:
+
+```
+grounded = stable = semi-stable = preferred = complete
+```
+
+All benchmark frameworks have **unique complete extensions**, causing all saturation semantics to return identical results by mathematical necessity.
+
+**What benchmarks CAN test**:
+- ✅ Performance and scalability
+- ✅ Admissibility hierarchy (complete ⊂ admissible: 80% strict)
+- ✅ Budget constraint effects
+
+**What benchmarks CANNOT test**:
+- ❌ Saturation semantic diversity (all collapse to same extension)
+- ❌ Multiple complete extension scenarios
+
+For semantic correctness testing, use **test/ directory** with hand-crafted frameworks.
+
+**Detailed Analysis**: See `test/BENCHMARK_SEMANTIC_ANALYSIS.md` for comprehensive findings on:
+- Budget-dependent strictness
+- Optimization mode comparison
+- Topology-specific patterns
+- Recommendations for semantic vs. performance testing
+
+---
+
 For complete documentation including:
 - Experimental design (factors, levels, sampling strategies)
 - Seeding policy & reproducibility guarantees
