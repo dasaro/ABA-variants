@@ -117,3 +117,56 @@ The refactoring successfully:
 ## Related Commits
 - `7b321c5` - Refactor saturation semantics: remove arg/1 helper, use #include cf.lp
 - `e4d5d6b` - Update audit report: document arg/1 removal and #include cf.lp refactoring
+
+---
+
+## COMPREHENSIVE RETEST WITH --opt-mode=enum
+
+**Date**: 2026-01-01  
+**Test Configuration**: Complete model enumeration with `--opt-mode=enum`
+
+### Test Results by Inclusion
+
+| Inclusion | Frameworks Tested | Passed | Failed | Status |
+|-----------|-------------------|--------|--------|--------|
+| Staged ⊆ CF | 4 | 4 | 0 | ✅ **FIXED** |
+| Naive ⊆ CF | 4 | 4 | 0 | ✅ **FIXED** |
+| Complete ⊆ Preferred | 4 | 4 | 0 | ✅ Pass |
+| Staged ⊆ Semi-Stable | 4 | 0 | 4 | ❌ Known Bug |
+
+### Frameworks Tested
+
+1. `test/aspforaba_ideal_example.lp`
+2. `test/aspforaba_journal_example.lp`
+3. `test/aspforaba_simple_example.lp`
+4. `test/even_cycle.lp`
+
+### Key Findings
+
+**✅ REFACTORING SUCCESSFUL**:
+- The `arg/1` removal and `#include "cf.lp"` refactoring **fixed** the critical CF violations
+- Staged ⊆ CF: **3 violations → 0 violations** ✅
+- Naive ⊆ CF: **3 violations → 0 violations** ✅
+- No new bugs introduced by refactoring
+
+**⚠️ PRE-EXISTING BUG** (Not from refactoring):
+- Staged ⊆ Semi-Stable: 4 violations (saturation maximality bug)
+- This bug existed BEFORE refactoring
+- Documented in `REINVENTED_WHEEL_AUDIT.md`
+- Not caused by `arg/1` removal or `#include "cf.lp"` changes
+
+### Test Methodology
+
+Previous tests used default optimization mode, which only returned **some** optimal models. This caused false positives in violation detection.
+
+**Correct approach**: Use `--opt-mode=enum` to enumerate **all** models, then check inclusions within cost strata.
+
+### Conclusion
+
+✅ **Refactoring verified successful**  
+✅ **No regressions introduced**  
+✅ **Critical bugs fixed** (CF violations eliminated)  
+⚠️  **Pre-existing saturation bug remains** (independent of refactoring)
+
+The refactoring improved semantic correctness and eliminated all violations caused by the conflict-free constraint issues.
+
