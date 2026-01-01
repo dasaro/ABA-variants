@@ -109,19 +109,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **waba-playground/ repository (web application):**
 - **ALWAYS commit AND push to GitHub Pages** after every change
+- **CRITICAL**: GitHub Pages deploys from `waba-weak-constraints` branch, NOT `main`
 - Changes must be immediately deployed to live site
 - Use descriptive commit messages
 - Example workflow:
   ```bash
+  # IMPORTANT: Work on waba-weak-constraints branch
+  cd waba-playground
+  git checkout waba-weak-constraints
+
   # After editing files
   git add <changed-files>
   git commit -m "Description of change"
-  git push origin main  # ALWAYS push for playground
+  git push origin waba-weak-constraints  # ALWAYS push to waba-weak-constraints
   ```
 
 **Summary:**
 - WABA/: Commit locally, push only on user request
-- waba-playground/: Commit and push immediately every time
+- waba-playground/: Commit and push to `waba-weak-constraints` branch immediately every time
 
 ---
 
@@ -148,16 +153,24 @@ This directory contains the complete browser-based WABA Playground application:
 - **Migration Date**: 2025-12-26
 - **Backup**: Previous Cytoscape.js implementation backed up in `waba-playground/backup-cytoscape/`
 
+**Deployment Branch** (CRITICAL):
+- **GitHub Pages deploys from**: `waba-weak-constraints` branch
+- **DO NOT make changes to `main` branch** for waba-playground - they will NOT be deployed
+- **ALWAYS work on and push to**: `waba-weak-constraints` branch
+- To verify deployment source: `gh api repos/dasaro/waba-playground/pages | grep branch`
+
 **DO NOT**:
 - Create alternative web implementations in other directories (e.g., WABA/web/)
 - Overwrite files in waba-playground/ without explicit user confirmation
 - Assume the user wants a new web implementation when they mention web visualization
 - Switch graph visualization libraries without explicit request and creating backups first
+- Push changes to `main` branch expecting them to deploy (use `waba-weak-constraints` instead)
 
 **When working with web visualization**:
 1. Always check if waba-playground/ already contains the needed functionality
 2. Ask for clarification if the user's request could be interpreted as modifying existing web code
 3. If creating test/prototype visualizations, clearly mark them as temporary and in a separate location
+4. **ALWAYS checkout `waba-weak-constraints` branch before making changes**
 
 ## Running WABA
 
@@ -290,16 +303,57 @@ clingo -n 10 WABA/core/base.lp WABA/semiring/tropical.lp \
 
 ### Available Semantics
 
-Located in `WABA/semantics/`:
+**Core semantics** (in `WABA/semantics/`):
 - **stable.lp** - Stable semantics (conflict-free + all non-defeated assumptions must be out)
 - **cf.lp** - Conflict-free semantics only
-- **naive.lp** - Naive semantics (requires special heuristics: `--heuristic=Domain --enum=domRec`)
+- **admissible.lp** - Admissible semantics
+- **complete.lp** - Complete semantics
+- **grounded.lp** - Grounded semantics (unique minimal complete extension)
 
-**Example with naive semantics**:
+**Heuristic-based semantics** (in `WABA/semantics/heuristic/`, **PRODUCTION-READY**):
+- **preferred.lp** - Maximal complete extensions (requires `--heuristic=Domain --enum-mode=domRec`)
+- **semi-stable.lp** - Admissible with maximal range (requires `--heuristic=Domain --enum-mode=domRec`)
+- **staged.lp** - Conflict-free with maximal range (requires `--heuristic=Domain --enum-mode=domRec`)
+- **naive.lp** - Maximal conflict-free extensions (requires `--heuristic=Domain --enum-mode=domRec`)
+
+**Optimization-based semantics** (in `WABA/semantics/optN/`, **RECOMMENDED**):
+- **preferred.lp** - Maximal complete extensions via optimization
+- **semi-stable.lp** - Admissible with maximal range via optimization
+- **staged.lp** - Conflict-free with maximal range via optimization
+- **ideal.lp** - Maximal admissible in ∩Pref (requires two-step workflow)
+
+**Required flags for optN semantics**:
 ```bash
-clingo -n 0 --heuristic=Domain --enum=domRec \
-       WABA/core/base.lp WABA/semiring/godel.lp WABA/monoid/max_minimization.lp \
-       WABA/filter/standard.lp WABA/semantics/naive.lp <framework>.lp
+# Use: 0 --opt-mode=optN --quiet=1 --project
+# - 0 (or -n 0): enumerate all models
+# - --opt-mode=optN: compute optimum, then enumerate all optimal models
+# - --quiet=1: suppress non-optimal models (print only optimal)
+# - --project: avoid duplicates by projecting on shown atoms
+```
+
+**Saturation-based semantics** (in `WABA/semantics/saturation-based/`, **EXPERIMENTAL**):
+- **preferred.lp** - ⚠️ Experimental (may return extra models)
+- **semi-stable.lp** - ⚠️ Experimental (may return extra models)
+- **staged.lp** - ⚠️ Experimental (may return extra models)
+- **naive.lp** - ⚠️ Experimental (saturation approach)
+- **ideal.lp** - ⚠️ Experimental (complex but functional two-phase saturation, 161 lines)
+
+**Production use**: Prefer optN-based semantics for preferred/semi-stable/staged. Use heuristic-based for naive. Saturation versions are research/experimental only.
+
+**Example with optN semantics**:
+```bash
+# Semi-stable (admissible + maximal range)
+clingo 0 --opt-mode=optN --quiet=1 --project \
+       WABA/core/base.lp WABA/semiring/godel.lp WABA/constraint/ub_max.lp \
+       WABA/semantics/admissible.lp WABA/semantics/optN/semi-stable.lp \
+       <framework>.lp -c beta=0
+```
+
+**Example with heuristic semantics**:
+```bash
+clingo -n 0 --heuristic=Domain --enum-mode=domRec \
+       WABA/core/base.lp WABA/semiring/godel.lp WABA/constraint/ub_max.lp \
+       WABA/filter/standard.lp WABA/semantics/heuristic/preferred.lp <framework>.lp
 ```
 
 ### Cost Optimization
@@ -417,7 +471,25 @@ WABA/
 ├── semantics/                   # Argumentation semantics
 │   ├── stable.lp                # Stable semantics
 │   ├── cf.lp                    # Conflict-free semantics
-│   └── naive.lp                 # Naive semantics
+│   ├── admissible.lp            # Admissible semantics
+│   ├── complete.lp              # Complete semantics
+│   ├── grounded.lp              # Grounded semantics (fixpoint-based)
+│   ├── optN/                    # ✅ RECOMMENDED: Optimization-based (optN mode)
+│   │   ├── preferred.lp         # Maximal complete (--opt-mode=optN)
+│   │   ├── semi-stable.lp       # Admissible + maximal range (--opt-mode=optN)
+│   │   ├── staged.lp            # Conflict-free + maximal range (--opt-mode=optN)
+│   │   └── ideal.lp             # Max admissible in ∩Pref (two-step workflow)
+│   ├── heuristic/               # Production-ready heuristic implementations
+│   │   ├── preferred.lp         # Maximal complete extensions
+│   │   ├── semi-stable.lp       # Admissible + maximal range
+│   │   ├── staged.lp            # Conflict-free + maximal range
+│   │   └── naive.lp             # Maximal conflict-free extensions
+│   └── saturation-based/        # ⚠️ EXPERIMENTAL saturation implementations
+│       ├── preferred.lp         # Subset-maximality (experimental)
+│       ├── semi-stable.lp       # Range-maximality, admissible (experimental)
+│       ├── staged.lp            # Range-maximality, conflict-free (experimental)
+│       ├── naive.lp             # Subset-maximality (experimental)
+│       └── ideal.lp             # Two-phase saturation (experimental, 161 lines)
 ├── examples/                    # Example frameworks
 │   ├── medical.lp               # Medical ethics decision example
 │   ├── simple.lp                # Simple test case
