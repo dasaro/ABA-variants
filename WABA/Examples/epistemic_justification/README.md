@@ -68,7 +68,7 @@ Weights represent **epistemic unreliability (0-100)** of sensory sources. Higher
 
 **Constraint encoding**:
 ```prolog
-:- extension_cost(C), C > beta.
+:- budget constraint via constraint/ub_*.lp files.
 ```
 
 ---

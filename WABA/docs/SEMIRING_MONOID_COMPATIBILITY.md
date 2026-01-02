@@ -96,14 +96,14 @@ Here are examples demonstrating that ALL combinations are valid:
 WABA has two budget constraint modes:
 
 ### Upper Bound (UB) Regime
-- **Constraint**: `extension_cost ≤ β`
-- **File**: `constraint/ub.lp`
+- **Constraint**: Cost ≤ β (enforced via weak constraints)
+- **Files**: `constraint/ub_max.lp`, `constraint/ub_sum.lp`, `constraint/ub_count.lp`
 - **Monoids**: MAX, SUM, COUNT, LEX
 - **Interpretation**: "Don't exceed budget β"
 
 ### Lower Bound (LB) Regime
-- **Constraint**: `extension_cost ≥ β`
-- **File**: `constraint/lb.lp`
+- **Constraint**: Quality ≥ β (enforced via weak constraints)
+- **File**: `constraint/lb_min.lp`
 - **Monoids**: MIN
 - **Interpretation**: "Meet minimum quality threshold β"
 

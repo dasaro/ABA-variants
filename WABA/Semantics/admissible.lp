@@ -1,8 +1,9 @@
-%% Conflict-freeness
-:- in(X), defeated(X).
+%% Admissible Semantics
+%% Builds upon: Conflict-free
+
+#include "cf.lp".
 
 %% Admissibility: X must be defended against all attackers (actual and potential)
-%%
 %% Case 1: Y is an assumption - potential attacker even if OUT
 not_defended(X) :- contrary(X,Y), assumption(Y), not defeated(Y), not discarded_attack(Y,X,_).
 %%

@@ -1,5 +1,4 @@
-%% conflict freeness
-:- in(X), defeated(X).
+#include "cf.lp".
 
 %% stable
 :- not defeated(X), out(X).

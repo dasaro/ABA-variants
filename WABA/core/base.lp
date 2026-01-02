@@ -49,8 +49,7 @@ triggered_by_in(R) :- rule(R), supported(X) : body(R,X).
 %% An attack exists when a supported atom X attacks an assumption Y
 %% (where Y's contrary is X), with the weight of X
 %% OPTIMIZED: Remove redundant supported(X) check (supported_with_weight(X,W) implies support)
-attacks_with_weight(X,Y,W) :- supported_with_weight(X,W),
-                               assumption(Y), contrary(Y,X).
+attacks_with_weight(X,Y,W) :- supported_with_weight(X,W), assumption(Y), contrary(Y,X).
 
 %% Attack discretion choice
 %% We can choose to discard any attack (at a cost)
@@ -58,8 +57,7 @@ attacks_with_weight(X,Y,W) :- supported_with_weight(X,W),
 
 %% Successful attacks
 %% An attack succeeds if it's not discarded
-attacks_successfully_with_weight(X,Y,W) :- attacks_with_weight(X,Y,W),
-                                             not discarded_attack(X,Y,W).
+attacks_successfully_with_weight(X,Y,W) :- attacks_with_weight(X,Y,W), not discarded_attack(X,Y,W).
 
 %% Defeat
 %% An assumption is defeated if there's a successful attack against it

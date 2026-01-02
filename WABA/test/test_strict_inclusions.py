@@ -14,7 +14,7 @@ def extract_extensions(semantic: str, framework: str) -> List[FrozenSet[str]]:
     n_models = 1 if semantic in ["grounded", "ideal"] else 0
 
     # Semantics that require heuristics for maximality
-    heuristic_semantics = ["preferred", "semi-stable", "staged", "naive"]
+    heuristic_semantics = ["preferred", "semi-stable", "staged", "naive", "grounded"]
 
     cmd = ["clingo", "-n", str(n_models), "-c", "beta=0"]
 
@@ -31,7 +31,6 @@ def extract_extensions(semantic: str, framework: str) -> List[FrozenSet[str]]:
     cmd.extend([
         "core/base.lp",
         "semiring/godel.lp",
-        "constraint/ub_max.lp",
         "filter/standard.lp",
         semantic_file,
         framework

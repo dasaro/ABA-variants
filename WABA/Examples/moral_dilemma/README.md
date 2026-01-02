@@ -68,7 +68,7 @@ Weights represent **moral wrongness severity (0-100)** of violating each duty. H
 
 **Constraint encoding**:
 ```prolog
-:- extension_cost(C), C > beta.
+:- budget constraint via constraint/ub_*.lp files.
 ```
 
 ---

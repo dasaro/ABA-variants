@@ -396,7 +396,7 @@ Expected output (via filter/standard.lp):
 - `in(X)` - Assumptions in the extension
 - `supported_with_weight(X, W)` - Supported elements with their weights
 - `attacks_successfully_with_weight(X, Y, W)` - Successful attacks
-- `extension_cost(C)` - Total cost of the extension
+- `Optimization: N` - Extension cost/reward (shown by clingo, not as a predicate)
 
 ## Probabilistic Reasoning (Viterbi via Log Transformation)
 

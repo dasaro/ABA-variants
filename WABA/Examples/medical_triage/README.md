@@ -64,7 +64,7 @@ Weights represent **harm severity (0-100)** if a patient's condition is depriori
 
 **Constraint encoding**:
 ```prolog
-:- extension_cost(C), C > beta.
+:- budget constraint via constraint/ub_*.lp files.
 ```
 
 This is an **upper bound** constraint: the maximum discarded attack weight (= worst patient harm) must not exceed β.

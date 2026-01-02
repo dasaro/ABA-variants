@@ -71,7 +71,7 @@ Weights represent **precedent authority strength (0-100)**, where higher values 
 
 **Constraint encoding**:
 ```prolog
-:- extension_cost(C), C > beta.
+:- budget constraint via constraint/ub_*.lp files.
 ```
 
 This is an **upper bound** constraint: the sum of discarded attack weights (= total precedent deviations) must not exceed β.

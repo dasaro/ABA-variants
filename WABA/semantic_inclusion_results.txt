@@ -1,0 +1,288 @@
+================================================================================
+SEMANTIC INCLUSION TESTING
+================================================================================
+
+Testing 9 production semantics:
+  1. cf
+  2. admissible
+  3. complete
+  4. grounded
+  5. preferred
+  6. stable
+  7. semi-stable
+  8. staged
+  9. naive
+
+Verifying 17 inclusion relationships
+
+Found 7 test frameworks
+
+[1/7] simple_aba.lp
+  β=0... ✅ All inclusions hold
+  β=10... ✅ All inclusions hold
+  β=50... ✅ All inclusions hold
+  β=100... ✅ All inclusions hold
+  β=500... ✅ All inclusions hold
+  β=1000... ✅ All inclusions hold
+
+[2/7] even_cycle.lp
+  β=0... ❌ 7 violations
+    grounded⊆complete: VIOLATION: {'a'} in grounded but not in complete
+    grounded⊆preferred: VIOLATION: {'a'} in grounded but not in preferred
+    grounded⊆admissible: VIOLATION: {'a'} in grounded but not in admissible
+    complete⊆preferred: VIOLATION: {'a', 'b'} in complete but not in preferred
+    stable⊆preferred: VIOLATION: {'a', 'b'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a', 'b'} in stable but not in semi-stable
+    grounded⊆cf: VIOLATION: {'a'} in grounded but not in cf
+  β=10... ❌ 7 violations
+    grounded⊆complete: VIOLATION: {'a'} in grounded but not in complete
+    grounded⊆preferred: VIOLATION: {'a'} in grounded but not in preferred
+    grounded⊆admissible: VIOLATION: {'a'} in grounded but not in admissible
+    complete⊆preferred: VIOLATION: {'a', 'b'} in complete but not in preferred
+    stable⊆preferred: VIOLATION: {'a', 'b'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a', 'b'} in stable but not in semi-stable
+    grounded⊆cf: VIOLATION: {'a'} in grounded but not in cf
+  β=50... ❌ 7 violations
+    grounded⊆complete: VIOLATION: {'a'} in grounded but not in complete
+    grounded⊆preferred: VIOLATION: {'a'} in grounded but not in preferred
+    grounded⊆admissible: VIOLATION: {'a'} in grounded but not in admissible
+    complete⊆preferred: VIOLATION: {'a', 'b'} in complete but not in preferred
+    stable⊆preferred: VIOLATION: {'a', 'b'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a', 'b'} in stable but not in semi-stable
+    grounded⊆cf: VIOLATION: {'a'} in grounded but not in cf
+  β=100... ❌ 7 violations
+    grounded⊆complete: VIOLATION: {'a'} in grounded but not in complete
+    grounded⊆preferred: VIOLATION: {'a'} in grounded but not in preferred
+    grounded⊆admissible: VIOLATION: {'a'} in grounded but not in admissible
+    complete⊆preferred: VIOLATION: {'a', 'b'} in complete but not in preferred
+    stable⊆preferred: VIOLATION: {'a', 'b'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a', 'b'} in stable but not in semi-stable
+    grounded⊆cf: VIOLATION: {'a'} in grounded but not in cf
+  β=500... ❌ 7 violations
+    grounded⊆complete: VIOLATION: {'a'} in grounded but not in complete
+    grounded⊆preferred: VIOLATION: {'a'} in grounded but not in preferred
+    grounded⊆admissible: VIOLATION: {'a'} in grounded but not in admissible
+    complete⊆preferred: VIOLATION: {'a', 'b'} in complete but not in preferred
+    stable⊆preferred: VIOLATION: {'a', 'b'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a', 'b'} in stable but not in semi-stable
+    grounded⊆cf: VIOLATION: {'a'} in grounded but not in cf
+  β=1000... ❌ 7 violations
+    grounded⊆complete: VIOLATION: {'a'} in grounded but not in complete
+    grounded⊆preferred: VIOLATION: {'a'} in grounded but not in preferred
+    grounded⊆admissible: VIOLATION: {'a'} in grounded but not in admissible
+    complete⊆preferred: VIOLATION: {'a', 'b'} in complete but not in preferred
+    stable⊆preferred: VIOLATION: {'a', 'b'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a', 'b'} in stable but not in semi-stable
+    grounded⊆cf: VIOLATION: {'a'} in grounded but not in cf
+
+[3/7] no_attacks.lp
+  β=0... ✅ All inclusions hold
+  β=10... ✅ All inclusions hold
+  β=50... ✅ All inclusions hold
+  β=100... ✅ All inclusions hold
+  β=500... ✅ All inclusions hold
+  β=1000... ✅ All inclusions hold
+
+[4/7] aspforaba_simple_example.lp
+  β=0... ✅ All inclusions hold
+  β=10... ✅ All inclusions hold
+  β=50... ✅ All inclusions hold
+  β=100... ✅ All inclusions hold
+  β=500... ✅ All inclusions hold
+  β=1000... ✅ All inclusions hold
+
+[5/7] aspforaba_journal_example.lp
+  β=0... ❌ 7 violations
+    grounded⊆preferred: VIOLATION: {'a', 'b'} in grounded but not in preferred
+    complete⊆preferred: VIOLATION: {'a', 'b'} in complete but not in preferred
+    stable⊆preferred: VIOLATION: {'a', 'b'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a', 'b'} in stable but not in semi-stable
+    staged⊆semi-stable: VIOLATION: {'a', 'b'} in staged but not in semi-stable
+    preferred⊆cf: VIOLATION: {'a', 'd', 'c'} in preferred but not in cf
+    semi-stable⊆cf: VIOLATION: {'a', 'd', 'c'} in semi-stable but not in cf
+  β=10... ❌ 7 violations
+    grounded⊆preferred: VIOLATION: {'a', 'b'} in grounded but not in preferred
+    complete⊆preferred: VIOLATION: {'a', 'b'} in complete but not in preferred
+    stable⊆preferred: VIOLATION: {'a', 'b'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a', 'b'} in stable but not in semi-stable
+    staged⊆semi-stable: VIOLATION: {'a', 'b'} in staged but not in semi-stable
+    preferred⊆cf: VIOLATION: {'a', 'd', 'c'} in preferred but not in cf
+    semi-stable⊆cf: VIOLATION: {'a', 'd', 'c'} in semi-stable but not in cf
+  β=50... ❌ 7 violations
+    grounded⊆preferred: VIOLATION: {'a', 'b'} in grounded but not in preferred
+    complete⊆preferred: VIOLATION: {'a', 'b'} in complete but not in preferred
+    stable⊆preferred: VIOLATION: {'a', 'b'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a', 'b'} in stable but not in semi-stable
+    staged⊆semi-stable: VIOLATION: {'a', 'b'} in staged but not in semi-stable
+    preferred⊆cf: VIOLATION: {'a', 'd', 'c'} in preferred but not in cf
+    semi-stable⊆cf: VIOLATION: {'a', 'd', 'c'} in semi-stable but not in cf
+  β=100... ❌ 7 violations
+    grounded⊆preferred: VIOLATION: {'a', 'b'} in grounded but not in preferred
+    complete⊆preferred: VIOLATION: {'a', 'b'} in complete but not in preferred
+    stable⊆preferred: VIOLATION: {'a', 'b'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a', 'b'} in stable but not in semi-stable
+    staged⊆semi-stable: VIOLATION: {'a', 'b'} in staged but not in semi-stable
+    preferred⊆cf: VIOLATION: {'a', 'd', 'c'} in preferred but not in cf
+    semi-stable⊆cf: VIOLATION: {'a', 'd', 'c'} in semi-stable but not in cf
+  β=500... ❌ 7 violations
+    grounded⊆preferred: VIOLATION: {'a', 'b'} in grounded but not in preferred
+    complete⊆preferred: VIOLATION: {'a', 'b'} in complete but not in preferred
+    stable⊆preferred: VIOLATION: {'a', 'b'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a', 'b'} in stable but not in semi-stable
+    staged⊆semi-stable: VIOLATION: {'a', 'b'} in staged but not in semi-stable
+    preferred⊆cf: VIOLATION: {'a', 'd', 'c'} in preferred but not in cf
+    semi-stable⊆cf: VIOLATION: {'a', 'd', 'c'} in semi-stable but not in cf
+  β=1000... ❌ 7 violations
+    grounded⊆preferred: VIOLATION: {'a', 'b'} in grounded but not in preferred
+    complete⊆preferred: VIOLATION: {'a', 'b'} in complete but not in preferred
+    stable⊆preferred: VIOLATION: {'a', 'b'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a', 'b'} in stable but not in semi-stable
+    staged⊆semi-stable: VIOLATION: {'a', 'b'} in staged but not in semi-stable
+    preferred⊆cf: VIOLATION: {'a', 'd', 'c'} in preferred but not in cf
+    semi-stable⊆cf: VIOLATION: {'a', 'd', 'c'} in semi-stable but not in cf
+
+[6/7] test_aba_recovery_simple.lp
+  β=0... ❌ 10 violations
+    stable⊆preferred: VIOLATION: {'a', 'b'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a', 'b'} in stable but not in semi-stable
+    staged⊆semi-stable: VIOLATION: {'a'} in staged but not in semi-stable
+    admissible⊆cf: VIOLATION: {'a', 'c', 'b'} in admissible but not in cf
+    complete⊆cf: VIOLATION: {'a', 'c'} in complete but not in cf
+    grounded⊆cf: VIOLATION: {'a', 'c'} in grounded but not in cf
+    preferred⊆cf: VIOLATION: {'a', 'c'} in preferred but not in cf
+    stable⊆cf: VIOLATION: {'a', 'b'} in stable but not in cf
+    semi-stable⊆cf: VIOLATION: {'a', 'c'} in semi-stable but not in cf
+    staged⊆cf: VIOLATION: {'a'} in staged but not in cf
+  β=10... ❌ 10 violations
+    stable⊆preferred: VIOLATION: {'a', 'b'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a', 'b'} in stable but not in semi-stable
+    staged⊆semi-stable: VIOLATION: {'a'} in staged but not in semi-stable
+    admissible⊆cf: VIOLATION: {'a', 'c', 'b'} in admissible but not in cf
+    complete⊆cf: VIOLATION: {'a', 'c'} in complete but not in cf
+    grounded⊆cf: VIOLATION: {'a', 'c'} in grounded but not in cf
+    preferred⊆cf: VIOLATION: {'a', 'c'} in preferred but not in cf
+    stable⊆cf: VIOLATION: {'a', 'b'} in stable but not in cf
+    semi-stable⊆cf: VIOLATION: {'a', 'c'} in semi-stable but not in cf
+    staged⊆cf: VIOLATION: {'a'} in staged but not in cf
+  β=50... ❌ 10 violations
+    stable⊆preferred: VIOLATION: {'a', 'b'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a', 'b'} in stable but not in semi-stable
+    staged⊆semi-stable: VIOLATION: {'a'} in staged but not in semi-stable
+    admissible⊆cf: VIOLATION: {'a', 'c', 'b'} in admissible but not in cf
+    complete⊆cf: VIOLATION: {'a', 'c'} in complete but not in cf
+    grounded⊆cf: VIOLATION: {'a', 'c'} in grounded but not in cf
+    preferred⊆cf: VIOLATION: {'a', 'c'} in preferred but not in cf
+    stable⊆cf: VIOLATION: {'a', 'b'} in stable but not in cf
+    semi-stable⊆cf: VIOLATION: {'a', 'c'} in semi-stable but not in cf
+    staged⊆cf: VIOLATION: {'a'} in staged but not in cf
+  β=100... ❌ 10 violations
+    stable⊆preferred: VIOLATION: {'a', 'b'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a', 'b'} in stable but not in semi-stable
+    staged⊆semi-stable: VIOLATION: {'a'} in staged but not in semi-stable
+    admissible⊆cf: VIOLATION: {'a', 'c', 'b'} in admissible but not in cf
+    complete⊆cf: VIOLATION: {'a', 'c'} in complete but not in cf
+    grounded⊆cf: VIOLATION: {'a', 'c'} in grounded but not in cf
+    preferred⊆cf: VIOLATION: {'a', 'c'} in preferred but not in cf
+    stable⊆cf: VIOLATION: {'a', 'b'} in stable but not in cf
+    semi-stable⊆cf: VIOLATION: {'a', 'c'} in semi-stable but not in cf
+    staged⊆cf: VIOLATION: {'a'} in staged but not in cf
+  β=500... ❌ 10 violations
+    stable⊆preferred: VIOLATION: {'a', 'b'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a', 'b'} in stable but not in semi-stable
+    staged⊆semi-stable: VIOLATION: {'a'} in staged but not in semi-stable
+    admissible⊆cf: VIOLATION: {'a', 'c', 'b'} in admissible but not in cf
+    complete⊆cf: VIOLATION: {'a', 'c'} in complete but not in cf
+    grounded⊆cf: VIOLATION: {'a', 'c'} in grounded but not in cf
+    preferred⊆cf: VIOLATION: {'a', 'c'} in preferred but not in cf
+    stable⊆cf: VIOLATION: {'a', 'b'} in stable but not in cf
+    semi-stable⊆cf: VIOLATION: {'a', 'c'} in semi-stable but not in cf
+    staged⊆cf: VIOLATION: {'a'} in staged but not in cf
+  β=1000... ❌ 10 violations
+    stable⊆preferred: VIOLATION: {'a', 'b'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a', 'b'} in stable but not in semi-stable
+    staged⊆semi-stable: VIOLATION: {'a'} in staged but not in semi-stable
+    admissible⊆cf: VIOLATION: {'a', 'c', 'b'} in admissible but not in cf
+    complete⊆cf: VIOLATION: {'a', 'c'} in complete but not in cf
+    grounded⊆cf: VIOLATION: {'a', 'c'} in grounded but not in cf
+    preferred⊆cf: VIOLATION: {'a', 'c'} in preferred but not in cf
+    stable⊆cf: VIOLATION: {'a', 'b'} in stable but not in cf
+    semi-stable⊆cf: VIOLATION: {'a', 'c'} in semi-stable but not in cf
+    staged⊆cf: VIOLATION: {'a'} in staged but not in cf
+
+[7/7] test_beta.lp
+  β=0... ❌ 10 violations
+    stable⊆preferred: VIOLATION: {'a3', 'a1'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a3', 'a1'} in stable but not in semi-stable
+    staged⊆semi-stable: VIOLATION: {'a3'} in staged but not in semi-stable
+    admissible⊆cf: VIOLATION: {'a2', 'a3', 'a1'} in admissible but not in cf
+    complete⊆cf: VIOLATION: {'a2', 'a3'} in complete but not in cf
+    grounded⊆cf: VIOLATION: {'a2', 'a3'} in grounded but not in cf
+    preferred⊆cf: VIOLATION: {'a2', 'a3'} in preferred but not in cf
+    stable⊆cf: VIOLATION: {'a2', 'a3'} in stable but not in cf
+    semi-stable⊆cf: VIOLATION: {'a2', 'a3'} in semi-stable but not in cf
+    staged⊆cf: VIOLATION: {'a3'} in staged but not in cf
+  β=10... ❌ 10 violations
+    stable⊆preferred: VIOLATION: {'a3', 'a1'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a3', 'a1'} in stable but not in semi-stable
+    staged⊆semi-stable: VIOLATION: {'a3'} in staged but not in semi-stable
+    admissible⊆cf: VIOLATION: {'a2', 'a3', 'a1'} in admissible but not in cf
+    complete⊆cf: VIOLATION: {'a2', 'a3'} in complete but not in cf
+    grounded⊆cf: VIOLATION: {'a2', 'a3'} in grounded but not in cf
+    preferred⊆cf: VIOLATION: {'a2', 'a3'} in preferred but not in cf
+    stable⊆cf: VIOLATION: {'a2', 'a3'} in stable but not in cf
+    semi-stable⊆cf: VIOLATION: {'a2', 'a3'} in semi-stable but not in cf
+    staged⊆cf: VIOLATION: {'a3'} in staged but not in cf
+  β=50... ❌ 10 violations
+    stable⊆preferred: VIOLATION: {'a3', 'a1'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a3', 'a1'} in stable but not in semi-stable
+    staged⊆semi-stable: VIOLATION: {'a3'} in staged but not in semi-stable
+    admissible⊆cf: VIOLATION: {'a2', 'a3', 'a1'} in admissible but not in cf
+    complete⊆cf: VIOLATION: {'a2', 'a3'} in complete but not in cf
+    grounded⊆cf: VIOLATION: {'a2', 'a3'} in grounded but not in cf
+    preferred⊆cf: VIOLATION: {'a2', 'a3'} in preferred but not in cf
+    stable⊆cf: VIOLATION: {'a2', 'a3'} in stable but not in cf
+    semi-stable⊆cf: VIOLATION: {'a2', 'a3'} in semi-stable but not in cf
+    staged⊆cf: VIOLATION: {'a3'} in staged but not in cf
+  β=100... ❌ 10 violations
+    stable⊆preferred: VIOLATION: {'a3', 'a1'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a3', 'a1'} in stable but not in semi-stable
+    staged⊆semi-stable: VIOLATION: {'a3'} in staged but not in semi-stable
+    admissible⊆cf: VIOLATION: {'a2', 'a3', 'a1'} in admissible but not in cf
+    complete⊆cf: VIOLATION: {'a2', 'a3'} in complete but not in cf
+    grounded⊆cf: VIOLATION: {'a2', 'a3'} in grounded but not in cf
+    preferred⊆cf: VIOLATION: {'a2', 'a3'} in preferred but not in cf
+    stable⊆cf: VIOLATION: {'a2', 'a3'} in stable but not in cf
+    semi-stable⊆cf: VIOLATION: {'a2', 'a3'} in semi-stable but not in cf
+    staged⊆cf: VIOLATION: {'a3'} in staged but not in cf
+  β=500... ❌ 10 violations
+    stable⊆preferred: VIOLATION: {'a3', 'a1'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a3', 'a1'} in stable but not in semi-stable
+    staged⊆semi-stable: VIOLATION: {'a3'} in staged but not in semi-stable
+    admissible⊆cf: VIOLATION: {'a2', 'a3', 'a1'} in admissible but not in cf
+    complete⊆cf: VIOLATION: {'a2', 'a3'} in complete but not in cf
+    grounded⊆cf: VIOLATION: {'a2', 'a3'} in grounded but not in cf
+    preferred⊆cf: VIOLATION: {'a2', 'a3'} in preferred but not in cf
+    stable⊆cf: VIOLATION: {'a2', 'a3'} in stable but not in cf
+    semi-stable⊆cf: VIOLATION: {'a2', 'a3'} in semi-stable but not in cf
+    staged⊆cf: VIOLATION: {'a3'} in staged but not in cf
+  β=1000... ❌ 10 violations
+    stable⊆preferred: VIOLATION: {'a3', 'a1'} in stable but not in preferred
+    stable⊆semi-stable: VIOLATION: {'a3', 'a1'} in stable but not in semi-stable
+    staged⊆semi-stable: VIOLATION: {'a3'} in staged but not in semi-stable
+    admissible⊆cf: VIOLATION: {'a2', 'a3', 'a1'} in admissible but not in cf
+    complete⊆cf: VIOLATION: {'a2', 'a3'} in complete but not in cf
+    grounded⊆cf: VIOLATION: {'a2', 'a3'} in grounded but not in cf
+    preferred⊆cf: VIOLATION: {'a2', 'a3'} in preferred but not in cf
+    stable⊆cf: VIOLATION: {'a2', 'a3'} in stable but not in cf
+    semi-stable⊆cf: VIOLATION: {'a2', 'a3'} in semi-stable but not in cf
+    staged⊆cf: VIOLATION: {'a3'} in staged but not in cf
+
+================================================================================
+SUMMARY
+================================================================================
+Total inclusion checks: 714
+  ✅ Satisfied:   510 (71.4%)
+  ❌ Violations:  204 (28.6%)
+  ⏱️  Timeouts:      0 (0.0%)
+
+⚠️  VIOLATIONS DETECTED - Semantic implementations may be incorrect

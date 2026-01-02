@@ -1,0 +1,21 @@
+% Assumptions:
+a
+b
+c
+
+% Rules:
+c_a <- b, c
+c_b <- a, c
+c_c <- a, b
+
+% Contraries:
+(a, c_a)
+(b, c_b)
+(c, c_c)
+
+% Weights:
+a: 90
+c: 70
+c_a: 95
+c_b: 90
+c_c: 85
