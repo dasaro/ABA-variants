@@ -192,7 +192,7 @@ clingo -n 0 WABA/core/base.lp WABA/semiring/<semiring>.lp WABA/monoid/<monoid>.l
 2. `WABA/semiring/<semiring>.lp` - Weight propagation strategy (godel, tropical, lukasiewicz)
 3. `WABA/monoid/<monoid>.lp` - Cost aggregation strategy (max, sum, min)
 4. `WABA/filter/standard.lp` - Output filtering via #show directives (recommended)
-5. `WABA/semantics/<semantic>.lp` - Semantics (stable.lp, cf.lp, or naive.lp)
+5. `WABA/semantics/<semantic>.lp` - Semantics (stable.lp or cf.lp)
 6. `<framework>.lp` - Your WABA framework instance
 
 **Optional Components**:
