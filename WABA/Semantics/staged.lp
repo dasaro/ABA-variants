@@ -51,6 +51,15 @@ adds_new :- range2(X), not range(X).
 
 better_witness :- not bad_witness, adds_new.
 
+%% -------------------------------------------------------------------------
+%% Prevent self-witnessing: witness must be different from current extension
+%% Without this, empty extensions can witness themselves and pass as "maximal"
+%% -------------------------------------------------------------------------
+different_witness :- in2(X), not in(X).
+different_witness :- in(X), not in2(X).
+
+:- not different_witness.
+
 %% Staged condition: forbid existence of a better witness
 :- better_witness.
 
