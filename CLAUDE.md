@@ -303,58 +303,11 @@ clingo -n 10 WABA/core/base.lp WABA/semiring/tropical.lp \
 
 ### Available Semantics
 
-**Core semantics** (in `WABA/semantics/`):
+**Core semantics** (in `WABA/Semantics/`):
 - **stable.lp** - Stable semantics (conflict-free + all non-defeated assumptions must be out)
 - **cf.lp** - Conflict-free semantics only
-- **admissible.lp** - Admissible semantics
-- **complete.lp** - Complete semantics
-- **grounded.lp** - Grounded semantics (unique minimal complete extension)
 
-**Heuristic-based semantics** (in `WABA/semantics/heuristic/`, **PRODUCTION-READY**):
-- **preferred.lp** - Maximal complete extensions (requires `--heuristic=Domain --enum-mode=domRec`)
-- **semi-stable.lp** - Admissible with maximal range (requires `--heuristic=Domain --enum-mode=domRec`)
-- **staged.lp** - Conflict-free with maximal range (requires `--heuristic=Domain --enum-mode=domRec`)
-- **naive.lp** - Maximal conflict-free extensions (requires `--heuristic=Domain --enum-mode=domRec`)
-
-**Optimization-based semantics** (in `WABA/semantics/optN/`, **RECOMMENDED**):
-- **preferred.lp** - Maximal complete extensions via optimization
-- **semi-stable.lp** - Admissible with maximal range via optimization
-- **staged.lp** - Conflict-free with maximal range via optimization
-- **ideal.lp** - Maximal admissible in ∩Pref (requires two-step workflow)
-
-**Required flags for optN semantics**:
-```bash
-# Use: 0 --opt-mode=optN --quiet=1 --project
-# - 0 (or -n 0): enumerate all models
-# - --opt-mode=optN: compute optimum, then enumerate all optimal models
-# - --quiet=1: suppress non-optimal models (print only optimal)
-# - --project: avoid duplicates by projecting on shown atoms
-```
-
-**Saturation-based semantics** (in `WABA/semantics/saturation-based/`, **EXPERIMENTAL**):
-- **preferred.lp** - ⚠️ Experimental (may return extra models)
-- **semi-stable.lp** - ⚠️ Experimental (may return extra models)
-- **staged.lp** - ⚠️ Experimental (may return extra models)
-- **naive.lp** - ⚠️ Experimental (saturation approach)
-- **ideal.lp** - ⚠️ Experimental (complex but functional two-phase saturation, 161 lines)
-
-**Production use**: Prefer optN-based semantics for preferred/semi-stable/staged. Use heuristic-based for naive. Saturation versions are research/experimental only.
-
-**Example with optN semantics**:
-```bash
-# Semi-stable (admissible + maximal range)
-clingo 0 --opt-mode=optN --quiet=1 --project \
-       WABA/core/base.lp WABA/semiring/godel.lp WABA/constraint/ub_max.lp \
-       WABA/semantics/admissible.lp WABA/semantics/optN/semi-stable.lp \
-       <framework>.lp -c beta=0
-```
-
-**Example with heuristic semantics**:
-```bash
-clingo -n 0 --heuristic=Domain --enum-mode=domRec \
-       WABA/core/base.lp WABA/semiring/godel.lp WABA/constraint/ub_max.lp \
-       WABA/filter/standard.lp WABA/semantics/heuristic/preferred.lp <framework>.lp
-```
+**Note**: Additional semantics (admissible, complete, grounded, preferred, semi-stable, staged, naive, ideal) have been removed due to implementation issues. Only stable and conflict-free semantics are currently maintained and tested.
 
 ### Cost Optimization
 
@@ -468,28 +421,9 @@ WABA/
 │   ├── count_maximization.lp    # Maximize attack count - 1000x faster
 │   ├── lex_minimization.lp      # Lexicographic minimization (max→sum→count)
 │   └── lex_maximization.lp      # Lexicographic maximization (max→sum→count)
-├── semantics/                   # Argumentation semantics
+├── Semantics/                   # Argumentation semantics
 │   ├── stable.lp                # Stable semantics
-│   ├── cf.lp                    # Conflict-free semantics
-│   ├── admissible.lp            # Admissible semantics
-│   ├── complete.lp              # Complete semantics
-│   ├── grounded.lp              # Grounded semantics (fixpoint-based)
-│   ├── optN/                    # ✅ RECOMMENDED: Optimization-based (optN mode)
-│   │   ├── preferred.lp         # Maximal complete (--opt-mode=optN)
-│   │   ├── semi-stable.lp       # Admissible + maximal range (--opt-mode=optN)
-│   │   ├── staged.lp            # Conflict-free + maximal range (--opt-mode=optN)
-│   │   └── ideal.lp             # Max admissible in ∩Pref (two-step workflow)
-│   ├── heuristic/               # Production-ready heuristic implementations
-│   │   ├── preferred.lp         # Maximal complete extensions
-│   │   ├── semi-stable.lp       # Admissible + maximal range
-│   │   ├── staged.lp            # Conflict-free + maximal range
-│   │   └── naive.lp             # Maximal conflict-free extensions
-│   └── saturation-based/        # ⚠️ EXPERIMENTAL saturation implementations
-│       ├── preferred.lp         # Subset-maximality (experimental)
-│       ├── semi-stable.lp       # Range-maximality, admissible (experimental)
-│       ├── staged.lp            # Range-maximality, conflict-free (experimental)
-│       ├── naive.lp             # Subset-maximality (experimental)
-│       └── ideal.lp             # Two-phase saturation (experimental, 161 lines)
+│   └── cf.lp                    # Conflict-free semantics
 ├── examples/                    # Example frameworks
 │   ├── medical.lp               # Medical ethics decision example
 │   ├── simple.lp                # Simple test case
@@ -745,8 +679,9 @@ Example: Using `ub.lp` with SUM monoid and `beta=1`:
 **For Plain ABA/AAF Simulation**:
 ```bash
 # Framework must define: #const beta = 0. and budget(beta).
+# Note: With beta=0, only stable and cf semantics are available
 clingo -n 0 core/base.lp semiring/godel.lp \
-       constraint/ub_max.lp semantics/admissible_aspartix.lp \
+       constraint/ub_max.lp filter/standard.lp Semantics/stable.lp \
        framework.lp
 ```
 
