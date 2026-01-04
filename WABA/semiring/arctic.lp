@@ -132,3 +132,48 @@ supported_with_weight(X,W) :-
     head(_,X),  % X is derived (not just an assumption)
     W = #max{ V : rule_derivation_weight(_,X,V) ;
               V : weight(X,V) }.
+
+%% ========================================================================
+%% UNDEFEATED WEIGHT COMPUTATION (for Budget-Aware Admissibility Defense)
+%% ========================================================================
+
+%% Base cases
+undefeated_weight(X,0) :- assumption(X), not defeated(X), not weight(X,_), not head(_,X).
+undefeated_weight(X,W) :- assumption(X), not defeated(X), weight(X,W), not head(_,X).
+
+%% Rule derivation with Arctic conjunction (addition)
+undefeated_rule_weight(R,X,W) :-
+    head(R,X),
+    derived_from_undefeated(X),
+    body(R,_),
+    triggered_by_undefeated(R),
+    W = #sum{ V,B : body(R,B), undefeated_weight(B,V) }.
+
+%% Disjunction (max)
+undefeated_weight(X,W) :-
+    derived_from_undefeated(X),
+    head(_,X),
+    not assumption(X),
+    W = #max{ V,R : undefeated_rule_weight(R,X,V) }.
+
+%% NON-FLAT: Assumptions that are also rule heads
+undefeated_weight(X,W) :-
+    assumption(X),
+    not defeated(X),
+    derived_from_undefeated(X),
+    head(_,X),
+    weight(X,_),
+    W = #max{ V,R : undefeated_rule_weight(R,X,V) ;
+              V : weight(X,V) }.
+
+undefeated_weight(X,W) :-
+    assumption(X),
+    not defeated(X),
+    derived_from_undefeated(X),
+    head(_,X),
+    not weight(X,_),
+    W = #max{ V,R : undefeated_rule_weight(R,X,V) ;
+              0 : true }.
+
+%% Polarity: Strength (higher is better)
+unaffordable_attack(W,B) :- undefeated_weight(_,W), budget(B), W < B.

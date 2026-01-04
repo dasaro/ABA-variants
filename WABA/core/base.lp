@@ -30,10 +30,6 @@ derived_atom(X) :- is_head(X), not assumption(X).
 %% CORE LOGIC
 %% ====================
 
-%% Assumption choice: each assumption is either in or out
-in(X) :- assumption(X), not out(X).
-out(X) :- assumption(X), not in(X).
-
 %% Support computation (weight-independent)
 %% An atom is supported if:
 %% 1. It's an assumption that is in, OR
@@ -58,10 +54,6 @@ attacks_with_weight(X,Y,W) :- supported_with_weight(X,W), assumption(Y), contrar
 %% Successful attacks
 %% An attack succeeds if it's not discarded
 attacks_successfully_with_weight(X,Y,W) :- attacks_with_weight(X,Y,W), not discarded_attack(X,Y,W).
-
-%% Defeat
-%% An assumption is defeated if there's a successful attack against it
-defeated(X) :- attacks_successfully_with_weight(_,X,_).
 
 %% ====================
 %% BUDGET CONSTRAINT

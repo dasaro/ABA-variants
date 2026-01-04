@@ -164,3 +164,65 @@ supported_with_weight(X,W) :-
     not weight(X,_),  % No explicit weight
     W = #min{ V,R : rule_derivation_weight(R,X,V) ;
               #sup : true }.  % DISJUNCTION with default: min(derived, #sup) = derived
+
+%% ========================================================================
+%% UNDEFEATED WEIGHT COMPUTATION (for Budget-Aware Admissibility Defense)
+%% ========================================================================
+%%
+%% Mirrors supported_with_weight logic but for derived_from_undefeated elements.
+%% Used to compute potential attack weights for defense checking.
+
+%% Base case: Undefeated assumptions without explicit weights get #sup
+undefeated_weight(X,#sup) :- assumption(X), not defeated(X), not weight(X,_), not head(_,X).
+
+%% FLAT-WABA: Undefeated assumptions with explicit weights (not rule heads)
+undefeated_weight(X,W) :- assumption(X), not defeated(X), weight(X,W), not head(_,X).
+
+%% Helper: detect if any body element has #sup weight in undefeated derivation
+undefeated_body_has_sup(R) :- body(R,B), undefeated_weight(B,#sup).
+
+%% Rule derivation weight for undefeated: sum body weights (with #sup propagation)
+undefeated_rule_weight(R,X,#sup) :-
+    head(R,X),
+    derived_from_undefeated(X),
+    body(R,_),
+    triggered_by_undefeated(R),
+    undefeated_body_has_sup(R).
+
+undefeated_rule_weight(R,X,W) :-
+    head(R,X),
+    derived_from_undefeated(X),
+    body(R,_),
+    triggered_by_undefeated(R),
+    not undefeated_body_has_sup(R),
+    W = #sum{ V,B : body(R,B), undefeated_weight(B,V), V != #sup }.
+
+%% Regular derived element: take minimum across all derivations (disjunction)
+undefeated_weight(X,W) :-
+    derived_from_undefeated(X),
+    head(_,X),
+    not assumption(X),
+    W = #min{ V,R : undefeated_rule_weight(R,X,V) }.
+
+%% NON-FLAT-WABA: Assumption that is also a rule head, WITH explicit weight
+undefeated_weight(X,W) :-
+    assumption(X),
+    not defeated(X),
+    derived_from_undefeated(X),
+    head(_,X),
+    weight(X,_),
+    W = #min{ V,R : undefeated_rule_weight(R,X,V) ;
+              V : weight(X,V) }.
+
+%% NON-FLAT-WABA: Assumption that is also a rule head, WITHOUT explicit weight
+undefeated_weight(X,W) :-
+    assumption(X),
+    not defeated(X),
+    derived_from_undefeated(X),
+    head(_,X),
+    not weight(X,_),
+    W = #min{ V,R : undefeated_rule_weight(R,X,V) ;
+              #sup : true }.
+
+%% Polarity: Cost (lower is better)
+unaffordable_attack(W,B) :- undefeated_weight(_,W), budget(B), W > B.
