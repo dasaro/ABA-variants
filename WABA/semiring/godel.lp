@@ -169,6 +169,7 @@ undefeated_weight(X,#sup) :- assumption(X), not defeated(X).
 undefeated_weight(X,W) :- derived_from_undefeated(X), weight(X,W).
 undefeated_weight(X,W) :- derived_from_undefeated(X), head(R,X), W = #min{ V,B : body(R,B), undefeated_weight(B,V) }.
 %% Polarity: Strength (higher is better)
-%% Special case: beta=0 means classical ABA (all attacks unaffordable)
+%% Classical ABA: beta=#sup (can't meet threshold) or beta=0 (backward compatibility)
+unaffordable_attack(W,B) :- undefeated_weight(_,W), budget(B), B = #sup, W != #sup.
 unaffordable_attack(W,B) :- undefeated_weight(_,W), budget(B), B = 0, W != #inf.
-unaffordable_attack(W,B) :- undefeated_weight(_,W), budget(B), B != 0, W < B.
+unaffordable_attack(W,B) :- undefeated_weight(_,W), budget(B), B != #sup, B != 0, W < B.
