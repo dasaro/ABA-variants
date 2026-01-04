@@ -183,4 +183,6 @@ undefeated_weight(X,W) :- derived_from_undefeated(X), head(R,X),
     W = #min{ V,B : body(R,B), undefeated_weight(B,V) }.
 
 %% Polarity: Strength (higher is better)
-unaffordable_attack(W,B) :- undefeated_weight(_,W), budget(B), W < B.
+%% Special case: beta=0 means classical ABA (all attacks unaffordable)
+unaffordable_attack(W,B) :- undefeated_weight(_,W), budget(B), B = 0, W != #inf.
+unaffordable_attack(W,B) :- undefeated_weight(_,W), budget(B), B != 0, W < B.

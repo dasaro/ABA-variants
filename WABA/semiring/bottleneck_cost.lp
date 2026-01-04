@@ -203,4 +203,6 @@ undefeated_weight(X,W) :-
               #sup : true }.
 
 %% Polarity: Cost (lower is better)
-unaffordable_attack(W,B) :- undefeated_weight(_,W), budget(B), W > B.
+%% Special case: beta=0 means classical ABA (all attacks unaffordable)
+unaffordable_attack(W,B) :- undefeated_weight(_,W), budget(B), B = 0, W != #inf.
+unaffordable_attack(W,B) :- undefeated_weight(_,W), budget(B), B != 0, W > B.
