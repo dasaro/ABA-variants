@@ -171,3 +171,16 @@ supported_with_weight(X,#sup) :-
     supported(X),
     head(_,X),
     not weight(X,_).
+
+%% ========================================================================
+%% UNDEFEATED WEIGHT COMPUTATION (for Budget-Aware Admissibility Defense)
+%% ========================================================================
+%% Simplified version using min (conservative estimate, matches Gödel)
+
+undefeated_weight(X,#sup) :- assumption(X), not defeated(X), not weight(X,_).
+undefeated_weight(X,W) :- assumption(X), not defeated(X), weight(X,W).
+undefeated_weight(X,W) :- derived_from_undefeated(X), head(R,X), 
+    W = #min{ V,B : body(R,B), undefeated_weight(B,V) }.
+
+%% Polarity: Strength (higher is better)
+unaffordable_attack(W,B) :- undefeated_weight(_,W), budget(B), W < B.

@@ -164,3 +164,9 @@ supported_with_weight(X,#sup) :-
     supported(X),
     is_head(X),  % Assumption is also derived
     not weight(X,_).  % No explicit weight → default #sup dominates
+
+undefeated_weight(X,#sup) :- assumption(X), not defeated(X).
+undefeated_weight(X,W) :- derived_from_undefeated(X), weight(X,W).
+undefeated_weight(X,W) :- derived_from_undefeated(X), head(R,X), W = #min{ V,B : body(R,B), undefeated_weight(B,V) }.
+%% Polarity: Strength (higher is better)
+unaffordable_attack(W,B) :- undefeated_weight(_,W), budget(B), W < B.

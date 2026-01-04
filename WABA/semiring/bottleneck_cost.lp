@@ -159,3 +159,48 @@ supported_with_weight(X,W) :-
     not weight(X,_),  % No explicit weight
     W = #min{ V,R : rule_derivation_weight(R,X,V) ;
               #inf : true }.  % DISJUNCTION with default: min(derived, #inf) = derived
+
+%% ========================================================================
+%% UNDEFEATED WEIGHT COMPUTATION (for Budget-Aware Admissibility Defense)
+%% ========================================================================
+
+%% Base cases
+undefeated_weight(X,#sup) :- assumption(X), not defeated(X), not weight(X,_), not head(_,X).
+undefeated_weight(X,W) :- assumption(X), not defeated(X), weight(X,W), not head(_,X).
+
+%% Rule derivation with Bottleneck conjunction (max - worst component)
+undefeated_rule_weight(R,X,W) :-
+    head(R,X),
+    derived_from_undefeated(X),
+    body(R,_),
+    triggered_by_undefeated(R),
+    W = #max{ V,B : body(R,B), undefeated_weight(B,V) }.
+
+%% Disjunction (min - cheapest path)
+undefeated_weight(X,W) :-
+    derived_from_undefeated(X),
+    head(_,X),
+    not assumption(X),
+    W = #min{ V,R : undefeated_rule_weight(R,X,V) }.
+
+%% NON-FLAT: Assumptions that are also rule heads
+undefeated_weight(X,W) :-
+    assumption(X),
+    not defeated(X),
+    derived_from_undefeated(X),
+    head(_,X),
+    weight(X,_),
+    W = #min{ V,R : undefeated_rule_weight(R,X,V) ;
+              V : weight(X,V) }.
+
+undefeated_weight(X,W) :-
+    assumption(X),
+    not defeated(X),
+    derived_from_undefeated(X),
+    head(_,X),
+    not weight(X,_),
+    W = #min{ V,R : undefeated_rule_weight(R,X,V) ;
+              #sup : true }.
+
+%% Polarity: Cost (lower is better)
+unaffordable_attack(W,B) :- undefeated_weight(_,W), budget(B), W > B.
