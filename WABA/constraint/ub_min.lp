@@ -22,7 +22,7 @@
 
 %% Reject if minimum cost exceeds or equals budget
 %% Using >= ensures beta=0 prevents ALL discarding
-:- C = #min{ W : discarded_attack(_,_,W) }, C >= B, budget(B), B != #sup, C != #inf.
+:- C = #min{ W : discarded_attack(_,_,W) }, C >= B, budget(B), C != #inf.
 
 %% Reject if any discarded attack has weight #sup with finite budget
-:- discarded_attack(_,_,#sup), budget(B), B != #sup.
+:- discarded_attack(_,_,#sup).

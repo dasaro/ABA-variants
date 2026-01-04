@@ -17,7 +17,7 @@
 
 %% Reject if total cost EXCEEDS budget (sum > beta)
 %% At beta=0: allows extensions with NO discarded attacks (sum=0)
-:- #sum{ W,X,Y : discarded_attack(X,Y,W) } > B, budget(B), B != #sup.
+:- #sum{ W,X,Y : discarded_attack(X,Y,W) } > B, budget(B).
 
 %% Reject if any discarded attack has weight #sup with finite budget
-:- discarded_attack(_,_,#sup), budget(B), B != #sup.
+:- discarded_attack(_,_,#sup).

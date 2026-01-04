@@ -21,7 +21,7 @@
 
 %% Reject if count exceeds or equals budget
 %% Using >= ensures beta=0 prevents ALL discarding
-:- #count{ X,Y : discarded_attack(X,Y,_) } >= B, budget(B), B != #sup.
+:- #count{ X,Y : discarded_attack(X,Y,_) } >= B, budget(B).
 
 %% Reject if any discarded attack has weight #sup with finite budget
-:- discarded_attack(_,_,#sup), budget(B), B != #sup.
+:- discarded_attack(_,_,#sup).

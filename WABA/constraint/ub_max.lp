@@ -21,7 +21,8 @@
 
 %% Reject if maximum cost exceeds or equals budget
 %% Using >= ensures beta=0 prevents ALL discarding (including zero-weight attacks)
-:- C = #max{ W : discarded_attack(_,_,W) }, C >= B, budget(B), B != #sup, C != #inf.
+%% Works with beta=#sup: only rejects when C=#sup (prevents discarding #sup-weighted attacks)
+:- C = #max{ W : discarded_attack(_,_,W) }, C >= B, budget(B), C != #inf.
 
-%% Reject if any discarded attack has weight #sup with finite budget
-:- discarded_attack(_,_,#sup), budget(B), B != #sup.
+%% Reject if any discarded attack has weight #sup (regardless of budget)
+:- discarded_attack(_,_,#sup).
