@@ -21,7 +21,7 @@
 
 %% Reject if count at or below threshold
 %% Using <= ensures strict boundary (beta=N requires count > N)
-:- C = #count{ X,Y : discarded_attack(X,Y,_) }, C <= B, budget(B), B != #inf.
+:- C = #count{ X,Y : discarded_attack(X,Y,_) }, C <= B, budget(B).
 
 %% Reject if any discarded attack has weight #sup
 :- discarded_attack(_,_,#sup).

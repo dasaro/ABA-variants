@@ -21,7 +21,7 @@
 
 %% Reject if maximum cost at or below threshold
 %% Using <= ensures strict boundary (beta=N requires cost > N)
-:- C = #max{ W : discarded_attack(_,_,W) }, C <= B, budget(B), B != #inf, C != #inf.
+:- C = #max{ W : discarded_attack(_,_,W) }, C <= B, budget(B), C != #inf.
 
 %% Reject if any discarded attack has weight #sup
 :- discarded_attack(_,_,#sup).

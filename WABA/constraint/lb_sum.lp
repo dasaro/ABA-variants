@@ -21,7 +21,7 @@
 
 %% Reject if total cost at or below threshold
 %% Using <= ensures strict boundary (beta=N requires cost > N)
-:- C = #sum{ W,X,Y : discarded_attack(X,Y,W) }, C <= B, budget(B), B != #inf.
+:- C = #sum{ W,X,Y : discarded_attack(X,Y,W) }, C <= B, budget(B).
 
 %% Reject if any discarded attack has weight #sup
 :- discarded_attack(_,_,#sup).
