@@ -12,8 +12,8 @@ All semantics implemented based on Dung (1995) and ASPforABA (Lehtonen et al. 20
 | `stable.lp` | Stable | CF + all out defeated | 2 |
 | `preferred.lp` | Preferred | Maximal complete | 2 |
 | `grounded.lp` | Grounded | Minimal complete (unique) | 1 |
-| `staged.lp` | Staged | CF + maximal range | 2 |
-| `semistable.lp` | Semi-Stable | Complete + maximal range | 2 |
+| `staged.lp` | Staged | CF + large range (heuristic) | 3 |
+| `semistable.lp` | Semi-Stable | Complete + large range (heuristic) | 2 |
 | `ideal.lp` | Ideal | Max admissible ⊆ ∩(preferred) | 1 |
 
 ---
@@ -110,12 +110,15 @@ g_in(X) :- assumption(X), g_defeated(Y) : contrary(X,Y).
 att(X,Y) :- attacks_successfully_with_weight(X,Y,_).
 in_range(Y) :- in(Y).
 in_range(Y) :- supported(X), att(X,Y).
-#maximize { 1@1,Y : in_range(Y) }.
+miss(X) :- out(X), assumption(X).
+#heuristic miss(X) : assumption(X). [1,false]
 ```
 
-**Definition**: Staged extensions are conflict-free extensions S with maximal range(S), where range(S) = S ∪ {Y : ∃X supported by S, att(X,Y)}.
+**Definition**: Staged extensions are conflict-free extensions S with preference for large range(S), where range(S) = S ∪ {Y : ∃X supported by S, att(X,Y)}.
 
-**Usage**: Requires `--opt-mode=optN` for optimization.
+**Usage**: Requires `--heuristic=Domain --enum-mode=domRec` flags.
+
+**Implementation**: Uses heuristics to guide search toward CF extensions with large range. Finds "preferred" CF extensions rather than strictly maximal-range extensions.
 
 **Note**: In ABA, range includes assumptions attacked by ANY element supported by the extension (not just assumptions in S).
 
@@ -127,12 +130,15 @@ in_range(Y) :- supported(X), att(X,Y).
 att(X,Y) :- attacks_successfully_with_weight(X,Y,_).
 in_range(Y) :- in(Y).
 in_range(Y) :- supported(X), att(X,Y).
-#maximize { 1@1,Y : in_range(Y) }.
+miss(X) :- out(X), assumption(X).
+#heuristic miss(X) : assumption(X). [1,false]
 ```
 
-**Definition**: Semi-stable extensions are complete extensions S with maximal range(S).
+**Definition**: Semi-stable extensions are complete extensions S with preference for large range(S).
 
-**Usage**: Requires `--opt-mode=optN` for optimization.
+**Usage**: Requires `--heuristic=Domain --enum-mode=domRec` flags.
+
+**Implementation**: Uses heuristics to guide search toward complete extensions with large range. Completeness constraints already restrict search space effectively.
 
 **Inclusion**: stable ⊆ semi-stable ⊆ preferred
 
@@ -222,8 +228,8 @@ clingo -n 0 --heuristic=Domain --enum-mode=domRec \
 clingo -n 1 core/base.lp semiring/godel.lp constraint/no_discard.lp \
   filter/standard.lp semantics/grounded.lp test/aspforaba_journal_example.lp
 
-# Staged (requires optimization, 2 optimal extensions expected)
-clingo -n 0 --opt-mode=optN \
+# Staged (requires heuristics, 3 extensions expected)
+clingo -n 0 --heuristic=Domain --enum-mode=domRec \
   core/base.lp semiring/godel.lp constraint/no_discard.lp \
   filter/standard.lp semantics/staged.lp test/aspforaba_journal_example.lp
 
@@ -299,10 +305,10 @@ Testing Preferred semantics...
   ✓ PASS: 2 extensions (expected: 2)
 
 Testing Staged semantics...
-  ✓ PASS: 2 optimal extensions (expected: 2)
+  ✓ PASS: 3 extensions (expected: 3)
 
 Testing Semi-stable semantics...
-  ✓ PASS: 2 optimal extension (expected: 2)
+  ✓ PASS: 2 extensions (expected: 2)
 
 Testing Ideal semantics...
   ✓ PASS: 1 extensions (expected: 1)

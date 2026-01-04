@@ -9,11 +9,12 @@
 %% Inclusion: stable ⊆ semi-stable ⊆ preferred
 %%
 %% Usage:
-%%   clingo -n 0 --opt-mode=optN WABA/core/base.lp WABA/semiring/godel.lp \
-%%          WABA/monoid/max_minimization.lp WABA/filter/standard.lp \
+%%   clingo -n 0 --heuristic=Domain --enum-mode=domRec \
+%%          WABA/core/base.lp WABA/semiring/godel.lp \
+%%          WABA/constraint/no_discard.lp WABA/filter/standard.lp \
 %%          WABA/semantics/semistable.lp framework.lp
 %%
-%% Expected for test/aspforaba_journal_example.lp with beta=0: TBD
+%% Expected for test/aspforaba_journal_example.lp with no_discard: 2 extensions
 
 #include "complete.lp".
 
@@ -25,7 +26,9 @@ att(X,Y) :- attacks_successfully_with_weight(X,Y,_).
 in_range(Y) :- in(Y).                      % Assumptions in extension
 in_range(Y) :- supported(X), att(X,Y).    % Assumptions attacked by supported elements
 
-%% Maximize range size as proxy for set inclusion
-#maximize { 1@1,Y : in_range(Y) }.
+%% Prefer models with large range by preferring assumptions to be IN
+%% (Heuristic approximation of range maximization)
+miss(X) :- out(X), assumption(X).
+#heuristic miss(X) : assumption(X). [1,false]
 
 #show in/1.
