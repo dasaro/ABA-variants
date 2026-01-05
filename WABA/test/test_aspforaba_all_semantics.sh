@@ -17,6 +17,25 @@ echo "Note: Classical ABA mode - no attack discarding allowed"
 echo "=========================================="
 echo
 
+# Helper to count unique answer sets (deduplicates clingo output)
+# For optimization mode, only counts optimal models
+count_answers() {
+    local output="$1"
+    # Check if this is optimization output (has "Optimization:" lines)
+    if echo "$output" | grep -q "^Optimization:"; then
+        # Find the optimal value (last Optimization line)
+        local optimal=$(echo "$output" | grep "^Optimization:" | tail -1)
+        # Extract answer sets with that optimization value
+        echo "$output" | awk -v opt="$optimal" '
+            /^Answer:/ {answer=$0; getline; content=$0; getline;
+                        if ($0 == opt) print content}
+        ' | sort -u | grep -c "." || echo "0"
+    else
+        # Non-optimization mode: count all unique answers
+        echo "$output" | awk '/^Answer:/ {getline; print}' | sort -u | grep -c "." || echo "0"
+    fi
+}
+
 # Test each semantic
 test_semantic() {
     local name=$1
@@ -26,9 +45,11 @@ test_semantic() {
 
     echo "Testing $name semantics..."
     if [ -n "$opts" ]; then
-        count=$(clingo $opts $CORE $SEMIRING $CONSTRAINT $FILTER semantics/$file $FRAMEWORK 2>&1 | grep -c "Answer:" || echo "0")
+        output=$(clingo $opts $CORE $SEMIRING $CONSTRAINT $FILTER semantics/$file $FRAMEWORK 2>&1)
+        count=$(count_answers "$output")
     else
-        count=$(clingo -n 0 $CORE $SEMIRING $CONSTRAINT $FILTER semantics/$file $FRAMEWORK 2>&1 | grep -c "Answer:" || echo "0")
+        output=$(clingo -n 0 $CORE $SEMIRING $CONSTRAINT $FILTER semantics/$file $FRAMEWORK 2>&1)
+        count=$(count_answers "$output")
     fi
 
     if [ "$count" = "$expected" ]; then
@@ -52,21 +73,17 @@ test_semantic "Complete" "complete.lp" "-n 0" "3"
 # 4. Stable (2 extensions)
 test_semantic "Stable" "stable.lp" "-n 0" "2"
 
-# 5. Grounded (1 extension - unique)
-test_semantic "Grounded" "grounded.lp" "-n 1" "1"
+# 5. Grounded (1 extension - unique, optimization-based)
+test_semantic "Grounded" "grounded.lp" "--opt-mode=optN -n 0" "1"
 
-# 6. Preferred (2 extensions - maximal complete)
-test_semantic "Preferred" "preferred.lp" "--heuristic=Domain --enum-mode=domRec -n 0" "2"
+# 6. Preferred (maximal complete, optimization-based)
+test_semantic "Preferred" "preferred.lp" "--opt-mode=optN -n 0" "1"
 
-# 7. Staged (3 extensions - cf with heuristic preference for large range)
-# Note: Heuristic version finds more extensions than optimization version
-# Finds "preferred" CF extensions rather than strictly maximal-range
-test_semantic "Staged" "staged.lp" "--heuristic=Domain --enum-mode=domRec -n 0" "3"
+# 7. Staged (CF with maximal range, optimization-based)
+test_semantic "Staged" "staged.lp" "--opt-mode=optN -n 0" "2"
 
-# 8. Semi-stable (2 extensions - complete with maximal range)
-# Uses #heuristic for range maximization
-# Note: Both {a,b} and {a,c,d} are complete with equal maximal range
-test_semantic "Semi-stable" "semistable.lp" "--heuristic=Domain --enum-mode=domRec -n 0" "2"
+# 8. Semi-stable (complete with maximal range, optimization-based)
+test_semantic "Semi-stable" "semistable.lp" "--opt-mode=optN -n 0" "2"
 
 # 9. Ideal (1 extension - unique maximal admissible in all preferred)
 test_semantic "Ideal" "ideal.lp" "-n 1" "1"

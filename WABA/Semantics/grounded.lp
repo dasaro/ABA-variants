@@ -1,15 +1,11 @@
 %% Grounded Semantics
-%% Minimal complete extension (least fixpoint)
+%% Minimal complete extension
 %%
-%% Based on characteristic function: assumption is IN if it defeats all attackers
-%% Compatible with WABA's choice-based architecture via constraint matching
+%% Implementation: Minimize |in| subject to completeness
+%% Priority @5 ensures semantic selection precedes cost optimization
 
-#include "cf.lp".
+#include "complete.lp".
 
-%% Compute grounded extension via fixpoint
-g_defeated(X) :- assumption(X), g_in(Y), contrary(X,Y).
-g_in(X) :- assumption(X), g_defeated(Y) : contrary(X,Y).
-
-%% Constrain choice-based in/1 to match grounded
-:- g_in(X), not in(X).
-:- in(X), not g_in(X).
+%% MAIN (@5): Minimize cardinality of extension to find grounded (minimal complete)
+%% Priority @5 ensures separation from cost optimization (@1-@3)
+#minimize { 1@5, X : in(X) }.
