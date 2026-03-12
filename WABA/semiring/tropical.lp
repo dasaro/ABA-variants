@@ -9,6 +9,13 @@
 %%
 %% This is the tropical semiring used for shortest path problems.
 
+active_semiring(tropical).
+#include "../defaults/base.lp".
+
+semiring_default_weight(legacy,#sup).
+semiring_default_weight(aba,#sup).
+semiring_default_weight(neutral,0).
+
 %% =============================================
 %% CLASSICAL ABA RECOVERY (No Discarding)
 %% =============================================
@@ -72,7 +79,12 @@ supported_with_weight(X,W) :- assumption(X), in(X), weight(X,W), not head(_,X).
 %%
 %% FLAT-WABA: assumption is not a rule head
 %% NON-FLAT-WABA: if assumption is also a rule head, weight is computed below via rule derivation
-supported_with_weight(X,#sup) :- assumption(X), in(X), not weight(X,_), not head(_,X).
+supported_with_weight(X,W) :-
+    assumption(X),
+    in(X),
+    not weight(X,_),
+    not head(_,X),
+    default_assumption_weight(W).
 
 %% Step 1: Compute weight for each rule derivation using conjunction (addition)
 %% For rule R deriving X: sum the weights of all body elements
@@ -162,8 +174,9 @@ supported_with_weight(X,W) :-
     supported(X),
     head(_,X),  % Assumption is also derived
     not weight(X,_),  % No explicit weight
+    default_assumption_weight(D),
     W = #min{ V,R : rule_derivation_weight(R,X,V) ;
-              #sup : true }.  % DISJUNCTION with default: min(derived, #sup) = derived
+              D : true }.  % Direct assumption path selected by the active default policy
 
 %% ========================================================================
 %% UNDEFEATED WEIGHT COMPUTATION (for Budget-Aware Admissibility Defense)
@@ -173,7 +186,12 @@ supported_with_weight(X,W) :-
 %% Used to compute potential attack weights for defense checking.
 
 %% Base case: Undefeated assumptions without explicit weights get #sup
-undefeated_weight(X,#sup) :- assumption(X), not defeated(X), not weight(X,_), not head(_,X).
+undefeated_weight(X,W) :-
+    assumption(X),
+    not defeated(X),
+    not weight(X,_),
+    not head(_,X),
+    default_assumption_weight(W).
 
 %% FLAT-WABA: Undefeated assumptions with explicit weights (not rule heads)
 undefeated_weight(X,W) :- assumption(X), not defeated(X), weight(X,W), not head(_,X).
@@ -221,8 +239,9 @@ undefeated_weight(X,W) :-
     derived_from_undefeated(X),
     head(_,X),
     not weight(X,_),
+    default_assumption_weight(D),
     W = #min{ V,R : undefeated_rule_weight(R,X,V) ;
-              #sup : true }.
+              D : true }.
 
 %% Polarity: Cost (lower is better)
 %% Special case: beta=0 means classical ABA (all attacks unaffordable)

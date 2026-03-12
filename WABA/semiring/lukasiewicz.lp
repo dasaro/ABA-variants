@@ -22,6 +22,12 @@
 %% Expected improvement: 30-40% reduction in grounding overhead
 
 #const luk_k = 100.
+active_semiring(lukasiewicz).
+#include "../defaults/base.lp".
+
+semiring_default_weight(legacy,#sup).
+semiring_default_weight(aba,#sup).
+semiring_default_weight(neutral,luk_k).
 
 %% =============================================
 %% CLASSICAL ABA RECOVERY (No Discarding)
@@ -52,7 +58,15 @@
 supported_with_weight(X,W) :- assumption(X), in(X), weight(X,W), not head(_,X).
 
 %% Assumptions without explicit weights: Use #sup
-supported_with_weight(X,#sup) :- assumption(X), in(X), not weight(X,_), not head(_,X).
+supported_with_weight(X,W) :-
+    assumption(X),
+    in(X),
+    not weight(X,_),
+    not head(_,X),
+    default_assumption_weight(W).
+
+default_weight_is_sup :- default_assumption_weight(#sup).
+finite_default_weight(V) :- default_assumption_weight(V), V != #sup, V != #inf.
 
 %% Step 1: Compute weight for each rule derivation using conjunction (Łukasiewicz AND)
 %% Łukasiewicz AND: max(0, sum(weights) - K*(n-1))
@@ -170,16 +184,31 @@ supported_with_weight(X,#sup) :-
     in(X),
     supported(X),
     head(_,X),
-    not weight(X,_).
+    not weight(X,_),
+    default_weight_is_sup.
+
+supported_with_weight(X,W) :-
+    assumption(X),
+    in(X),
+    supported(X),
+    head(_,X),
+    not weight(X,_),
+    not rule_derivation_weight(_,X,#sup),
+    finite_default_weight(D),
+    S = #sum{ V : rule_derivation_weight(_,X,V) ;
+              D : true },
+    W = #min{ luk_k; S }.
 
 %% ========================================================================
 %% UNDEFEATED WEIGHT COMPUTATION (for Budget-Aware Admissibility Defense)
 %% ========================================================================
-%% Simplified version using min (conservative estimate, matches Gödel)
+%% Simplified version using min (conservative estimate, matches Godel)
 
-undefeated_weight(X,#sup) :- assumption(X), not defeated(X), not weight(X,_).
+undefeated_weight(X,W) :- assumption(X), not defeated(X), not weight(X,_), default_assumption_weight(W).
 undefeated_weight(X,W) :- assumption(X), not defeated(X), weight(X,W).
-undefeated_weight(X,W) :- derived_from_undefeated(X), head(R,X), 
+undefeated_weight(X,W) :-
+    derived_from_undefeated(X),
+    head(R,X),
     W = #min{ V,B : body(R,B), undefeated_weight(B,V) }.
 
 %% Polarity: Strength (higher is better)

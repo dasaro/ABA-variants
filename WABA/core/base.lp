@@ -7,7 +7,8 @@
 %% - Use rule/1 consistently instead of head(R,_)
 %% - Removed redundant supported(X) joins
 
-%% Budget declaration moved to constraint files (constraint/ub.lp or constraint/lb.lp)
+%% Budget constant used by the supported CLI wrapper and by raw clingo runs.
+%% Framework files may also state budget(beta); duplicate identical facts are harmless.
 
 %% ====================
 %% DOMAIN PREDICATES
@@ -61,12 +62,14 @@ attacks_successfully_with_weight(X,Y,W) :- attacks_with_weight(X,Y,W), not disca
 %% Budget Constraints
 %% ====================
 %%
-%% Budget constraints are in constraint/ directory and are monoid-specific.
-%% All monoids now use weak constraints directly (no extension_cost/1 predicate).
+%% Budget value is typically set via command line: -c beta=N
+budget(beta).
+
+%% Budget constraints are in constraint/ directory.
+%% `constraint/ub.lp` and `constraint/lb.lp` read the aggregate family from
+%% the loaded monoid module.
 %%
 %% Load appropriate constraint file for budget enforcement:
-%% - constraint/ub_max.lp - Upper bound for MAX monoid (cost ≤ beta)
-%% - constraint/ub_sum.lp - Upper bound for SUM monoid (cost ≤ beta)
-%% - constraint/ub_count.lp - Upper bound for COUNT monoid (cost ≤ beta)
-%% - constraint/lb_min.lp - Lower bound for MIN monoid (cost ≥ beta)
+%% - constraint/ub.lp - Upper bound for the active monoid family (cost ≤ beta)
+%% - constraint/lb.lp - Lower bound for the active monoid family (cost ≥ beta)
 %% - constraint/no_discard.lp - Plain ABA mode (no attack discarding)
