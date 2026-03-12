@@ -1,41 +1,64 @@
-# Test and analysis results
-test_results/
-*_results/
-*_output/
-*.out
+# Default to private.
+# Keep only the thin wrapper, the mature logic-programming modules,
+# and the curated example surface visible.
+*
+!*/
+!/.gitignore
 
-# Benchmark artifacts (ignore generated data, but track source code)
-benchmark/results*/
-benchmark/analysis*/
-benchmark/frameworks*/
-benchmark/test_frameworks*/
-benchmark/*.jsonl
-benchmark/*.csv
-benchmark/*.log
-benchmark/*.meta.json
-benchmark/TOPOLOGY_DIAGRAMS/
-*_ANALYSIS.md
-*_REPORT.md
-*.png
+# Public wrapper
+!bin/waba
 
-# But allow benchmark source code to be tracked
-!benchmark/**/*.py
-!benchmark/**/*.md
-!benchmark/**/*.sh
-!benchmark/README.md
-!benchmark/SMOKE_TEST.md
-!benchmark/EXPERIMENTAL_DESIGN.md
+# Public README
+!/README.md
 
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
+# Public logic-programming surface
+!core/
+!core/base.lp
+!defaults/
+!defaults/aba.lp
+!defaults/base.lp
+!defaults/legacy.lp
+!defaults/neutral.lp
+!filter/
+!filter/projection.lp
+!filter/standard.lp
+!constraint/
+!constraint/lb.lp
+!constraint/no_discard.lp
+!constraint/ub.lp
+!monoid/
+!monoid/count.lp
+!monoid/max.lp
+!monoid/min.lp
+!monoid/sum.lp
+!optimize/
+!optimize/maximize.lp
+!optimize/minimize.lp
+!semantics/
+!semantics/admissible.lp
+!semantics/cf.lp
+!semantics/complete.lp
+!semantics/grounded.lp
+!semantics/stable.lp
+!semantics/subset_maximal_filter.lp
+!semiring/
+!semiring/arctic.lp
+!semiring/bottleneck_cost.lp
+!semiring/godel.lp
+!semiring/godel_low.lp
+!semiring/lukasiewicz.lp
+!semiring/lukasiewicz_low.lp
+!semiring/tropical.lp
+!semiring/tropical_high.lp
 
-# macOS
-.DS_Store
-
-# Temporary and backup files
-*.tmp
-*.log
-*.bak
-*~
+# Public curated example surface
+!examples/
+!examples/README.md
+!examples/aspartix_test/
+!examples/aspartix_test/simple_attack.lp
+!examples/practical_deliberation/
+!examples/practical_deliberation/practical_deliberation.lp
+!examples/scientific_theory/
+!examples/scientific_theory/scientific_theory.lp
+!examples/reference/
+!examples/reference/aspforaba_journal_example.lp

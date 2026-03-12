@@ -1,11 +1,11 @@
 %% No Discarding Constraint
 %% =========================
 %%
-%% Enforces classical ABA: NO attacks can be discarded
+%% Enforces classical ABA by forcing the discard set to be empty
 %%
 %% Use with: Any semantic file for pure ABA/ASPforABA compatibility
 %%
-%% Semantics: Equivalent to beta=0 for all monoids, but simpler and faster
+%% Semantics: direct no-discard profile, independent of monoid loading
 %%
 %% Usage:
 %%   clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp \
@@ -13,4 +13,6 @@
 %%          WABA/semantics/<semantic>.lp framework.lp
 
 %% Reject any extension that discards any attack
+active_budget_mode(no_discard).
+active_constraint(no_discard).
 :- discarded_attack(_,_,_).

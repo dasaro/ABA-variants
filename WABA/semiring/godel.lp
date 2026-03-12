@@ -19,6 +19,13 @@
 %% - Disjunction takes the maximum (strongest of multiple proofs)
 %% - Unweighted atoms get #sup (maximum truth, hardest to discard)
 
+active_semiring(godel).
+#include "../defaults/base.lp".
+
+semiring_default_weight(legacy,#sup).
+semiring_default_weight(aba,#sup).
+semiring_default_weight(neutral,#sup).
+
 %% =============================================
 %% CLASSICAL ABA RECOVERY (No Discarding)
 %% =============================================
@@ -86,7 +93,12 @@ supported_with_weight(X,W) :- assumption(X), in(X), weight(X,W), not is_head(X).
 %% FLAT-WABA: assumption is not a rule head
 %% NON-FLAT-WABA: if assumption is also a rule head, weight is computed below via rule derivation
 %% OPTIMIZED: Use not is_head(X) instead of not head(_,X)
-supported_with_weight(X,#sup) :- assumption(X), in(X), not weight(X,_), not is_head(X).
+supported_with_weight(X,W) :-
+    assumption(X),
+    in(X),
+    not weight(X,_),
+    not is_head(X),
+    default_assumption_weight(W).
 
 %% Step 1: Compute weight for each rule derivation using conjunction (minimum)
 %% For rule R deriving X: take minimum weight among all body elements
@@ -158,14 +170,15 @@ supported_with_weight(X,W) :-
 %% For Gödel: max(derived, #sup) = #sup always (default dominates)
 %% NOTE: Clingo ignores #sup in aggregates, so we assign it explicitly
 %% OPTIMIZED: Use is_head(X) instead of head(_,X)
-supported_with_weight(X,#sup) :-
+supported_with_weight(X,W) :-
     assumption(X),
     in(X),  % Assumption is selected
     supported(X),
     is_head(X),  % Assumption is also derived
-    not weight(X,_).  % No explicit weight → default #sup dominates
+    not weight(X,_),
+    default_assumption_weight(W).
 
-undefeated_weight(X,#sup) :- assumption(X), not defeated(X).
+undefeated_weight(X,W) :- assumption(X), not defeated(X), default_assumption_weight(W).
 undefeated_weight(X,W) :- derived_from_undefeated(X), weight(X,W).
 undefeated_weight(X,W) :- derived_from_undefeated(X), head(R,X), W = #min{ V,B : body(R,B), undefeated_weight(B,V) }.
 %% Polarity: Strength (higher is better)

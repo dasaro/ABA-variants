@@ -1,240 +1,129 @@
-# WABA: Weighted Assumption-Based Argumentation
+# WABA
 
-A modular Answer Set Programming framework for argumentation with weighted arguments and budget-constrained attack resolution.
+WABA is a compact CLI-first `clingo` project with one supported logic surface.
 
-## Quick Navigation
+## Supported Surface
 
-- **Getting Started**: See examples below
-- **Command Reference**: [docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)
-- **Clingo Syntax Cheat Sheet**: [docs/clingo_v5_8_0_cheatsheet.md](docs/clingo_v5_8_0_cheatsheet.md) ⭐
-- **Best Practices**: [docs/FRAMEWORK_BEST_PRACTICES.md](docs/FRAMEWORK_BEST_PRACTICES.md)
-- **Semiring/Monoid Compatibility**: [docs/SEMIRING_MONOID_COMPATIBILITY.md](docs/SEMIRING_MONOID_COMPATIBILITY.md)
-- **Constraint Usage**: [constraint/README.md](constraint/README.md)
-- **Benchmarking**: [benchmark/README.md](benchmark/README.md)
-- **Changelog**: [CHANGELOG.md](CHANGELOG.md)
+- primary entrypoint: `bin/waba`
+- supported semantics: `cf`, `stable`, `admissible`, `complete`, `grounded`, `preferred`
+- exact `preferred` semantics via `semantics/subset_maximal_filter.lp`
+- supported budget presets:
+  - `sum + ub`
+  - `max + ub`
+  - `count + ub`
+  - `min + lb`
+- raw modular `clingo` runs remain available for the same mature files
+
+The tree is intentionally small:
+
+- `core/`: shared WABA attack and discard logic
+- `semiring/`: the six ordered-semiring variants plus the `arctic` and `bottleneck_cost` aliases
+- `defaults/`: `legacy`, `aba`, and `neutral` policies for unweighted assumptions
+- `monoid/` and `optimize/`: aggregate family and optimization direction
+- `constraint/`: generic `ub`, generic `lb`, and `no_discard`
+- `semantics/`: supported raw semantics plus the exact subset-maximal filter used by `preferred`
+- `examples/`: the curated example set
 
 ## Quick Start
 
-### Requirements
-
-- **clingo** 5.8.0+ (Answer Set Programming solver)
-- Basic understanding of Answer Set Programming (ASP)
-
-### Basic Command Structure
+Classical smoke run:
 
 ```bash
-clingo -n 0 \
-  WABA/core/base.lp \
-  WABA/semiring/<semiring>.lp \
-  WABA/monoid/<monoid>.lp \
-  WABA/filter/standard.lp \
-  WABA/semantics/<semantics>.lp \
-  <your_framework>.lp
+./bin/waba run \
+  --framework examples/aspartix_test/simple_attack.lp \
+  --semantics stable \
+  --show projection
 ```
 
-### Example: Medical Ethics Decision
+Exact preferred extensions on the read-only reference framework:
 
 ```bash
-clingo -n 0 \
-  WABA/core/base.lp \
-  WABA/semiring/godel.lp \
-  WABA/monoid/max_minimization.lp \
-  WABA/filter/standard.lp \
-  WABA/semantics/stable.lp \
-  WABA/examples/medical.lp
+./bin/waba run \
+  --framework examples/reference/aspforaba_journal_example.lp \
+  --semantics preferred \
+  --show projection
 ```
 
-This uses:
-- **Gödel semiring** (min/max logic) for weight propagation
-- **Max monoid** for cost aggregation (original WABA semantics)
-- **Stable semantics** for argumentation
-
-## Core Concepts
-
-### Semirings (Weight Propagation)
-
-Choose how weights propagate through rule derivations:
-
-- **godel.lp** - Gödel/Fuzzy logic (min/max, identity=#sup) - *original WABA*
-- **lukasiewicz.lp** - Łukasiewicz t-norm (bounded sum, parametrizable K via `-c luk_k=N`)
-- **tropical.lp** - Tropical semiring (+/min, cost minimization, identity=#sup)
-  - **Also simulates Viterbi semiring** for probabilistic reasoning via log transformation!
-- **arctic.lp** - Arctic semiring (+/max, reward maximization, dual of Tropical)
-- **bottleneck_cost.lp** - Bottleneck-cost semiring (max/min, worst-case optimization)
-
-### Monoids (Cost Aggregation)
-
-Choose how extension costs are computed from discarded attacks:
-
-- **max.lp** - Maximum discarded attack weight - *original WABA*
-- **sum.lp** - Sum of all discarded attack weights
-- **min.lp** - Minimum discarded attack weight
-- **count.lp** - Number of discarded attacks (weight-agnostic)
-- **lex.lp** - Lexicographic (max→sum→count priority)
-
-**Optimized variants** (direct `#minimize`/`#maximize`, 1000x faster):
-- **sum_minimization.lp** / **sum_maximization.lp** - Sum minimization/maximization
-- **max_minimization.lp** / **max_maximization.lp** - Max minimization/maximization
-- **min_minimization.lp** / **min_maximization.lp** - Min minimization/maximization
-- **count_minimization.lp** / **count_maximization.lp** - Count minimization/maximization
-- **lex_minimization.lp** / **lex_maximization.lp** - Lexicographic minimization/maximization
-
-**Naming convention:** `{monoid}_{direction}.lp` where direction is `minimization` (minimize/cost) or `maximization` (maximize/reward)
-
-### Performance Warning
-
-**When using Tropical/Arctic semirings with Sum monoid:**
-
-| Semantics | File | Speed | Display |
-|-----------|------|-------|---------|
-| **Minimize cost** ⭐ | `sum_minimization.lp` | **Fast (0.005s)** | `Optimization: N` |
-| **Maximize reward** ⭐ | `sum_maximization.lp` | **Fast (0.005s)** | `Optimization: -N` |
-
-All monoids now use optimized weak constraint-based approach (1000x+ faster, works in both optimization and enumeration modes).
-
-### Budget Parameter
-
-**CRITICAL**: Always set a budget to control attack discarding:
-
-```prolog
-% In your framework file
-budget(100).  % Can discard attacks up to cost 100
-```
-
-Or via command line:
-```bash
-clingo -c beta=100 WABA/core/base.lp ...
-```
-
-Common values:
-- `budget(0)` - **Strict**: NO attack discarding (classical ABA/AAF simulation, includes zero-weight attacks)
-- `budget(max_weight)` - Can discard ~1 attack
-- `budget(sum_all)` - Can discard all attacks
-
-**Note**: Budget constraints use `>` (strict inequality) to allow `budget(0)` with zero discarded attacks.
-
-
-### Łukasiewicz Normalization Constant
-
-**For Łukasiewicz semiring only**: Control the weight scale with parameter K.
-
-**Default**: K = 100 (weights in [0,100])
-
-**Override via command line**:
-```bash
-# Standard Łukasiewicz with [0,1] scale
-clingo -c luk_k=1 WABA/core/base.lp WABA/semiring/lukasiewicz.lp ...
-
-# Finer granularity with [0,1000] scale
-clingo -c luk_k=1000 WABA/core/base.lp WABA/semiring/lukasiewicz.lp ...
-```
-
-**Impact**:
-- Conjunction formula: `max(0, sum(weights) - K*(n-1))`
-- Disjunction formula: `min(K, sum(weights))`
-
-## Directory Structure
-
-```
-WABA/
-├── README.md                    # This file
-├── CLAUDE.md                    # Instructions for Claude Code
-├── core/                        # Core argumentation logic
-├── filter/                      # Output filtering modules
-├── optimize/                    # Cost optimization modules
-├── semiring/                    # Weight propagation strategies
-├── monoid/                      # Cost aggregation strategies
-├── semantics/                   # Argumentation semantics (2 semantics: stable, cf)
-├── examples/                    # Example frameworks
-├── test/                        # Test files
-└── docs/                        # Documentation
-    ├── QUICK_REFERENCE.md       # Command patterns
-    ├── SEMIRING_MONOID_COMPATIBILITY.md
-    └── CLINGO_USAGE.md          # Testing patterns
-```
-
-## Documentation
-
-- **[QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - Common command patterns and combinations
-- **[SEMIRING_MONOID_COMPATIBILITY.md](docs/SEMIRING_MONOID_COMPATIBILITY.md)** - Understanding semiring/monoid combinations
-- **[FRAMEWORK_BEST_PRACTICES.md](docs/FRAMEWORK_BEST_PRACTICES.md)** - Framework creation and validation guide
-- **[CLAUDE.md](CLAUDE.md)** - Comprehensive developer guide
-
-## More Examples
+Budgeted stable reasoning on the curated planning example:
 
 ```bash
-# Minimize max cost
-clingo -n 0 --opt-mode=opt WABA/core/base.lp WABA/semiring/godel.lp \
-       WABA/monoid/max_minimization.lp WABA/filter/standard.lp \
-       WABA/semantics/stable.lp <framework>.lp
-
-# Minimize total cost (1000x speedup with Tropical/Arctic)
-clingo -n 0 --opt-mode=opt WABA/core/base.lp WABA/semiring/tropical.lp \
-       WABA/monoid/sum_minimization.lp WABA/filter/standard.lp \
-       WABA/semantics/stable.lp <framework>.lp
-
-# Maximize total reward (1000x speedup with Tropical/Arctic)
-clingo -n 0 --opt-mode=opt WABA/core/base.lp WABA/semiring/tropical.lp \
-       WABA/monoid/sum_maximization.lp WABA/filter/standard.lp \
-       WABA/semantics/stable.lp <framework>.lp
-
-# Enumerate with cost display (works in enum mode too!)
-clingo -n 10 WABA/core/base.lp WABA/semiring/tropical.lp \
-       WABA/monoid/sum_minimization.lp WABA/filter/standard.lp \
-       WABA/semantics/stable.lp <framework>.lp
-
-# Probabilistic reasoning (Viterbi via Tropical + log transformation)
-clingo -n 0 WABA/core/base.lp WABA/semiring/tropical.lp WABA/monoid/min_minimization.lp \
-       WABA/constraint/lb.lp WABA/filter/standard.lp \
-       WABA/semantics/stable.lp WABA/examples/viterbi_simulation.lp
-
-# Lexicographic minimization (shows all cost components via priorities)
-clingo -n 0 WABA/core/base.lp WABA/semiring/godel.lp \
-       WABA/monoid/lex_minimization.lp WABA/filter/lexicographic.lp \
-       WABA/semantics/stable.lp <framework>.lp
+./bin/waba run \
+  --framework examples/practical_deliberation/practical_deliberation.lp \
+  --semiring arctic \
+  --semantics stable \
+  --objective count-min \
+  --budget-mode ub \
+  --beta 2 \
+  --show projection \
+  --opt-mode optN
 ```
 
-## Framework File Format
+Raw modular usage remains available:
 
-WABA frameworks use Answer Set Programming syntax:
-
-```prolog
-% Assumptions (defeasible atoms)
-assumption(a1).
-assumption(a2).
-
-% Weights
-weight(a1, 50).
-weight(a2, 30).
-
-% Rules (compact form recommended)
-head(r1, conclusion; r1, premise1; r1, premise2). % r1: conclusion <- premise1, premise2.
-
-% Contraries (attack relation)
-contrary(a1, element).  % "element attacks a1"
-
-% Budget
-budget(100).
+```bash
+clingo --warn=no-atom-undefined -n 0 -c beta=0 \
+  core/base.lp \
+  semiring/godel.lp \
+  constraint/no_discard.lp \
+  filter/projection.lp \
+  semantics/stable.lp \
+  examples/aspartix_test/simple_attack.lp
 ```
 
-## Output
+## Mathematical Split
 
-Expected output predicates:
-- `in(X)` - Selected assumptions in the extension
-- `supported_with_weight(X, W)` - Supported elements with their weights
-- `attacks_successfully_with_weight(X, Y, W)` - Successful attacks
-- `Optimization: N` - Cost/reward value (shown by weak constraints)
+- semiring modules define local support propagation
+- default-policy modules define the injected value for unweighted assumptions
+- monoid modules define the aggregate over `discarded_attack/3`
+- optimize modules decide whether that aggregate is minimized or maximized
+- constraint modules decide whether the aggregate must stay below or above `beta`
+- semantics modules decide which extensions survive once successful attacks are fixed
 
-## Historical Reference
+`preferred` is the one supported higher-order semantics that is not a single raw `.lp` file. The wrapper generates `complete` candidates and keeps only the subset-maximal ones with `semantics/subset_maximal_filter.lp`.
 
-**Previous Implementation:** The original aggregate-based WABA implementation (pre-December 2025) is preserved in the `WABA_Legacy/` directory for historical reference.
+## Public Reference
 
-**Key differences:**
-- **Legacy**: Aggregate-based `extension_cost/1` predicate, 1000x slower, supports enumeration of all models
-- **Current**: Direct weak constraint optimization, 1000x faster, **backward incompatible** (no `extension_cost/1`)
+- [examples/README.md](examples/README.md)
 
-⚠️ **Breaking change (Dec 2025):** The `extension_cost/1` predicate has been completely removed for efficiency. Old code using `extension_cost/1` will not work. Use weak constraint optimization values instead (shown as `Optimization: N`).
+## Git Usage
 
-## License
+The repository now treats the WABA public surface as:
 
-See LICENSE file for details.
+- `bin/waba`
+- `README.md`
+- `examples/README.md`
+- the mature runtime `.lp` files under `core/`, `defaults/`, `filter/`, `constraint/`, `monoid/`, `optimize/`, `semantics/`, and `semiring/`
+- the curated example `.lp` files under `examples/`
+- `WABA/.gitignore`
+
+Everything else in `WABA/` is considered private local material and is ignored by the WABA-local `.gitignore`.
+
+The tracked tree also uses the lowercase live paths:
+
+- `WABA/examples/`
+- `WABA/semantics/`
+
+From the `ABA-variants/` repo root:
+
+```bash
+git status --ignored --short WABA
+```
+
+Use that to see the public/private split.
+
+To stage only the public WABA surface:
+
+```bash
+printf '%s\n' WABA/.gitignore WABA/README.md WABA/examples/README.md WABA/bin/waba \
+  | git add --pathspec-from-file=-
+find WABA/core WABA/defaults WABA/filter WABA/constraint WABA/monoid WABA/optimize WABA/semantics WABA/semiring WABA/examples \
+  -type f -name '*.lp' -print | git add --pathspec-from-file=-
+```
+
+If an already tracked private file needs to be removed from git while kept locally, enforce the policy with:
+
+```bash
+git ls-files -ci --exclude-standard WABA | git rm --cached --pathspec-from-file=- --ignore-unmatch
+```
+
+After that, `git add WABA` is safe: ignored private files stay local, while the public wrapper and `.lp` surface remain stageable.

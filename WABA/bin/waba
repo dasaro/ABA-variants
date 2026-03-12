@@ -1,0 +1,451 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import re
+import shlex
+import subprocess
+import sys
+import tempfile
+from dataclasses import dataclass
+from pathlib import Path
+
+IN_PATTERN = re.compile(r"in\(([^)]+)\)")
+INCLUDE_PATTERN = re.compile(r'^#include\s+"([^"]+)"')
+WEIGHT_PATTERN = re.compile(r"^weight\s*\(\s*[^,]+,\s*([^)]+?)\s*\)\s*\.$")
+
+SUPPORTED_SEMANTICS = {"cf", "stable", "admissible", "complete", "grounded", "preferred"}
+ALL_SEMANTICS = sorted(SUPPORTED_SEMANTICS)
+
+SEMIRING_VARIANTS = {
+    "godel",
+    "godel_low",
+    "tropical",
+    "tropical_high",
+    "arctic",
+    "lukasiewicz",
+    "lukasiewicz_low",
+    "bottleneck_cost",
+}
+SEMIRING_FAMILIES = {
+    "godel": {"higher": "godel", "lower": "godel_low", "default": "higher"},
+    "tropical": {"higher": "tropical_high", "lower": "tropical", "default": "lower"},
+    "lukasiewicz": {"higher": "lukasiewicz", "lower": "lukasiewicz_low", "default": "higher"},
+}
+SHOW_FILTERS = {"projection": "projection.lp", "standard": "standard.lp"}
+DEFAULT_POLICIES = {
+    "legacy": "legacy.lp",
+    "aba": "aba.lp",
+    "neutral": "neutral.lp",
+}
+
+OBJECTIVES = {
+    "sum-min": {"family": "sum", "optimization": "minimize.lp"},
+    "sum-max": {"family": "sum", "optimization": "maximize.lp"},
+    "max-min": {"family": "max", "optimization": "minimize.lp"},
+    "max-max": {"family": "max", "optimization": "maximize.lp"},
+    "count-min": {"family": "count", "optimization": "minimize.lp"},
+    "count-max": {"family": "count", "optimization": "maximize.lp"},
+    "min-min": {"family": "min", "optimization": "minimize.lp"},
+    "min-max": {"family": "min", "optimization": "maximize.lp"},
+}
+CANONICAL_PRESETS = {("sum", "ub"), ("max", "ub"), ("count", "ub"), ("min", "lb")}
+
+DIRECT_SEMANTICS = {"cf", "stable", "admissible", "complete", "grounded"}
+POST_FILTER_SEMANTICS = {"preferred": "complete"}
+
+
+@dataclass(frozen=True)
+class Model:
+    text: str
+    extension: frozenset[str]
+    optimization_text: str | None
+    optimization_key: tuple[int, ...] | None
+
+
+def project_root() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
+def iter_framework_sources(path: Path) -> list[Path]:
+    pending = [path.resolve()]
+    seen: set[Path] = set()
+    ordered: list[Path] = []
+
+    while pending:
+        current = pending.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        ordered.append(current)
+
+        for raw_line in current.read_text().splitlines():
+            line = raw_line.split("%", 1)[0].strip()
+            if not line:
+                continue
+            match = INCLUDE_PATTERN.match(line)
+            if match is None:
+                continue
+            include_path = (current.parent / match.group(1)).resolve()
+            if include_path.exists():
+                pending.append(include_path)
+
+    return ordered
+
+
+def validate_authored_weights(framework: Path, semiring_module: str) -> None:
+    errors: list[str] = []
+    luk_bound = 100
+
+    for source in iter_framework_sources(framework):
+        for line_number, raw_line in enumerate(source.read_text().splitlines(), start=1):
+            line = raw_line.split("%", 1)[0].strip()
+            if not line:
+                continue
+            match = WEIGHT_PATTERN.match(line)
+            if match is None:
+                continue
+
+            value = match.group(1).strip()
+            if value in {"#inf", "#sup"}:
+                errors.append(
+                    f"{source}:{line_number}: explicit weight {value} is outside the normalized wrapper surface"
+                )
+                continue
+
+            if not re.fullmatch(r"-?\d+", value):
+                errors.append(
+                    f"{source}:{line_number}: explicit weight {value!r} must be a finite integer literal"
+                )
+                continue
+
+            numeric_value = int(value)
+            if numeric_value < 0:
+                errors.append(
+                    f"{source}:{line_number}: explicit weight {numeric_value} must be nonnegative"
+                )
+                continue
+
+            if semiring_module.startswith("lukasiewicz") and numeric_value > luk_bound:
+                errors.append(
+                    f"{source}:{line_number}: explicit weight {numeric_value} exceeds luk_k={luk_bound}"
+                )
+
+    if errors:
+        details = "\n".join(errors[:8])
+        raise SystemExit(
+            "the supported wrapper surface normalizes authored weights to finite nonnegative integers "
+            "(and [0, luk_k] for lukasiewicz); use raw clingo modules for non-normalized experiments\n"
+            + details
+        )
+
+
+def shell_join(parts: list[str]) -> str:
+    return shlex.join(parts)
+
+
+def parse_optimization(line: str) -> tuple[int, ...]:
+    _, values = line.split(":", 1)
+    return tuple(int(value) for value in values.strip().split())
+
+
+def parse_models(stdout: str) -> list[Model]:
+    lines = stdout.splitlines()
+    models: list[Model] = []
+    index = 0
+
+    while index < len(lines):
+        if not lines[index].startswith("Answer:"):
+            index += 1
+            continue
+
+        if index + 1 >= len(lines):
+            break
+
+        model_text = lines[index + 1].strip()
+        opt_text = None
+        opt_key = None
+        if index + 2 < len(lines) and lines[index + 2].startswith("Optimization:"):
+            opt_text = lines[index + 2].strip()
+            opt_key = parse_optimization(opt_text)
+            index += 1
+
+        models.append(
+            Model(
+                text=model_text,
+                extension=frozenset(IN_PATTERN.findall(model_text)),
+                optimization_text=opt_text,
+                optimization_key=opt_key,
+            )
+        )
+        index += 2
+
+    return models
+
+
+def dedupe_models(models: list[Model]) -> list[Model]:
+    seen: set[tuple[frozenset[str], tuple[int, ...] | None]] = set()
+    result: list[Model] = []
+    for model in models:
+        key = (model.extension, model.optimization_key)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(model)
+    return result
+
+
+def keep_optimal(models: list[Model]) -> list[Model]:
+    if not models:
+        return []
+    missing = [model for model in models if model.optimization_key is None]
+    if missing:
+        raise RuntimeError("missing optimization data for candidate models")
+    best = min(model.optimization_key for model in models if model.optimization_key is not None)
+    return [model for model in models if model.optimization_key == best]
+
+
+def print_filtered_models(models: list[Model], semantics: str, candidate_semantics: str, optimum: bool) -> int:
+    if not models:
+        print("UNSATISFIABLE")
+        return 0
+
+    print(f"% filtered {len(models)} {semantics} extension(s) from {candidate_semantics} candidates")
+    for index, model in enumerate(models, start=1):
+        print(f"Answer: {index}")
+        print(model.text)
+        if model.optimization_text is not None:
+            print(model.optimization_text)
+    print("OPTIMUM FOUND" if optimum else "SATISFIABLE")
+    print()
+    print(f"Models       : {len(models)}")
+    if optimum and models[0].optimization_text is not None:
+        print(f"Optimization : {' '.join(str(value) for value in models[0].optimization_key or ())}")
+    return 0
+
+
+def asp_keep_subset_maximal(models: list[Model]) -> list[Model]:
+    if not models:
+        return []
+
+    root = project_root()
+    atoms = sorted({atom for model in models for atom in model.extension})
+    atom_ids = {atom: index + 1 for index, atom in enumerate(atoms)}
+
+    with tempfile.NamedTemporaryFile("w", suffix=".lp", delete=False) as handle:
+        facts_path = Path(handle.name)
+        for index, model in enumerate(models, start=1):
+            handle.write(f"candidate({index}).\n")
+            for atom in sorted(model.extension):
+                handle.write(f"member({index},{atom_ids[atom]}).\n")
+
+    command = [
+        "clingo",
+        "--warn=no-atom-undefined",
+        "-n",
+        "0",
+        str(root / "semantics" / "subset_maximal_filter.lp"),
+        str(facts_path),
+    ]
+    try:
+        completed = subprocess.run(command, capture_output=True, text=True)
+    finally:
+        facts_path.unlink(missing_ok=True)
+
+    if completed.returncode not in {0, 10, 20, 30}:
+        raise RuntimeError(completed.stderr or completed.stdout or "subset-maximal ASP filter failed")
+
+    keep_ids = {int(match) for match in re.findall(r"keep\((\d+)\)", completed.stdout)}
+    kept = [model for index, model in enumerate(models, start=1) if index in keep_ids]
+    return dedupe_models(kept)
+
+
+def build_clingo_command(args: argparse.Namespace, semantic_name: str, opt_mode: str) -> list[str]:
+    root = project_root()
+    framework = Path(args.framework).expanduser().resolve()
+    command = [
+        "clingo",
+        "--warn=no-atom-undefined",
+        "-n",
+        "0",
+        "--opt-mode=" + opt_mode,
+        "-c",
+        f"beta={args._effective_beta}",
+        str(root / "core" / "base.lp"),
+        str(root / "semiring" / f"{args._semiring_module}.lp"),
+    ]
+
+    if args._default_policy_module is not None:
+        command.append(str(root / "defaults" / args._default_policy_module))
+
+    if args._monoid_module is not None:
+        command.append(str(root / "monoid" / args._monoid_module))
+    if args._optimize_module is not None:
+        command.append(str(root / "optimize" / args._optimize_module))
+
+    command.extend(
+        [
+            str(root / "constraint" / args._constraint_module),
+            str(root / "filter" / SHOW_FILTERS[args.show]),
+            str(root / "semantics" / f"{semantic_name}.lp"),
+            str(framework),
+        ]
+    )
+    return command
+
+
+def validate_args(args: argparse.Namespace) -> None:
+    if args.semiring_family is not None and args.semiring is not None:
+        raise SystemExit("use either --semiring or --semiring-family/--polarity, not both")
+    if args.polarity is not None and args.semiring_family is None:
+        raise SystemExit("--polarity requires --semiring-family")
+    if args.aba_recovery and (args.objective is not None or args.beta is not None or args.budget_mode != "none"):
+        raise SystemExit("--aba-recovery cannot be combined with --objective, --budget-mode, or --beta")
+
+    if args.semiring_family is not None:
+        family = SEMIRING_FAMILIES[args.semiring_family]
+        polarity = args.polarity or family["default"]
+        args._semiring_module = family[polarity]
+    else:
+        if args.semiring is None:
+            args.semiring = "godel"
+        if args.semiring not in SEMIRING_VARIANTS:
+            raise SystemExit(f"unknown semiring: {args.semiring}")
+        args._semiring_module = args.semiring
+
+    if args.default_policy is None:
+        args.default_policy = "neutral" if args.aba_recovery else "legacy"
+    args._default_policy_module = DEFAULT_POLICIES[args.default_policy]
+
+    if args.aba_recovery:
+        args._effective_beta = 0
+        args._constraint_module = "no_discard.lp"
+        args._monoid_module = None
+        args._optimize_module = None
+    elif args.budget_mode == "none":
+        if args.objective is not None:
+            raise SystemExit("objective requires --budget-mode ub or --budget-mode lb")
+        if args.beta is not None:
+            raise SystemExit("beta is only valid when a budget mode is enabled")
+        args._effective_beta = 0
+        args._constraint_module = "no_discard.lp"
+        args._monoid_module = None
+        args._optimize_module = None
+    else:
+        if args.objective is None:
+            raise SystemExit("budgeted runs require --objective")
+        if args.beta is None:
+            raise SystemExit("budgeted runs require --beta")
+        objective = OBJECTIVES[args.objective]
+        if (objective["family"], args.budget_mode) not in CANONICAL_PRESETS:
+            raise SystemExit(
+                "the supported wrapper surface only exposes sum/max/count with ub and min with lb; "
+                "use raw clingo modules for other pairings"
+            )
+        args._effective_beta = args.beta
+        args._constraint_module = f"{args.budget_mode}.lp"
+        args._monoid_module = f"{objective['family']}.lp"
+        args._optimize_module = objective["optimization"]
+
+    if args.semantics == "grounded" and args.opt_mode == "ignore":
+        raise SystemExit("grounded requires --opt-mode optN")
+
+
+def run_direct(args: argparse.Namespace) -> int:
+    opt_mode = args.opt_mode
+    if opt_mode is None:
+        opt_mode = "optN" if args.semantics == "grounded" else "ignore"
+
+    command = build_clingo_command(args, args.semantics, opt_mode)
+    print(shell_join(command), file=sys.stderr)
+    if args.print_command:
+        print(shell_join(command))
+        return 0
+
+    completed = subprocess.run(command)
+    return 0 if completed.returncode in {0, 10, 20, 30} else completed.returncode
+
+
+def run_post_filtered(args: argparse.Namespace) -> int:
+    candidate_semantics = POST_FILTER_SEMANTICS[args.semantics]
+    candidate_opt_mode = "enum" if args.objective is not None else "ignore"
+    command = build_clingo_command(args, candidate_semantics, candidate_opt_mode)
+    print(shell_join(command), file=sys.stderr)
+    print(
+        f"% post-filtering {candidate_semantics} candidates into {args.semantics}",
+        file=sys.stderr,
+    )
+    if args.print_command:
+        print(shell_join(command))
+        return 0
+
+    completed = subprocess.run(command, capture_output=True, text=True)
+    if completed.stderr:
+        filtered_stderr = "\n".join(
+            line
+            for line in completed.stderr.splitlines()
+            if "opt-mode=enum: No bound given, optimize statement ignored." not in line
+        )
+        if filtered_stderr:
+            print(filtered_stderr, file=sys.stderr, end="" if filtered_stderr.endswith("\n") else "\n")
+    if completed.returncode not in {0, 10, 20, 30}:
+        if completed.stdout:
+            print(completed.stdout, end="")
+        return completed.returncode
+
+    models = parse_models(completed.stdout)
+    models = asp_keep_subset_maximal(models)
+    optimum = False
+
+    if args.objective is not None and args.opt_mode == "optN":
+        models = keep_optimal(models)
+        optimum = True
+
+    return print_filtered_models(models, args.semantics, candidate_semantics, optimum)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="waba")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    run = subparsers.add_parser("run", help="run the supported WABA CLI")
+    run.add_argument("--framework", required=True, help="path to the framework file")
+    run.add_argument("--semiring", choices=sorted(SEMIRING_VARIANTS))
+    run.add_argument("--semiring-family", choices=sorted(SEMIRING_FAMILIES))
+    run.add_argument("--polarity", choices=["higher", "lower"])
+    run.add_argument("--default-policy", choices=sorted(DEFAULT_POLICIES))
+    run.add_argument(
+        "--aba-recovery",
+        action="store_true",
+        help="recover classical ABA with neutral defaults and no-discard constraint",
+    )
+    run.add_argument("--semantics", default="stable", choices=ALL_SEMANTICS)
+    run.add_argument("--objective", choices=sorted(OBJECTIVES))
+    run.add_argument("--budget-mode", default="none", choices=["none", "ub", "lb"])
+    run.add_argument("--beta", type=int)
+    run.add_argument("--show", default="projection", choices=sorted(SHOW_FILTERS))
+    run.add_argument("--opt-mode", choices=["ignore", "optN"])
+    run.add_argument("--print-command", action="store_true")
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+    if args.command != "run":
+        parser.error("unsupported command")
+
+    framework = Path(args.framework).expanduser().resolve()
+    if not framework.exists():
+        raise SystemExit(f"framework not found: {framework}")
+
+    validate_args(args)
+    validate_authored_weights(framework, args._semiring_module)
+
+    if args.semantics in POST_FILTER_SEMANTICS:
+        return run_post_filtered(args)
+    return run_direct(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
