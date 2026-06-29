@@ -111,22 +111,25 @@ rule_derivation_weight(R,X,W) :-
     triggered_by_in(R),  % Only triggered rules (prevents #sup from unsupported bodies)
     W = #min{ V,B : body(R,B), supported_with_weight(B,V) }.
 
-%% Handle rules with empty bodies (facts): Use #sup (multiplicative identity for min)
+%% Handle rules with empty bodies (facts): Use #sup (multiplicative identity for min).
 %% An empty body is an empty CONJUNCTION, so it must equal the multiplicative (⊗)
-%% identity = #sup. This makes the empty body TRANSPARENT in min (min(#sup,x)=x),
-%% so a fact used inside a longer rule body does not affect the chain weight, and a
-%% standalone fact is maximally certain (max(#sup,...)=#sup).
+%% identity = #sup. This makes the empty body TRANSPARENT in min (min(#sup,x)=x), so
+%% an UNWEIGHTED fact is maximally certain and does not affect a longer chain.
 %%
-%% (Earlier this used #inf, the ADDITIVE identity. But #inf is the min-ANNIHILATOR
-%% (min(#inf,x)=#inf), so any conclusion derived through a fact collapsed to #inf —
-%% the weakest weight — poisoning every conjunctive chain through a fact. The legacy
-%% monolithic core (#min over an empty body = #sup) was algebraically correct here.)
+%% Guarded by `not weight(X,_)`: an explicitly weighted fact (e.g. `risk(high) <- T`
+%% with weight(risk(high),7)) keeps its own weight. Without the guard, the ⊕ = max
+%% combine below would let #sup dominate the explicit weight (max(#sup,7)=#sup),
+%% silently discarding authored weights on facts.
+%%
+%% (Earlier this used #inf, the ADDITIVE identity and min-ANNIHILATOR (min(#inf,x)=#inf),
+%% which poisoned every conjunctive chain through a fact.)
 %%
 %% OPTIMIZED: Use not has_body(R) instead of not body(R,_), use rule(R)
 rule_derivation_weight(R,X,#sup) :-
     rule(R),
     head(R,X),
-    not has_body(R).
+    not has_body(R),
+    not weight(X,_).
 
 %% Step 2: Combine multiple derivations using disjunction (maximum)
 %% IMPORTANT: Use DISJUNCTION OPERATOR (⊕) to combine weights from different paths:

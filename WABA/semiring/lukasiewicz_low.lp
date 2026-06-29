@@ -59,7 +59,8 @@ rule_derivation_weight(R,X,W) :-
 rule_derivation_weight(R,X,0) :-
     head(R,X),
     supported(X),
-    not body(R,_).
+    not body(R,_),
+    not weight(X,_).  % weighted facts keep their explicit weight (override)
 
 finite_rule_derivation_weight(R,X,V) :-
     rule_derivation_weight(R,X,V),

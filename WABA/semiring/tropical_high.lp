@@ -126,7 +126,8 @@ rule_derivation_weight(R,X,W) :-
 rule_derivation_weight(R,X,0) :-
     head(R,X),
     supported(X),
-    not body(R,_).
+    not body(R,_),
+    not weight(X,_).  % weighted facts keep their explicit weight (override)
 
 %% Step 2: Combine multiple derivations using disjunction (maximum)
 %% The weight of X is the maximum across all its rule derivations

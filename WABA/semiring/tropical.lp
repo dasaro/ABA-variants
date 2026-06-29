@@ -125,7 +125,8 @@ rule_derivation_weight(R,X,W) :-
 rule_derivation_weight(R,X,0) :-
     head(R,X),
     supported(X),
-    not body(R,_).
+    not body(R,_),
+    not weight(X,_).  % weighted facts keep their explicit weight (override)
 
 %% Step 2: Combine multiple derivations using disjunction (minimum)
 %% IMPORTANT: Use DISJUNCTION OPERATOR (⊕) to combine weights from different paths:
