@@ -61,7 +61,7 @@ semiring_default_weight(neutral,0).
 %% the monoid should assign #sup as default (monoid/*.lp files handle this).
 
 %% Assumptions with explicit weights
-supported_with_weight(X,W) :- assumption(X), in(X), weight(X,W).
+supported_with_weight(X,W) :- assumption(X), in(X), weight(X,W), not head(_,X).
 
 %% Assumptions without explicit weights: Use multiplicative identity (0)
 %% For Arctic semiring, unweighted assumptions get 0 (neutral reward)
@@ -71,7 +71,7 @@ supported_with_weight(X,W) :- assumption(X), in(X), weight(X,W).
 %%
 %% NOTE: This is the MULTIPLICATIVE identity (neutral for conjunction).
 %% For "hard to discard" semantics, monoids assign #sup as default weight.
-supported_with_weight(X,W) :- assumption(X), in(X), not weight(X,_), default_assumption_weight(W).
+supported_with_weight(X,W) :- assumption(X), in(X), not weight(X,_), not head(_,X), default_assumption_weight(W).
 
 %% Step 1: Compute weight for each rule derivation using conjunction (addition)
 %% For rule R deriving X: sum weights of all body elements (accumulate rewards)
