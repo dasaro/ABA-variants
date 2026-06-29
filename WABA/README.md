@@ -104,6 +104,25 @@ The **monoid** aggregates the *discarded* attacks into the extension's cost, bou
 
 `beta = 0` (or `no_discard`) recovers classical ABA. **Weights as probabilities:** encode `w = round(-K ln p)` and run `tropical`; the propagated weight is then the surprisal of an atom's most-probable proof (decode `p = exp(-w/K)`) — see `examples/probabilistic/`.
 
+## Web Playground Sync
+
+The browser playground (<https://dasaro.github.io/waba-playground/>) runs the same
+`.lp` logic compiled into a single `waba-modules.js`. To keep that bundle from
+drifting, `bin/sync-playground.mjs` regenerates it from this canonical tree,
+**auto-discovering** the module set (semirings, monoids, semantics, examples) so
+there is no hand-maintained manifest to go stale:
+
+```bash
+node bin/sync-playground.mjs ../waba-playground/waba-modules.js
+# or point at any WABA tree:
+WABA_ROOT=/path/to/WABA node bin/sync-playground.mjs out/waba-modules.js
+```
+
+The emitted bundle matches the playground's expected schema. Note it only syncs
+the `.lp` bundle and its metadata — the playground's JS/UI must independently
+expose the same surface (families `godel`/`tropical`, monoids `sum`/`max`/`min`,
+no `count`/`lukasiewicz`).
+
 ## Public Reference
 
 - [examples/README.md](examples/README.md)

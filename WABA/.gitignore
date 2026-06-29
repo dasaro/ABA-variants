@@ -5,8 +5,9 @@
 !*/
 !/.gitignore
 
-# Public wrapper
+# Public wrapper + tooling
 !bin/waba
+!bin/sync-playground.mjs
 
 # Public README
 !/README.md
@@ -27,7 +28,6 @@
 !constraint/no_discard.lp
 !constraint/ub.lp
 !monoid/
-!monoid/count.lp
 !monoid/max.lp
 !monoid/min.lp
 !monoid/sum.lp
