@@ -95,8 +95,12 @@ rule_derivation_weight(R,X,W) :-
     S = #sum{ V,B : body(R,B), supported_with_weight(B,V) },
     W = #max{ 0; S - luk_k*(N-1) }.
 
-%% Handle rules with empty bodies (facts): Use 0 (additive identity)
-rule_derivation_weight(R,X,0) :-
+%% Handle rules with empty bodies (facts): Use luk_k (multiplicative identity K).
+%% An empty body is an empty conjunction; the n-ary t-norm max(0, S - K*(n-1)) at
+%% n=0 gives max(0, K) = K, so a fact is fully true and stays transparent inside a
+%% longer conjunction. (Was 0, the additive identity, which mis-weighted facts and
+%% contradicted the n-ary formula.)
+rule_derivation_weight(R,X,luk_k) :-
     head(R,X),
     supported(X),
     not body(R,_).
@@ -130,8 +134,8 @@ supported_with_weight(X,W) :-
     not assumption(X),
     not rule_derivation_weight(_,X,#sup),
     not weight(X,#sup),
-    S = #sum{ V : rule_derivation_weight(_,X,V) ;
-              V : weight(X,V) },
+    S = #sum{ V,R : rule_derivation_weight(R,X,V) ;
+              V,explicit : weight(X,V) },
     W = #min{ luk_k; S }.
 
 %% =====================================================
@@ -161,8 +165,8 @@ supported_with_weight(X,W) :-
     weight(X,_),
     not rule_derivation_weight(_,X,#sup),
     not weight(X,#sup),
-    S = #sum{ V : rule_derivation_weight(_,X,V) ;
-              V : weight(X,V) },
+    S = #sum{ V,R : rule_derivation_weight(R,X,V) ;
+              V,explicit : weight(X,V) },
     W = #min{ luk_k; S }.
 
 %% ================================================================
@@ -195,8 +199,8 @@ supported_with_weight(X,W) :-
     not weight(X,_),
     not rule_derivation_weight(_,X,#sup),
     finite_default_weight(D),
-    S = #sum{ V : rule_derivation_weight(_,X,V) ;
-              D : true },
+    S = #sum{ V,R : rule_derivation_weight(R,X,V) ;
+              D,default : true },
     W = #min{ luk_k; S }.
 
 %% ========================================================================

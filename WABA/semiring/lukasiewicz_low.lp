@@ -48,7 +48,10 @@ rule_derivation_weight(R,X,W) :-
     S = #sum{ V,B : body(R,B), supported_with_weight(B,V) },
     W = #min{ luk_k; S }.
 
-rule_derivation_weight(R,X,luk_k) :-
+%% Empty body = multiplicative identity of the conjunction min(K, sum), which is 0
+%% (min(K, 0+x)=x). Keeps a fact transparent in a longer body. (Was luk_k = K, the
+%% bounded-sum ANNIHILATOR min(K, K+x)=K, which poisoned every chain through a fact.)
+rule_derivation_weight(R,X,0) :-
     head(R,X),
     supported(X),
     not body(R,_).
