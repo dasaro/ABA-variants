@@ -114,20 +114,16 @@ rule_derivation_weight(R,X,W) :-
     triggered_by_in(R),  % Only triggered rules
     W = #max{ V,B : body(R,B), supported_with_weight(B,V) }.
 
-%% Handle rules with empty bodies (facts): Use #sup (additive identity for min)
-%% IMPORTANT: Use #sup (not #inf) to make empty-body derivations "invisible" in min
+%% Handle rules with empty bodies (facts): Use #inf (multiplicative identity for max)
+%% An empty body is an empty CONJUNCTION, so it must equal the multiplicative (⊗)
+%% identity = #inf. This keeps the empty body TRANSPARENT in max (max(#inf,x)=x), so a
+%% fact used inside a longer rule body does not affect the bottleneck of the chain.
 %%
-%% Rationale:
-%% - Facts derive conclusions without premises
-%% - In disjunction (min), we want explicit weights to dominate
-%% - min(#sup, explicit_weight) = explicit_weight ✓
-%% - If we used #inf: min(#inf, positive_weight) = #inf ✗ (always cheapest!)
-%%
-%% Algebraic justification:
-%% - #sup is the true additive identity for min: min(x, #sup) = x
-%% - Empty-body derivations contribute no information
-%% - Explicit weights take precedence
-rule_derivation_weight(R,X,#sup) :-
+%% (Earlier this used #sup, the ADDITIVE identity. But #sup is the max-ANNIHILATOR
+%% (max(#sup,x)=#sup), so any conclusion derived through a fact collapsed to #sup,
+%% poisoning every conjunctive chain through a fact. Classical ABA recovery is
+%% preserved via constraint/no_discard.lp.)
+rule_derivation_weight(R,X,#inf) :-
     head(R,X),
     supported(X),
     not body(R,_).

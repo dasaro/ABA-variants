@@ -115,20 +115,15 @@ rule_derivation_weight(R,X,W) :-
     not body_has_inf_weight(R),
     W = #sum{ V,B : body(R,B), supported_with_weight(B,V) }.
 
-%% Handle rules with empty bodies (facts): Use #inf (additive identity for max)
-%% IMPORTANT: Use #inf (not 0) to make empty-body derivations "invisible" in max
+%% Handle rules with empty bodies (facts): Use 0 (multiplicative identity for +)
+%% An empty body is an empty CONJUNCTION, so it must equal the multiplicative (⊗)
+%% identity = 0, keeping the empty body TRANSPARENT in + (0+x=x). Over the supported
+%% (nonnegative) weight surface a standalone fact then carries 0 reward.
 %%
-%% Rationale:
-%% - Facts derive conclusions without premises
-%% - In disjunction (max), we want explicit weights to dominate
-%% - max(#inf, explicit_weight) = explicit_weight ✓
-%% - If we used 0: max(0, negative_weight) = 0 ✗ (wrong!)
-%%
-%% Algebraic justification:
-%% - #inf is the true additive identity for max: max(x, #inf) = x
-%% - Empty-body derivations contribute no information
-%% - Explicit weights take precedence
-rule_derivation_weight(R,X,#inf) :-
+%% (Earlier this used #inf, the ADDITIVE identity, which is dropped/absorbed by the
+%% reward-accumulating + and corrupted conclusions derived through a fact. ABA
+%% recovery is preserved via constraint/no_discard.lp.)
+rule_derivation_weight(R,X,0) :-
     head(R,X),
     supported(X),
     not body(R,_).

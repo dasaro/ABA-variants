@@ -111,27 +111,19 @@ rule_derivation_weight(R,X,W) :-
     triggered_by_in(R),  % Only triggered rules (prevents #sup from unsupported bodies)
     W = #min{ V,B : body(R,B), supported_with_weight(B,V) }.
 
-%% Handle rules with empty bodies (facts): Use #inf (identity for max)
-%% SOLUTION: Use additive identity (#inf for max) instead of multiplicative identity (#sup for min)
+%% Handle rules with empty bodies (facts): Use #sup (multiplicative identity for min)
+%% An empty body is an empty CONJUNCTION, so it must equal the multiplicative (⊗)
+%% identity = #sup. This makes the empty body TRANSPARENT in min (min(#sup,x)=x),
+%% so a fact used inside a longer rule body does not affect the chain weight, and a
+%% standalone fact is maximally certain (max(#sup,...)=#sup).
 %%
-%% Traditional approach assigned #sup (multiplicative identity for min/conjunction):
-%%   rule_derivation_weight(R,X,#sup) :- ... not body(R,_).
-%%
-%% Problem: max(#sup, explicit_weight) = #sup dominates all explicit weights!
-%%   Example: weight(c1, 8) → max(#sup, 8) = #sup → explicit weight LOST
-%%
-%% Solution: Use #inf (additive identity for max/disjunction):
-%%   max(#inf, x) = x for any x > #inf
-%%   This makes empty-body derivations "invisible" in the max aggregate
-%%   Explicit weights are preserved: max(#inf, 8) = 8 ✓
-%%
-%% Algebraic justification:
-%%   - #inf is the true identity for max operation (a ⊕ #inf = a)
-%%   - Empty-body facts contribute no information to weight disjunction
-%%   - Explicit weights take precedence without special-case logic
+%% (Earlier this used #inf, the ADDITIVE identity. But #inf is the min-ANNIHILATOR
+%% (min(#inf,x)=#inf), so any conclusion derived through a fact collapsed to #inf —
+%% the weakest weight — poisoning every conjunctive chain through a fact. The legacy
+%% monolithic core (#min over an empty body = #sup) was algebraically correct here.)
 %%
 %% OPTIMIZED: Use not has_body(R) instead of not body(R,_), use rule(R)
-rule_derivation_weight(R,X,#inf) :-
+rule_derivation_weight(R,X,#sup) :-
     rule(R),
     head(R,X),
     not has_body(R).

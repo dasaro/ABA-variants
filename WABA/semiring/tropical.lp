@@ -113,26 +113,16 @@ rule_derivation_weight(R,X,W) :-
     not body_has_sup_weight(R),
     W = #sum{ V,B : body(R,B), supported_with_weight(B,V) }.
 
-%% Handle rules with empty bodies (facts): Use #sup (identity for min)
-%% SOLUTION: Use additive identity (#sup for min) instead of multiplicative identity (0 for +)
+%% Handle rules with empty bodies (facts): Use 0 (multiplicative identity for +)
+%% An empty body is an empty CONJUNCTION, so it must equal the multiplicative (⊗)
+%% identity = 0. This keeps the empty body TRANSPARENT in + (0+x=x), so a fact used
+%% inside a longer rule body contributes nothing to the accumulated cost.
 %%
-%% Traditional approach assigned 0 (multiplicative identity for +/conjunction):
-%%   rule_derivation_weight(R,X,0) :- ... not body(R,_).
-%%
-%% Problem: min(0, explicit_weight) = 0 dominates all explicit weights > 0!
-%%   Example: weight(c1, 8) → min(0, 8) = 0 → explicit weight LOST
-%%
-%% Solution: Use #sup (additive identity for min/disjunction):
-%%   min(#sup, x) = x for any x < #sup
-%%   This makes empty-body derivations "invisible" in the min aggregate
-%%   Explicit weights are preserved: min(#sup, 8) = 8 ✓
-%%
-%% Algebraic justification:
-%%   - #sup is the true identity for min operation (a ⊕ #sup = a)
-%%   - Empty-body facts contribute no information to weight disjunction
-%%   - Explicit weights take precedence without special-case logic
-%%
-rule_derivation_weight(R,X,#sup) :-
+%% (Earlier this used #sup, the ADDITIVE identity. But #sup is the +-ANNIHILATOR
+%% (x+#sup=#sup), so any conclusion derived through a fact collapsed to #sup,
+%% poisoning every conjunctive chain through a fact. Classical ABA recovery is
+%% preserved via constraint/no_discard.lp, which forbids discarding regardless of weight.)
+rule_derivation_weight(R,X,0) :-
     head(R,X),
     supported(X),
     not body(R,_).
