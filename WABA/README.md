@@ -16,7 +16,7 @@ WABA is a compact CLI-first `clingo` project with one supported logic surface.
 The tree is intentionally small:
 
 - `core/`: shared WABA attack and discard logic
-- `semiring/`: the six ordered-semiring variants plus the `arctic` and `bottleneck_cost` aliases
+- `semiring/`: the four clean algebras (`godel`, `tropical`, `arctic`, `bottleneck_cost`) plus `godel_low` / `tropical_high` as thin polarity-dual aliases
 - `defaults/`: `legacy`, `aba`, and `neutral` policies for unweighted assumptions
 - `monoid/` and `optimize/`: aggregate family and optimization direction
 - `constraint/`: generic `ub`, generic `lb`, and `no_discard`

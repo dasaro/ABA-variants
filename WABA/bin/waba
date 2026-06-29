@@ -17,20 +17,19 @@ WEIGHT_PATTERN = re.compile(r"^weight\s*\(\s*[^,]+,\s*([^)]+?)\s*\)\s*\.$")
 SUPPORTED_SEMANTICS = {"cf", "stable", "admissible", "complete", "grounded", "preferred"}
 ALL_SEMANTICS = sorted(SUPPORTED_SEMANTICS)
 
+# Four clean algebras + two polarity-dual aliases (godel_low->bottleneck_cost,
+# tropical_high->arctic), kept as thin #include shims under semiring/.
 SEMIRING_VARIANTS = {
-    "godel",
-    "godel_low",
-    "tropical",
-    "tropical_high",
-    "arctic",
-    "lukasiewicz",
-    "lukasiewicz_low",
-    "bottleneck_cost",
+    "godel",            # (max, min)  strength / fuzzy
+    "tropical",         # (min, +)    cost / shortest path
+    "arctic",           # (max, +)    strength / reward accumulation
+    "bottleneck_cost",  # (min, max)  cost / worst-case
+    "godel_low",        # alias -> bottleneck_cost
+    "tropical_high",    # alias -> arctic
 }
 SEMIRING_FAMILIES = {
-    "godel": {"higher": "godel", "lower": "godel_low", "default": "higher"},
-    "tropical": {"higher": "tropical_high", "lower": "tropical", "default": "lower"},
-    "lukasiewicz": {"higher": "lukasiewicz", "lower": "lukasiewicz_low", "default": "higher"},
+    "godel": {"higher": "godel", "lower": "bottleneck_cost", "default": "higher"},
+    "tropical": {"higher": "arctic", "lower": "tropical", "default": "lower"},
 }
 SHOW_FILTERS = {"projection": "projection.lp", "standard": "standard.lp"}
 DEFAULT_POLICIES = {
@@ -93,7 +92,6 @@ def iter_framework_sources(path: Path) -> list[Path]:
 
 def validate_authored_weights(framework: Path, semiring_module: str) -> None:
     errors: list[str] = []
-    luk_bound = 100
 
     for source in iter_framework_sources(framework):
         for line_number, raw_line in enumerate(source.read_text().splitlines(), start=1):
@@ -124,16 +122,11 @@ def validate_authored_weights(framework: Path, semiring_module: str) -> None:
                 )
                 continue
 
-            if semiring_module.startswith("lukasiewicz") and numeric_value > luk_bound:
-                errors.append(
-                    f"{source}:{line_number}: explicit weight {numeric_value} exceeds luk_k={luk_bound}"
-                )
-
     if errors:
         details = "\n".join(errors[:8])
         raise SystemExit(
-            "the supported wrapper surface normalizes authored weights to finite nonnegative integers "
-            "(and [0, luk_k] for lukasiewicz); use raw clingo modules for non-normalized experiments\n"
+            "the supported wrapper surface normalizes authored weights to finite nonnegative integers; "
+            "use raw clingo modules for non-normalized experiments\n"
             + details
         )
 
