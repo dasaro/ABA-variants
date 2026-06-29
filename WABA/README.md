@@ -80,6 +80,30 @@ clingo --warn=no-atom-undefined -n 0 -c beta=0 \
 
 `preferred` is the one supported higher-order semantics that is not a single raw `.lp` file. The wrapper generates `complete` candidates and keeps only the subset-maximal ones with `semantics/subset_maximal_filter.lp`.
 
+### Interpreting the choices
+
+Two axes generate the **four clean semirings** — how a rule body combines (`⊗` *idempotent*, "an argument is its worst link", vs. *additive*, "accumulate over the body") and the polarity (`⊕ = max` *strength* vs. `⊕ = min` *cost*):
+
+|                | strength (`⊕ = max`)     | cost (`⊕ = min`)               |
+|----------------|--------------------------|--------------------------------|
+| `⊗` idempotent | `godel` (max, min)       | `bottleneck_cost` (min, max)   |
+| `⊗` additive   | `arctic` (max, +)        | `tropical` (min, +)            |
+
+- **`godel`** — fuzzy confidence; an argument is as strong as its weakest premise (original WABA).
+- **`tropical`** — additive cost; an argument's cost is the sum of its steps and the cheapest proof wins (shortest path).
+- **`arctic`** — accumulated support; heavier/longer evidence chains win (longest path / reward).
+- **`bottleneck_cost`** — worst-case cost; an argument costs as much as its single worst step.
+
+(`godel_low` and `tropical_high` are polarity-dual aliases of `bottleneck_cost` and `arctic`.)
+
+The **monoid** aggregates the *discarded* attacks into the extension's cost, bounded by `beta`:
+
+- **`sum`** (`ub`) — total spending cap.
+- **`max`** (`ub`) — worst single concession: dismiss freely, but never an attack stronger than `beta`.
+- **`min`** (`lb`) — quality floor: every dismissed attack must be at least `beta`-strong.
+
+`beta = 0` (or `no_discard`) recovers classical ABA. **Weights as probabilities:** encode `w = round(-K ln p)` and run `tropical`; the propagated weight is then the surprisal of an atom's most-probable proof (decode `p = exp(-w/K)`) — see `examples/probabilistic/`.
+
 ## Public Reference
 
 - [examples/README.md](examples/README.md)

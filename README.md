@@ -10,3 +10,11 @@ In order to run WABA, you must load clingo with the `core` WABA module in the ma
 ```clingo -n 0 core.lp filter.lp Semantics/stable.lp Examples/medical.lp```
 
 where `filter.lp` makes clingo clean up the output via `#show` directives.
+
+## Web Playground
+
+A browser-based playground (Clingo compiled to WebAssembly) is available at
+**<https://dasaro.github.io/waba-playground/>** — it exposes the same
+semiring × monoid × budget × semantics surface as the `bin/waba` CLI.
+
+![WABA Playground](waba-playground-screenshot.png)
