@@ -10,7 +10,6 @@ WABA is a compact CLI-first `clingo` project with one supported logic surface.
 - supported budget presets:
   - `sum + ub`
   - `max + ub`
-  - `count + ub`
   - `min + lb`
 - raw modular `clingo` runs remain available for the same mature files
 
@@ -51,9 +50,9 @@ Budgeted stable reasoning on the curated planning example:
   --framework examples/practical_deliberation/practical_deliberation.lp \
   --semiring arctic \
   --semantics stable \
-  --objective count-min \
+  --objective sum-min \
   --budget-mode ub \
-  --beta 2 \
+  --beta 20 \
   --show projection \
   --opt-mode optN
 ```

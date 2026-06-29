@@ -44,12 +44,10 @@ OBJECTIVES = {
     "sum-max": {"family": "sum", "optimization": "maximize.lp"},
     "max-min": {"family": "max", "optimization": "minimize.lp"},
     "max-max": {"family": "max", "optimization": "maximize.lp"},
-    "count-min": {"family": "count", "optimization": "minimize.lp"},
-    "count-max": {"family": "count", "optimization": "maximize.lp"},
     "min-min": {"family": "min", "optimization": "minimize.lp"},
     "min-max": {"family": "min", "optimization": "maximize.lp"},
 }
-CANONICAL_PRESETS = {("sum", "ub"), ("max", "ub"), ("count", "ub"), ("min", "lb")}
+CANONICAL_PRESETS = {("sum", "ub"), ("max", "ub"), ("min", "lb")}
 
 DIRECT_SEMANTICS = {"cf", "stable", "admissible", "complete", "grounded"}
 POST_FILTER_SEMANTICS = {"preferred": "complete"}
@@ -339,7 +337,7 @@ def validate_args(args: argparse.Namespace) -> None:
         objective = OBJECTIVES[args.objective]
         if (objective["family"], args.budget_mode) not in CANONICAL_PRESETS:
             raise SystemExit(
-                "the supported wrapper surface only exposes sum/max/count with ub and min with lb; "
+                "the supported wrapper surface only exposes sum/max with ub and min with lb; "
                 "use raw clingo modules for other pairings"
             )
         args._effective_beta = args.beta

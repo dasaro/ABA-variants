@@ -3,11 +3,10 @@
 active_optimization(minimize).
 
 :- active_optimization(maximize).
-:- not active_monoid(sum), not active_monoid(max), not active_monoid(min), not active_monoid(count).
-:- 2 { active_monoid(sum); active_monoid(max); active_monoid(min); active_monoid(count) }.
+:- not active_monoid(sum), not active_monoid(max), not active_monoid(min).
+:- 2 { active_monoid(sum); active_monoid(max); active_monoid(min) }.
 
 #minimize { W,X,Y : active_monoid(sum), discarded_attack(X,Y,W) }.
-#minimize { 1,X,Y : active_monoid(count), discarded_attack(X,Y,_) }.
 
 :~ active_monoid(max), M = #max { W : discarded_attack(_,_,W) }, M = #sup. [1@2]
 :~ active_monoid(max), M = #max { W : discarded_attack(_,_,W) }, M = #inf. [0@1]

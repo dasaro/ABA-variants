@@ -6,7 +6,7 @@
 %% traffic is light on Sundays, gym opens at 7am, no rain expected, no meetings.
 %% These defaults generate action plans. Unexpected events (gym_closed,
 %% traffic_heavy, rain_detected, meeting_scheduled) defeat defaults, forcing
-%% belief revision. We minimize revision count (cognitive parsimony).
+%% belief revision. We minimize total revision cost (cognitive parsimony).
 %%
 %% WEIGHT INTERPRETATION:
 %% Weights represent cognitive revision cost (1-10, belief entrenchment).
@@ -16,25 +16,25 @@
 %% JUSTIFICATION: Belief strength accumulates (reward-based). Stronger defaults
 %% = higher cumulative value. Arctic is dual of Tropical (identity 0, not #sup).
 %%
-%% MONOID: Count
-%% JUSTIFICATION: Extension cost = number of revised defaults (cardinality).
-%% We count belief revisions regardless of individual weights.
+%% MONOID: Sum
+%% JUSTIFICATION: Extension cost = total revision cost (sum of the disruption
+%% weights of the overridden defaults). Heavier defaults cost more to revise.
 %%
 %% OPTIMIZATION: Minimize
-%% JUSTIFICATION: Minimize number of revisions (cognitive conservatism).
+%% JUSTIFICATION: Minimize total revision cost (cognitive conservatism).
 %%
-%% BUDGET β: Upper bound on number of revisions.
-%% β = 2 means "revise at most 2 defaults"
+%% BUDGET β: Upper bound on total revision cost.
+%% β = 20 means "spend at most 20 total on revisions"
 %%
 %% DISCARDED ATTACK INTERPRETATION:
 %% Overriding a disruption = maintaining the default despite contrary evidence
-%% (cost = 1 revision in count). We count how many defaults we must abandon.
+%% (cost = that disruption's weight). We sum the cost of the defaults we abandon.
 %%
 %% USAGE:
-%% clingo -n 0 --opt-mode=optN -c beta=2 \
+%% clingo -n 0 --opt-mode=optN -c beta=20 \
 %%   WABA/core/base.lp \
 %%   WABA/semiring/arctic.lp \
-%%   WABA/monoid/count.lp \
+%%   WABA/monoid/sum.lp \
 %%   WABA/optimize/minimize.lp \
 %%   WABA/constraint/ub.lp \
 %%   WABA/filter/standard.lp \
@@ -43,7 +43,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Budget parameter (override via -c beta=N)
-#const beta = 2.
+#const beta = 20.
 
 %% ============================================================================
 %% ASSUMPTIONS (Commonsense Defaults)
@@ -64,7 +64,7 @@ weight(assume_gym_open, 7).         % Moderately entrenched: Usually open
 weight(assume_weather_good, 6).     % Less entrenched: Weather variable
 weight(assume_no_meeting, 9).       % Very entrenched: Rarely meet Sundays
 
-%% Disruption weights (for Arctic accumulation, but Count monoid ignores these)
+%% Disruption weights (summed by the Sum monoid as total revision cost)
 weight(gym_closed, 7).
 weight(traffic_heavy, 8).
 weight(rain_detected, 6).
@@ -121,4 +121,4 @@ contrary(assume_no_meeting, meeting_scheduled).
 %% ============================================================================
 
 %% Budget constraint enforced by loading constraint/ub.lp
-%% (revision count ≤ β)
+%% (total revision cost ≤ β)

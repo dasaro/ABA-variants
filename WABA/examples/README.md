@@ -24,14 +24,14 @@ Framework: `examples/practical_deliberation/practical_deliberation.lp`
   --framework examples/practical_deliberation/practical_deliberation.lp \
   --semiring arctic \
   --semantics stable \
-  --objective count-min \
+  --objective sum-min \
   --budget-mode ub \
-  --beta 2 \
+  --beta 20 \
   --show projection \
   --opt-mode optN
 ```
 
-This is the supported `count + ub` preset with a rule-based framework.
+This is the supported `sum + ub` preset with a rule-based framework.
 
 ## 3. Rule-Based Semiring Example
 
