@@ -1,5 +1,14 @@
-%% Łukasiewicz Semiring for Weight Propagation - OPTIMIZED
-%% Semiring: ([0,K] ∪ {±∞}, ⊕_Ł, ⊗_Ł, 0, K)
+%% Łukasiewicz Weight Propagation (MV-algebra) - OPTIMIZED
+%%
+%% CAVEAT - NOT A SEMIRING: (⊕_Ł, ⊗_Ł) is an MV-algebra, not a semiring. The
+%% Łukasiewicz t-norm ⊗_Ł does NOT distribute over the bounded sum ⊕_Ł:
+%%   with K=100, a=b=c=60:  a⊗(b⊕c)=60  but  (a⊗b)⊕(a⊗c)=40.
+%% Consequence: unlike the genuine semirings (godel/tropical/arctic/bottleneck_cost),
+%% propagated weights here are NOT guaranteed independent of how derivations are
+%% bracketed/factored. Treat lukasiewicz weights as a heuristic truth-degree score,
+%% not as a provenance value with semiring path-independence guarantees.
+%%
+%% Structure: ([0,K] ∪ {±∞}, ⊕_Ł, ⊗_Ł, 0, K)
 %% - Domain: [0,K] ∪ {±∞} where K is the normalization constant (default K=100)
 %% - Disjunction/⊕_Ł (OR): bounded sum min(K, a + b)
 %% - Conjunction/⊗_Ł (AND): bounded sum max(0, a + b - K*(n-1))
