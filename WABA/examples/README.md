@@ -63,3 +63,21 @@ Framework: `examples/reference/aspforaba_journal_example.lp`
 ```
 
 This case is kept to compare the supported classical semantics against the read-only ASPforABA reference suite.
+
+## 5. Weights as Probabilities (tropical / Viterbi)
+
+Framework: `examples/probabilistic/probabilistic.lp`
+
+```bash
+./bin/waba run \
+  --framework examples/probabilistic/probabilistic.lp \
+  --semiring tropical \
+  --semantics stable \
+  --show standard
+```
+
+Weights are **surprisals** `w = round(-1000 * ln p)`; on the tropical semiring the
+propagated `supported_with_weight(X, w)` is the surprisal of `X`'s most-probable
+proof, so `p = exp(-w/1000)`. Here `grass_wet` decodes to `0.90` (most likely: it
+rained) and `slippery` to `0.45 = 0.90 * 0.50`. See the file header for the
+budgeted reading (the inconsistency budget becomes a joint-probability threshold).
