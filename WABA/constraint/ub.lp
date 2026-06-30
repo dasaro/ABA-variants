@@ -6,9 +6,7 @@ active_constraint(ub).
 :- not active_monoid(sum), not active_monoid(max), not active_monoid(min).
 :- 2 { active_monoid(sum); active_monoid(max); active_monoid(min) }.
 
-budget_value(C) :- active_monoid(sum), C = #sum{ W,X,Y : discarded_attack(X,Y,W) }.
-budget_value(C) :- active_monoid(max), C = #max{ W : discarded_attack(_,_,W) }.
-budget_value(C) :- active_monoid(min), C = #min{ W : discarded_attack(_,_,W) }.
+%% budget_value/1 is the active monoid's aggregate, defined once in monoid/<m>.lp.
 
 %% An empty discard set spends nothing, so it trivially respects any upper bound.
 %% Without this guard the min monoid breaks: #min{} over no discards = #sup, which
