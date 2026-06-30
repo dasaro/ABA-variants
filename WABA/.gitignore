@@ -41,6 +41,7 @@
 !semantics/grounded.lp
 !semantics/stable.lp
 !semantics/subset_maximal_filter.lp
+!semantics/subset_minimal_filter.lp
 !semiring/
 !semiring/arctic.lp
 !semiring/bottleneck_cost.lp
