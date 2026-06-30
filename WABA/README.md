@@ -94,6 +94,8 @@ Two axes generate the **four clean semirings** — how a rule body combines (`�
 - **`arctic`** — accumulated support; heavier/longer evidence chains win (longest path / reward).
 - **`bottleneck_cost`** — worst-case cost; an argument costs as much as its single worst step.
 
+Outside the 2×2 there is one further algebra, **`lukasiewicz`** (bounded sum, `a⊗b = max(0, a+b-k)`, `⊕ = max`, grid `{0..k}` via `#const k`): the only ⊗ that is neither `min`, `max`, nor `+`. Unlike Gödel's weakest-link, a chain of weak premises *erodes* certainty toward 0 — natural for stacking independent noisy evidence.
+
 (`godel_low` and `tropical_high` are polarity-dual aliases of `bottleneck_cost` and `arctic`.)
 
 The **monoid** aggregates the *discarded* attacks into the extension's cost, bounded by `beta`:

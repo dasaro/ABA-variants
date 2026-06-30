@@ -47,6 +47,7 @@
 !semiring/bottleneck_cost.lp
 !semiring/godel.lp
 !semiring/godel_low.lp
+!semiring/lukasiewicz.lp
 !semiring/tropical.lp
 !semiring/tropical_high.lp
 
