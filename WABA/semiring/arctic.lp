@@ -85,31 +85,33 @@ body_has_sup_weight(R) :- body(R,B), supported_with_weight(B,#sup).
 %% Helper: detect if any body element has #inf weight (infinitely negative)
 body_has_inf_weight(R) :- body(R,B), supported_with_weight(B,#inf).
 
-%% If any body has #sup, derivation weight is #sup (infinite reward propagates)
-rule_derivation_weight(R,X,#sup) :-
-    head(R,X),
-    supported(X),
-    body(R,_),
-    triggered_by_in(R),
-    body_has_sup_weight(R).
-
-%% If any body has #inf (and no #sup), derivation weight is #inf
+%% ANNIHILATOR FIRST: #inf (= -infinity) is the ⊗=+ annihilator (a + (-inf) = -inf),
+%% so it MUST win when a body mixes #inf and #sup. (Previously #sup took precedence,
+%% violating a ⊗ 0̄ = 0̄ for the arctic additive identity 0̄ = #inf.)
 rule_derivation_weight(R,X,#inf) :-
     head(R,X),
     supported(X),
     body(R,_),
     triggered_by_in(R),
-    not body_has_sup_weight(R),
     body_has_inf_weight(R).
 
-%% Otherwise, sum finite weights (standard case)
+%% No #inf, but some #sup: infinite reward propagates (a + (+inf) = +inf).
+rule_derivation_weight(R,X,#sup) :-
+    head(R,X),
+    supported(X),
+    body(R,_),
+    triggered_by_in(R),
+    not body_has_inf_weight(R),
+    body_has_sup_weight(R).
+
+%% Otherwise, sum finite weights (standard case; #sum is safe with no infinities)
 rule_derivation_weight(R,X,W) :-
     head(R,X),
     supported(X),
     body(R,_),
     triggered_by_in(R),
-    not body_has_sup_weight(R),
     not body_has_inf_weight(R),
+    not body_has_sup_weight(R),
     W = #sum{ V,B : body(R,B), supported_with_weight(B,V) }.
 
 %% Handle rules with empty bodies (facts): Use 0 (multiplicative identity for +)
@@ -149,12 +151,31 @@ undefeated_weight(X,W) :-
     default_assumption_weight(W).
 undefeated_weight(X,W) :- assumption(X), not defeated(X), weight(X,W), not head(_,X).
 
-%% Rule derivation with Arctic conjunction (addition)
+%% Rule derivation with Arctic conjunction (addition).
+%% Mirror the supported-weight infinity guards so #sum does not silently drop
+%% #sup/#inf undefeated weights; #inf (additive annihilator) takes precedence.
+undefeated_body_has_sup(R) :- body(R,B), undefeated_weight(B,#sup).
+undefeated_body_has_inf(R) :- body(R,B), undefeated_weight(B,#inf).
+undefeated_rule_weight(R,X,#inf) :-
+    head(R,X),
+    derived_from_undefeated(X),
+    body(R,_),
+    triggered_by_undefeated(R),
+    undefeated_body_has_inf(R).
+undefeated_rule_weight(R,X,#sup) :-
+    head(R,X),
+    derived_from_undefeated(X),
+    body(R,_),
+    triggered_by_undefeated(R),
+    not undefeated_body_has_inf(R),
+    undefeated_body_has_sup(R).
 undefeated_rule_weight(R,X,W) :-
     head(R,X),
     derived_from_undefeated(X),
     body(R,_),
     triggered_by_undefeated(R),
+    not undefeated_body_has_inf(R),
+    not undefeated_body_has_sup(R),
     W = #sum{ V,B : body(R,B), undefeated_weight(B,V) }.
 
 %% Disjunction (max)
