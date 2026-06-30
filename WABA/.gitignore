@@ -43,6 +43,9 @@
 !semantics/subset_maximal_filter.lp
 !semantics/subset_minimal_filter.lp
 !semiring/
+!semiring/_phase.lp
+!semiring/_idempotent.lp
+!semiring/_additive.lp
 !semiring/arctic.lp
 !semiring/bottleneck_cost.lp
 !semiring/godel.lp
