@@ -28,6 +28,18 @@ has_body(R) :- body(R,_).
 derived_atom(X) :- is_head(X), not assumption(X).
 
 %% ====================
+%% FLATNESS GUARD
+%% ====================
+%% WABA's weighted/budgeted semantics is defined for FLAT ABA frameworks: no
+%% assumption may be the head of a rule. (The weight of an assumption is then
+%% intrinsic, not extension-dependent; this matches the established ABA theory the
+%% semantics rest on, and weighted non-flat ABA has no settled semantics.)
+%% A non-flat assumption is flagged here and the framework is rejected outright,
+%% rather than silently producing ill-defined weights.
+non_flat_assumption(X) :- assumption(X), is_head(X).
+:- non_flat_assumption(_).
+
+%% ====================
 %% CORE LOGIC
 %% ====================
 

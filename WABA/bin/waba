@@ -131,6 +131,35 @@ def validate_authored_weights(framework: Path, semiring_module: str) -> None:
         )
 
 
+ASSUMPTION_PATTERN = re.compile(r"assumption\s*\(\s*([a-z_][A-Za-z0-9_]*)")
+HEAD_PATTERN = re.compile(r"head\s*\(\s*[a-z_][A-Za-z0-9_]*\s*,\s*([a-z_][A-Za-z0-9_]*)")
+
+
+def validate_flatness(framework: Path) -> None:
+    """Reject non-flat frameworks (an assumption that is also a rule head).
+
+    WABA's weighted/budgeted semantics is defined for flat ABA only; core/base.lp
+    also rejects these at the ASP level (UNSATISFIABLE). This gives a clear message.
+    """
+    assumptions: set[str] = set()
+    heads: set[str] = set()
+    for source in iter_framework_sources(framework):
+        for raw_line in source.read_text().splitlines():
+            line = raw_line.split("%", 1)[0]
+            assumptions.update(ASSUMPTION_PATTERN.findall(line))
+            heads.update(HEAD_PATTERN.findall(line))
+
+    non_flat = sorted(assumptions & heads)
+    if non_flat:
+        raise SystemExit(
+            "WABA's weighted/budgeted semantics is defined for FLAT ABA only: an "
+            "assumption must not be the head of a rule.\n"
+            "Non-flat assumption(s): " + ", ".join(non_flat) + "\n"
+            "Remove the offending rule head(s), or compose the raw clingo modules "
+            "directly for non-flat experiments."
+        )
+
+
 def shell_join(parts: list[str]) -> str:
     return shlex.join(parts)
 
@@ -431,6 +460,7 @@ def main() -> int:
         raise SystemExit(f"framework not found: {framework}")
 
     validate_args(args)
+    validate_flatness(framework)
     validate_authored_weights(framework, args._semiring_module)
 
     if args.semantics in POST_FILTER_SEMANTICS:

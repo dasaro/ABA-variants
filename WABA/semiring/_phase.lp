@@ -35,8 +35,11 @@ phase_selected(undefeated, X)  :- assumption(X), derived_from_undefeated(X).
 direct_weight(P, X, V) :- phase(P), weight(X, V), phase_active(P, X).
 direct_weight(P, X, V) :- phase(P), assumption(X), not weight(X, _), phase_selected(P, X), default_assumption_weight(V).
 
-%% ---- flat atoms (not a rule head): weight is just the direct weight -----------
-pweight(P, X, W) :- not is_head(X), direct_weight(P, X, W).
+%% ---- assumptions: weight is just the direct weight --------------------------
+%% WABA is restricted to flat ABA (see core/base.lp's flatness guard), so an
+%% assumption is never a rule head — its weight is intrinsic, with no rule-derived
+%% alternative to combine.
+pweight(P, X, W) :- assumption(X), direct_weight(P, X, W).
 
 %% ---- empty-body rule (fact) = empty conjunction = ⊗-identity 1̄ ---------------
 %% Guarded by `not weight(X,_)` so an explicitly weighted fact keeps its weight.
@@ -44,15 +47,15 @@ rule_deriv(P, R, X, I) :-
     phase_active(P, X), rule(R), head(R, X), not has_body(R), not weight(X, _),
     otimes_identity(I).
 
-%% ---- combine alternative derivations + direct weight via ⊕ (head atoms) ------
+%% ---- derived atoms: combine alternative derivations + explicit weight via ⊕ --
 %% clingo #max keeps #sup / drops #inf and #min keeps #inf / drops #sup, which is
 %% exactly the ⊕ identity (max-identity #inf, min-identity #sup), so no special
 %% infinity handling is needed for the combine itself.
 pweight(P, X, W) :-
-    oplus(max), is_head(X), phase_active(P, X),
+    oplus(max), derived_atom(X), phase_active(P, X),
     W = #max{ V,R : rule_deriv(P,R,X,V) ; V : direct_weight(P,X,V) }.
 pweight(P, X, W) :-
-    oplus(min), is_head(X), phase_active(P, X),
+    oplus(min), derived_atom(X), phase_active(P, X),
     W = #min{ V,R : rule_deriv(P,R,X,V) ; V : direct_weight(P,X,V) }.
 
 %% ---- expose the two phases under their conventional names --------------------
