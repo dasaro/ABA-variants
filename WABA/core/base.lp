@@ -69,6 +69,21 @@ attacks_with_weight(X,Y,W) :- supported_with_weight(X,W), assumption(Y), contrar
 attacks_successfully_with_weight(X,Y,W) :- attacks_with_weight(X,Y,W), not discarded_attack(X,Y,W).
 
 %% ====================
+%% DIAGNOSTIC (advisory — NOT a constraint; never rejects an answer set)
+%% ====================
+%% Flags an explicit weight/2 placed on a DERIVED atom (a rule head) whose propagated
+%% support weight ends up DIFFERENT from the declared one — i.e. the declared weight did
+%% not take effect. In WABA weights belong on the LEAVES (assumptions / facts) and derived
+%% atoms get their weight by PROPAGATION; an explicit weight on a derived atom is combined
+%% with its derivation via the semiring's ⊕, and is SILENTLY dominated in several algebras
+%% (Gödel/Bottleneck/Łukasiewicz drive it to the ⊗-identity #sup/#inf/k). This predicate is
+%% empty for a well-formed framework; the filter modules #show it so a modeller sees it.
+%% See README.md, "Where weights live (leaves vs derived atoms)".
+weight_on_derived_dominated(X, Declared, Effective) :-
+    weight(X, Declared), derived_atom(X),
+    supported_with_weight(X, Effective), Effective != Declared.
+
+%% ====================
 %% BUDGET CONSTRAINT
 %% ====================
 %% Budget Constraints

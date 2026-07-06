@@ -106,6 +106,24 @@ The **monoid** aggregates the *discarded* attacks into the extension's cost, bou
 
 `beta = 0` (or `no_discard`) recovers classical ABA. **Weights as probabilities:** encode `w = round(-K ln p)` and run `tropical`; the propagated weight is then the surprisal of an atom's most-probable proof (decode `p = exp(-w/K)`) — see `examples/probabilistic/`.
 
+### Where weights live (leaves vs derived atoms)
+
+WABA weights are intrinsic to the **leaves**: `weight/2` on an assumption (its own strength) or on a fact (an empty-body rule head). A **derived** atom gets its weight by *propagation* — the semiring combines its premises with `⊗` and alternative derivations with `⊕`. **Put the weights on the leaves and let them propagate**; that is the canonical model.
+
+An explicit `weight/2` on a *derived* atom is combined with its own derivation via `⊕`, so in most algebras it is **silently dominated** and never takes effect:
+
+|                  | `⊗`-identity | explicit weight `W` on a derived atom (from unweighted supports) |
+|------------------|--------------|-------------------------------------------------------------------|
+| `arctic`         | `0`          | **survives** — `max(W, 0) = W`                                    |
+| `tropical`       | `0`          | **survives** — `min(W, #sup) = W` (via the legacy `#sup` default) |
+| `godel`          | `#sup`       | dominated → `#sup`  (`max(W, #sup)`)                              |
+| `bottleneck_cost`| `#inf`       | dominated → `#inf`  (`min(W, #inf)`)                             |
+| `lukasiewicz`    | `k`          | dominated → `k`     (`max(W, k)`)                                |
+
+`core/base.lp` flags this as **`weight_on_derived_dominated(X, Declared, Effective)`** (the filter modules `#show` it; it is empty for a well-formed framework). A declared weight that did not take effect almost always means it belongs on a leaf instead. The "a weighted non-assumption atom" requirement is met cleanly by a **weighted fact** — `weight(f, W). head(r, f).` with an empty body — whose weight is intrinsic and always survives.
+
+**`tropical` is the one asymmetric algebra.** Its `⊗`-identity is `0`, but the *legacy* default weight for an unweighted assumption is `#sup` (the `⊕`-identity / `⊗`-annihilator), **not** `0`. So an unweighted assumption *annihilates* a `tropical` conjunction: `c_acc ← t_acc, objection` collapses to `#sup`. Route the objection through an intermediate instead (`objection ← t_acc`; `c_acc ← objection`) — which works because a *weighted* intermediate survives under `tropical`. There is **no free lunch**: the `#sup` default is exactly what makes weighted intermediates survive, while the `neutral` default (`0`) fixes the annihilation but then kills weighted intermediates — choose per model. The other four algebras use their `⊗`-identity as the default, so unweighted assumptions are transparent in a conjunction.
+
 ## Web Playground Sync
 
 The browser playground (<https://dasaro.github.io/waba-playground/>) runs the same
@@ -122,8 +140,8 @@ WABA_ROOT=/path/to/WABA node bin/sync-playground.mjs out/waba-modules.js
 
 The emitted bundle matches the playground's expected schema. Note it only syncs
 the `.lp` bundle and its metadata — the playground's JS/UI must independently
-expose the same surface (families `godel`/`tropical`, monoids `sum`/`max`/`min`,
-no `count`/`lukasiewicz`).
+expose the same surface (families `godel`/`tropical` plus standalone `lukasiewicz`,
+monoids `sum`/`max`/`min`, no `count`).
 
 ## Public Reference
 
