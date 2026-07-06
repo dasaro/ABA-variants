@@ -78,6 +78,8 @@ clingo --warn=no-atom-undefined -n 0 -c beta=0 \
 - constraint modules decide whether the aggregate must stay below or above `beta`
 - semantics modules decide which extensions survive once successful attacks are fixed
 
+**Two orthogonal knobs — semantics and budget.** The *budget* (monoid + `ub`/`lb`) resolves inconsistency by discarding attacks; it is only meaningful with `cf`/`stable`, which read the surviving attacks directly. The *defense* semantics — `admissible`, `complete`, `grounded`, `preferred` — are the **classical** ABA notions, computed over the attack graph and **weight-blind**: they take no budget and pin the discard set to empty (`semantics/admissible.lp`). So they are identical across all five semirings. To reason under a budget, use `cf`/`stable` with a monoid; for classical defense, use the defense family (the wrapper rejects a defense semantics combined with `--budget-mode ub/lb`).
+
 `preferred` is the one supported higher-order semantics that is not a single raw `.lp` file. The wrapper generates `complete` candidates and keeps only the subset-maximal ones with `semantics/subset_maximal_filter.lp`.
 
 ### Interpreting the choices
@@ -104,7 +106,7 @@ The **monoid** aggregates the *discarded* attacks into the extension's cost, bou
 - **`max`** (`ub`) — worst single concession: dismiss freely, but never an attack stronger than `beta`.
 - **`min`** (`lb`) — quality floor: every dismissed attack must be at least `beta`-strong.
 
-`beta = 0` (or `no_discard`) recovers classical ABA. **Weights as probabilities:** encode `w = round(-K ln p)` and run `tropical`; the propagated weight is then the surprisal of an atom's most-probable proof (decode `p = exp(-w/K)`) — see `examples/probabilistic/`.
+**`no_discard` recovers classical ABA exactly** — it forbids *every* discard, for any weight. Prefer it (or `--aba-recovery`) to `ub` with `beta = 0`: a budget of 0 is a genuine budget, and under the cost semirings the `⊗`-identity (`#inf`, the "negligible-cost" weight of an unweighted `legacy` attack or a fact-derived contrary) is free to drop at any budget by design. The `aba` default policy also makes unweighted attacks `#sup` (un-droppable), so it recovers ABA under a budget too. **Frameworks must be well-founded:** `core/base.lp` rejects derivation cycles (`p ← q`, `q ← p`) outright, since a cyclic derivation has no well-defined propagated weight — as with the flatness guard, the framework is refused rather than given ill-defined weights. **Weights as probabilities:** encode `w = round(-K ln p)` and run `tropical`; the propagated weight is then the surprisal of an atom's most-probable proof (decode `p = exp(-w/K)`) — see `examples/probabilistic/`.
 
 ### Where weights live (leaves vs derived atoms)
 

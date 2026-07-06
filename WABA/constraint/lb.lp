@@ -15,4 +15,8 @@ active_constraint(lb).
 %% passes a lower bound, so guarding only changes the otherwise-broken max+lb case.
 some_discard :- discarded_attack(_,_,_).
 :- budget_value(C), C < B, budget(B), some_discard.
+
+%% #sup weights are un-discardable at any budget (a maximal-cost / un-droppable attack).
 :- discarded_attack(_,_,#sup).
+
+%% For plain ABA (no discards at all) use constraint/no_discard.lp, not a budget here.

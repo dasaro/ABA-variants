@@ -40,6 +40,22 @@ non_flat_assumption(X) :- assumption(X), is_head(X).
 :- non_flat_assumption(_).
 
 %% ====================
+%% WELL-FOUNDEDNESS GUARD (acyclic derivations)
+%% ====================
+%% The semiring weight of a derived atom is ⊕ over its derivations, each ⊗ over a rule
+%% body — well-defined only when the rule-dependency graph is ACYCLIC. A derivation cycle
+%% (p <- q, q <- p) admits an unfounded second fixpoint in which the cyclic atom floats in
+%% at the ⊗-identity, yielding spurious weights (and, under the cost semirings, spurious
+%% free-discard extensions). Such frameworks are rejected outright, like non-flat ones,
+%% rather than silently producing ill-defined weights. (WABA is defined for well-founded
+%% flat frameworks; the curated/reference examples are all acyclic.)
+derivation_edge(H,B) :- head(R,H), body(R,B).
+derivation_reaches(X,Y) :- derivation_edge(X,Y).
+derivation_reaches(X,Z) :- derivation_edge(X,Y), derivation_reaches(Y,Z).
+derivation_cycle(X) :- derivation_reaches(X,X).
+:- derivation_cycle(_).
+
+%% ====================
 %% CORE LOGIC
 %% ====================
 

@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# Regression tests for the 2026-07 soundness fixes.
+#
+#   D1/D4  defense semantics are CLASSICAL (weight-blind, no budget) + pin no-discards
+#   D2     no_discard is the exact ABA-recovery knob (not ub with beta=0)
+#   D3     derivation cycles are rejected (well-foundedness guard)
+#   D5     Lukasiewicz aba default = #sup (bare-assumption attacks un-discardable)
+#
+# Usage:  bash test/regression.sh        (run from the WABA/ root or anywhere)
+# Exit code 0 = all pass, 1 = a failure.
+
+set -u
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CLINGO="${CLINGO:-clingo}"
+REF="$ROOT/examples/reference/aspforaba_journal_example.lp"
+WABA="python3 $ROOT/bin/waba"
+pass=0; fail=0
+tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+
+# compose(semiring policy constraint semantics framework [extra...]) -> runs clingo
+compose() {
+  local sem="$1" pol="$2" con="$3" semantics="$4" fw="$5"; shift 5
+  "$CLINGO" --warn=no-atom-undefined -n 0 "$@" \
+    "$ROOT/core/base.lp" "$ROOT/semiring/$sem.lp" "$ROOT/defaults/$pol.lp" \
+    "$ROOT/constraint/$con.lp" "$ROOT/filter/standard.lp" \
+    "$ROOT/semantics/$semantics.lp" "$fw" 2>&1
+}
+models() { grep -aoE 'Models[ ]*: [0-9]+' | grep -oE '[0-9]+' | head -1; }
+
+check() { # check "desc" expected actual
+  if [ "$2" = "$3" ]; then echo "  ok   $1"; pass=$((pass+1));
+  else echo "  FAIL $1 — expected [$2] got [$3]"; fail=$((fail+1)); fi
+}
+
+echo "== D1: classical defense reproduces the ABA reference =="
+check "stable = 2"     2 "$(compose godel aba no_discard stable     "$REF" | models)"
+check "admissible = 7" 7 "$(compose godel aba no_discard admissible "$REF" | models)"
+check "complete = 3"   3 "$(compose godel aba no_discard complete   "$REF" | models)"
+
+echo "== D1: admissible is weight-blind (identical across all 5 semirings) =="
+for s in godel tropical arctic bottleneck_cost lukasiewicz; do
+  check "admissible/$s = 7" 7 "$(compose $s aba no_discard admissible "$REF" | models)"
+done
+
+echo "== D1: admissible is budget-INVARIANT (an undefended attacker stays out at every beta) =="
+printf 'assumption(x). contrary(x,cx). assumption(p). weight(p,5). contrary(p,dp). head(r1,cx). body(r1,p).\n' > "$tmp/aff.lp"
+for b in 3 6 1000; do
+  n="$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=$b "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" "$ROOT/defaults/legacy.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/admissible.lp" "$tmp/aff.lp" 2>&1 | grep -c 'in(x)')"
+  check "in(x) never admissible at beta=$b" 0 "$n"
+done
+
+echo "== D4: defense semantics never discard (pinned no-discards) =="
+n="$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=1000 "$ROOT/core/base.lp" "$ROOT/semiring/tropical.lp" "$ROOT/defaults/legacy.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/admissible.lp" "$REF" 2>&1 | grep -c 'discarded_attack(')"
+check "no discarded_attack in any admissible model" 0 "$n"
+
+echo "== D1/restrict: bin/waba rejects defense + a budget mode =="
+out="$($WABA run --semantics admissible --budget-mode ub --objective sum-min --beta 100 --framework "$REF" 2>&1)"
+case "$out" in *"are classical and take no budget"*) echo "  ok   rejected with guidance"; pass=$((pass+1));; *) echo "  FAIL not rejected: $out"; fail=$((fail+1));; esac
+
+echo "== D2: no_discard is the exact ABA recovery (stable = 2) =="
+check "no_discard stable = 2" 2 "$(compose godel aba no_discard stable "$REF" | models)"
+
+echo "== D3: derivation cycles are rejected; acyclic frameworks are accepted =="
+printf 'budget(100). assumption(a). contrary(a,ca). assumption(b). contrary(b,cb).\nhead(r1,p). body(r1,q). head(r2,q). body(r2,p). head(r3,ca). body(r3,b).\n' > "$tmp/cyc.lp"
+printf 'budget(100). assumption(a). contrary(a,ca). assumption(b). contrary(b,cb).\nhead(r1,p). body(r1,a). head(r2,cb). body(r2,p).\n' > "$tmp/acyc.lp"
+cyc="$(compose godel aba no_discard stable "$tmp/cyc.lp" | grep -aoE 'UNSATISFIABLE|SATISFIABLE' | head -1)"
+acyc="$(compose godel aba no_discard stable "$tmp/acyc.lp" | grep -aoE 'UNSATISFIABLE|SATISFIABLE' | head -1)"
+check "cyclic framework rejected"   UNSATISFIABLE "$cyc"
+check "acyclic framework accepted"  SATISFIABLE   "$acyc"
+
+echo "== D5: Lukasiewicz bare-assumption attack is un-discardable under aba =="
+printf 'budget(100000). assumption(a). contrary(a,b). assumption(b). contrary(b,cb).\n' > "$tmp/luk.lp"
+n="$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=100000 "$ROOT/core/base.lp" "$ROOT/semiring/lukasiewicz.lp" "$ROOT/defaults/aba.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/stable.lp" "$tmp/luk.lp" 2>&1 | grep -c 'discarded_attack(b,a')"
+check "b->a never discarded at beta=100000" 0 "$n"
+
+echo
+echo "==== $pass passed, $fail failed ===="
+[ "$fail" -eq 0 ]

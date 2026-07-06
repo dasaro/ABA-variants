@@ -8,7 +8,6 @@ active_semiring(arctic).
 oplus(max).
 oplus_identity(#inf).
 otimes_identity(0).
-affordability_polarity(strength).
 
 semiring_default_weight(legacy,0).
 semiring_default_weight(aba,#sup).

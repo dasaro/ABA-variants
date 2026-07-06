@@ -12,10 +12,13 @@ active_semiring(lukasiewicz).
 oplus(max).
 oplus_identity(0).
 otimes_identity(k).
-affordability_polarity(strength).
 
 semiring_default_weight(legacy,k).
-semiring_default_weight(aba,k).
+%% aba default is #sup (un-discardable): an unweighted assumption then behaves as a
+%% plain ABA assumption whose attack survives any finite budget, so β=0 / no_discard
+%% recovers classical ABA at every k. (In luk's ⊗, a #sup premise saturates to the
+%% grid top k; see the luk_body_has_sup case below.)
+semiring_default_weight(aba,#sup).
 semiring_default_weight(neutral,k).
 
 #include "../defaults/base.lp".

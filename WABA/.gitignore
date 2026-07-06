@@ -54,6 +54,10 @@
 !semiring/tropical.lp
 !semiring/tropical_high.lp
 
+# Public regression tests
+!test/
+!test/regression.sh
+
 # Public curated example surface
 !examples/
 !examples/README.md

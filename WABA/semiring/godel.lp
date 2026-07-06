@@ -9,7 +9,6 @@ oplus(max).
 otimes(min).
 oplus_identity(#inf).
 otimes_identity(#sup).
-affordability_polarity(strength).
 
 semiring_default_weight(legacy,#sup).
 semiring_default_weight(aba,#sup).

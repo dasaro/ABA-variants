@@ -8,7 +8,6 @@ active_semiring(tropical).
 oplus(min).
 oplus_identity(#sup).
 otimes_identity(0).
-affordability_polarity(cost).
 
 semiring_default_weight(legacy,#sup).
 semiring_default_weight(aba,#sup).
