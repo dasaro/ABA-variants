@@ -17,8 +17,13 @@
 %% and includes a ⊗ skeleton (_idempotent.lp or _additive.lp) defining rule_deriv/4.
 
 %% ---- phase bridges -----------------------------------------------------------
+%% support    : weights over the in-set S           (always on)     -> supported_with_weight/2
+%% undefeated : weights over the not-defeated set    (budgeted_defense) -> undefeated_weight/2
+%% maximal    : weights over ALL assumptions in      (budgeted_full)    -> arg_weight/2
+%%              (the intrinsic strongest strength of an argument, used as a fixed attack cost)
 phase(support).
 phase(undefeated) :- budgeted_defense.
+phase(maximal)    :- budgeted_full.
 
 phase_active(support, X)    :- supported(X).
 phase_triggered(support, R) :- triggered_by_in(R).
@@ -29,6 +34,12 @@ phase_selected(support, X)  :- in(X).
 phase_active(undefeated, X)    :- budgeted_defense, derived_from_undefeated(X).
 phase_triggered(undefeated, R) :- budgeted_defense, triggered_by_undefeated(R).
 phase_selected(undefeated, X)  :- budgeted_defense, assumption(X), derived_from_undefeated(X).
+
+%% maximal phase — gated on budgeted_full; every assumption is selected, so arg_weight is
+%% the strength of an argument in the largest possible context (its intrinsic strongest form).
+phase_active(maximal, X)    :- budgeted_full, arg(X).
+phase_triggered(maximal, R) :- budgeted_full, arg_triggered(R).
+phase_selected(maximal, X)  :- budgeted_full, assumption(X).
 
 %% ---- direct (own) weight: explicit weight, else policy default ---------------
 %% Explicit weight is gated on phase_active (= in for flat assumptions, = supported
@@ -63,3 +74,4 @@ pweight(P, X, W) :-
 %% ---- expose the phases under their conventional names ------------------------
 supported_with_weight(X, W) :- pweight(support, X, W).
 undefeated_weight(X, W)     :- pweight(undefeated, X, W).
+arg_weight(X, W)            :- pweight(maximal, X, W).

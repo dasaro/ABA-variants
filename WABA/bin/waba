@@ -14,7 +14,11 @@ IN_PATTERN = re.compile(r"in\(([^)]+)\)")
 INCLUDE_PATTERN = re.compile(r'^#include\s+"([^"]+)"')
 WEIGHT_PATTERN = re.compile(r"^weight\s*\(\s*[^,]+,\s*([^)]+?)\s*\)\s*\.$")
 
-SUPPORTED_SEMANTICS = {"cf", "stable", "admissible", "complete", "grounded", "preferred"}
+SUPPORTED_SEMANTICS = {
+    "cf", "stable", "admissible", "complete", "grounded", "preferred",
+    # wABA budgeted-defence (Dunne Def 6 lift): weighted admissible/complete/preferred
+    "budgeted-admissible", "budgeted-complete", "budgeted-preferred",
+}
 ALL_SEMANTICS = sorted(SUPPORTED_SEMANTICS)
 
 # Four clean algebras + two polarity-dual aliases (godel_low->bottleneck_cost,
@@ -49,12 +53,19 @@ OBJECTIVES = {
 CANONICAL_PRESETS = {("sum", "ub"), ("max", "ub"), ("min", "lb")}
 
 DIRECT_SEMANTICS = {"cf", "stable", "admissible", "complete", "grounded"}
-POST_FILTER_SEMANTICS = {"preferred": "complete"}
+POST_FILTER_SEMANTICS = {"preferred": "complete", "budgeted-preferred": "budgeted-admissible"}
 
 # Defense semantics are CLASSICAL (weight-blind, no budget): the budget/discard knob is
 # only meaningful for cf/stable. See semantics/admissible.lp.
 DEFENSE_SEMANTICS = {"admissible", "complete", "grounded", "preferred"}
 BUDGETED_SEMANTICS = {"cf", "stable"}
+
+# wABA budgeted DEFENCE (Dunne et al. AIJ 2011, Def 6, lifted to structured ABA). These
+# take --beta directly (their own SUM inconsistency budget, self-contained in the module),
+# need a STRENGTH semiring, and compose with no_discard (they use their own `pay` set).
+BUDGETED_DEFENSE_SEMANTICS = {"budgeted-admissible", "budgeted-complete", "budgeted-preferred"}
+SEMANTIC_MODULE = {"budgeted-admissible": "admissible_dunne", "budgeted-complete": "complete_dunne"}
+STRENGTH_SEMIRINGS = {"godel", "arctic", "lukasiewicz", "tropical_high"}  # oplus = max
 
 
 @dataclass(frozen=True)
@@ -312,10 +323,14 @@ def build_clingo_command(args: argparse.Namespace, semantic_name: str, opt_mode:
         [
             str(root / "constraint" / args._constraint_module),
             str(root / "filter" / SHOW_FILTERS[args.show]),
-            str(root / "semantics" / f"{semantic_name}.lp"),
+            str(root / "semantics" / f"{SEMANTIC_MODULE.get(semantic_name, semantic_name)}.lp"),
             str(framework),
         ]
     )
+    # budgeted-defence: many discard sets realise the same extension, so project onto the
+    # shown atoms (in/out) to enumerate each beta-admissible set once.
+    if semantic_name in BUDGETED_DEFENSE_SEMANTICS:
+        command.insert(1, "--project")
     return command
 
 
@@ -342,7 +357,23 @@ def validate_args(args: argparse.Namespace) -> None:
         args.default_policy = "neutral" if args.aba_recovery else "legacy"
     args._default_policy_module = DEFAULT_POLICIES[args.default_policy]
 
-    if args.aba_recovery:
+    if args.semantics in BUDGETED_DEFENSE_SEMANTICS:
+        if args._semiring_module not in STRENGTH_SEMIRINGS:
+            raise SystemExit(
+                "budgeted-defence semantics need a STRENGTH semiring "
+                "(godel / arctic / lukasiewicz): a cost semiring inverts the inconsistency budget"
+            )
+        if args.objective is not None or args.budget_mode != "none":
+            raise SystemExit(
+                "budgeted-defence semantics take --beta directly (their own SUM inconsistency "
+                "budget); do not pass --objective or --budget-mode"
+            )
+        # self-contained budget in the module; compose with no_discard (base discards are pinned off)
+        args._effective_beta = args.beta if args.beta is not None else 0
+        args._constraint_module = "no_discard.lp"
+        args._monoid_module = None
+        args._optimize_module = None
+    elif args.aba_recovery:
         args._effective_beta = 0
         args._constraint_module = "no_discard.lp"
         args._monoid_module = None

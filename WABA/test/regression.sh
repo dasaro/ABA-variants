@@ -93,6 +93,30 @@ check "both t1,t2 admissible at beta=8" 1 "$(budadm 8 godel "$tmp/agg.lp" | grep
 printf 'assumption(t). contrary(t,obj).\nassumption(o). contrary(o,co). head(r1,obj). body(r1,o).\n' > "$tmp/sup.lp"
 check "un-counterable #sup objection never admits t (beta=1e6)" 0 "$(budadm 1000000 godel "$tmp/sup.lp" | grep -c 'in(t)')"
 
+echo "== wABA FULL DUNNE DEF 6 (shared internal+external budget) =="
+dun() { "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta="$1" "$ROOT/core/base.lp" "$ROOT/semiring/$2.lp" "$ROOT/defaults/aba.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/$3.lp" "$4" 2>&1; }
+# A1: beta=0 recovers classical admissible (7) / complete (3)
+for s in godel arctic lukasiewicz; do
+  check "dunne admissible beta=0 == classical (7) / $s" 7 "$(dun 0 $s admissible_dunne "$REF" | models)"
+done
+check "dunne complete beta=0 == classical (3)" 3 "$(dun 0 godel complete_dunne "$REF" | models)"
+# EXTERNAL defence: m attacked by g from an out-assumption e (strength 7) — admissible at beta>=7
+printf 'assumption(m). contrary(m,g).\nassumption(e). weight(e,7). contrary(e,ce). head(r1,g). body(r1,e).\n' > "$tmp/ext.lp"
+check "external threat: m NOT admissible at beta=6" no  "$(dun 6 godel admissible_dunne "$tmp/ext.lp" | grep -qa 'in(m)' && echo YES || echo no)"
+check "external threat: m admissible at beta=7"     YES "$(dun 7 godel admissible_dunne "$tmp/ext.lp" | grep -qa 'in(m)' && echo YES || echo no)"
+# INTERNAL repair: a,b mutually attack (strength 5 each) — {a,b} jointly admissible only at beta>=10
+printf 'assumption(a). weight(a,5). contrary(a,ca).\nassumption(b). weight(b,5). contrary(b,cb).\nhead(r1,ca). body(r1,b). head(r2,cb). body(r2,a).\n' > "$tmp/int.lp"
+check "internal repair: {a,b} NOT joint at beta=9" 0 "$(dun 9 godel admissible_dunne "$tmp/int.lp" | grep -acE 'in\(a\).*in\(b\)|in\(b\).*in\(a\)')"
+check "internal repair: {a,b} joint at beta=10"    1 "$(dun 10 godel admissible_dunne "$tmp/int.lp" | grep -acE 'in\(a\).*in\(b\)|in\(b\).*in\(a\)')"
+# cost semirings rejected
+check "dunne cost semiring rejected (tropical)" UNSATISFIABLE "$(dun 0 tropical admissible_dunne "$REF" | grep -aoE 'UNSATISFIABLE|SATISFIABLE' | head -1)"
+# bin/waba surface: budgeted-admissible deduped + guards
+check "bin/waba budgeted-admissible beta=0 = 7" 7 "$(python3 "$ROOT/bin/waba" run --semantics budgeted-admissible --semiring godel --default-policy aba --beta 0 --framework "$REF" 2>/dev/null | grep -cE '^Answer:')"
+case "$(python3 "$ROOT/bin/waba" run --semantics budgeted-admissible --semiring tropical --beta 10 --framework "$REF" 2>&1 | tail -1)" in
+  *"STRENGTH semiring"*) echo "  ok   bin/waba rejects cost semiring for budgeted-defence"; pass=$((pass+1));;
+  *) echo "  FAIL bin/waba did not reject cost semiring"; fail=$((fail+1));;
+esac
+
 echo
 echo "==== $pass passed, $fail failed ===="
 [ "$fail" -eq 0 ]

@@ -37,6 +37,8 @@
 !semantics/
 !semantics/admissible.lp
 !semantics/admissible_budgeted.lp
+!semantics/admissible_dunne.lp
+!semantics/complete_dunne.lp
 !semantics/cf.lp
 !semantics/complete.lp
 !semantics/grounded.lp
