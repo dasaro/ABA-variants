@@ -1,13 +1,15 @@
 %% ============================================================================
 %% _phase.lp — shared weight-propagation skeleton (algebra-agnostic part)
 %% ============================================================================
-%% Weight propagation over the selected (in) atoms as one parameterized
-%% computation pweight(Phase, X, W):
-%%   support : weights over the selected (in) atoms -> supported_with_weight/2
+%% Weight propagation as one parameterized computation pweight(Phase, X, W):
+%%   support    : weights over the selected (in) atoms       -> supported_with_weight/2
+%%   undefeated : weights over the NOT-DEFEATED atoms        -> undefeated_weight/2
 %%
-%% (Defense semantics — admissible/complete/grounded/preferred — are CLASSICAL and
-%% weight-blind: they use the not-defeated SET directly, so no weight phase is run
-%% for them. See semantics/admissible.lp.)
+%% The undefeated phase is INERT by default. The CLASSICAL defense semantics
+%% (semantics/admissible.lp) are weight-blind and do not need it. It is switched on
+%% only by a BUDGETED defense module (semantics/admissible_budgeted.lp), which declares
+%% `budgeted_defense` and defines derived_from_undefeated/1 + triggered_by_undefeated/1;
+%% then attack weights over the undefeated set are available for a budgeted discard.
 %%
 %% A concrete algebra is fixed by a thin shim that declares:
 %%   oplus(min|max)      -- ⊕ combine of alternative derivations
@@ -16,11 +18,17 @@
 
 %% ---- phase bridges -----------------------------------------------------------
 phase(support).
+phase(undefeated) :- budgeted_defense.
 
 phase_active(support, X)    :- supported(X).
 phase_triggered(support, R) :- triggered_by_in(R).
 %% "selected" = the assumption is committed in this phase (in).
 phase_selected(support, X)  :- in(X).
+
+%% undefeated phase — gated on budgeted_defense so it adds no grounding otherwise.
+phase_active(undefeated, X)    :- budgeted_defense, derived_from_undefeated(X).
+phase_triggered(undefeated, R) :- budgeted_defense, triggered_by_undefeated(R).
+phase_selected(undefeated, X)  :- budgeted_defense, assumption(X), derived_from_undefeated(X).
 
 %% ---- direct (own) weight: explicit weight, else policy default ---------------
 %% Explicit weight is gated on phase_active (= in for flat assumptions, = supported
@@ -52,5 +60,6 @@ pweight(P, X, W) :-
     oplus(min), derived_atom(X), phase_active(P, X),
     W = #min{ V,R : rule_deriv(P,R,X,V) ; V : direct_weight(P,X,V) }.
 
-%% ---- expose the support phase under its conventional name --------------------
+%% ---- expose the phases under their conventional names ------------------------
 supported_with_weight(X, W) :- pweight(support, X, W).
+undefeated_weight(X, W)     :- pweight(undefeated, X, W).

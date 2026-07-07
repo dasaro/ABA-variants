@@ -36,6 +36,7 @@
 !optimize/minimize.lp
 !semantics/
 !semantics/admissible.lp
+!semantics/admissible_budgeted.lp
 !semantics/cf.lp
 !semantics/complete.lp
 !semantics/grounded.lp
