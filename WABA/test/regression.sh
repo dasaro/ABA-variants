@@ -311,6 +311,34 @@ for a in godel tropical; do
   check "$a baseline wt(ca)=9 with one route" 9 "$(wca $a "$tmp/one_route.lp")"
 done
 
+echo "== N6: recovery is SUFFICIENT on singletons, not characteristic =="
+# b is attacked by a (weight 1) and by the unattacked assumption d (weight 50).
+# At beta=1 the weight-1 attack IS affordable, so the hypothesis of the singleton
+# corollary fails -- yet the extensions do not change, because d is in every
+# extension and its attack is never affordable. Pins the counterexample the paper
+# gives for why the converse does not hold.
+cat > "$tmp/redundant.lp" <<'FW'
+assumption(a). contrary(a, ca).
+assumption(b). contrary(b, cb).
+assumption(d). contrary(d, cd).
+head(p1, cheap). weight(cheap, 1).
+head(p2, dear).  weight(dear, 50).
+head(r1, cb). body(r1, a). body(r1, cheap).
+head(r2, cb). body(r2, d). body(r2, dear).
+FW
+nm() { "$CLINGO" --warn=no-atom-undefined -n 0 -c beta=$1 "$ROOT/core/base.lp" \
+        "$ROOT/semiring/godel.lp" "$ROOT/defaults/neutral.lp" "$ROOT/monoid/max.lp" \
+        "$ROOT/constraint/ub.lp" "$ROOT/filter/projection.lp" "$ROOT/semantics/stable.lp" \
+        "$tmp/redundant.lp" 2>&1 | models; }
+check "beta=0 (nothing affordable): 1 extension" 1 "$(nm 0)"
+check "beta=1 (a weight-1 attack IS affordable) still 1 extension" 1 "$(nm 1)"
+check "beta=2: still 1 extension" 1 "$(nm 2)"
+# and the sufficient direction: below the least attack weight, recovery holds exactly
+check "beta=0 matches the no_discard baseline" \
+  "$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=0 "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
+     "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/filter/projection.lp" \
+     "$ROOT/semantics/stable.lp" "$tmp/redundant.lp" 2>&1 | models)" "$(nm 0)"
+
 echo
 echo "==== $pass passed, $fail failed ===="
 [ "$fail" -eq 0 ]
