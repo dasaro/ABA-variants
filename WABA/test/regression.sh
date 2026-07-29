@@ -276,6 +276,41 @@ for a in godel arctic tropical bottleneck_cost; do
 done
 check "lukasiewicz x (min,>=) last-yes 0" 0 "$(lastyes lukasiewicz min lb)"
 
+echo "== N5: polarity must agree with the bound direction (semantic coherence) =="
+# Give an objection a SECOND, CHEAPER derivation, i.e. support it better.
+# Under a strength algebra (oplus = max) its propagated weight must be UNCHANGED.
+# Under a cost algebra (oplus = min) it DROPS, so against an upper bound the
+# better-supported objection has become easier to discard -- the perversity that
+# makes cost+ub (and, dually, strength+lb) semantically wrong even though both
+# compute perfectly well. If a strength algebra ever starts dropping here, the
+# polarity argument in the paper has broken.
+cat > "$tmp/one_route.lp" <<'FW'
+assumption(a). contrary(a, ca).
+assumption(b). contrary(b, cb).
+head(p1, cheap). weight(cheap, 2).
+head(p2, dear).  weight(dear, 9).
+head(r1, ca). body(r1, b). body(r1, dear).
+head(r3, cb). body(r3, a). body(r3, dear).
+FW
+cp "$tmp/one_route.lp" "$tmp/two_routes.lp"
+printf 'head(r2, ca). body(r2, b). body(r2, cheap).\n' >> "$tmp/two_routes.lp"
+wca() { # wca <semiring> <framework>
+  "$CLINGO" --warn=no-atom-undefined -n 0 -c beta=0 "$ROOT/core/base.lp" \
+    "$ROOT/semiring/$1.lp" "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" \
+    "$ROOT/semantics/cf.lp" "$2" 2>&1 \
+    | grep -aoE 'attacks_with_weight\(ca,a,[0-9]+\)' | sed 's/.*,//;s/)//' | sort -u | head -1
+}
+for a in godel arctic lukasiewicz; do
+  check "strength $a: extra cheap route leaves wt(ca)=9" 9 "$(wca $a "$tmp/two_routes.lp")"
+done
+for a in tropical bottleneck_cost; do
+  check "cost $a: extra cheap route drops wt(ca) 9 -> 2" 2 "$(wca $a "$tmp/two_routes.lp")"
+done
+# and the baseline both start from
+for a in godel tropical; do
+  check "$a baseline wt(ca)=9 with one route" 9 "$(wca $a "$tmp/one_route.lp")"
+done
+
 echo
 echo "==== $pass passed, $fail failed ===="
 [ "$fail" -eq 0 ]
