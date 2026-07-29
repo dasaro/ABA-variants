@@ -73,25 +73,42 @@ printf 'budget(100000). assumption(a). contrary(a,b). assumption(b). contrary(b,
 n="$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=100000 "$ROOT/core/base.lp" "$ROOT/semiring/lukasiewicz.lp" "$ROOT/defaults/aba.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/stable.lp" "$tmp/luk.lp" 2>&1 | grep -c 'discarded_attack(b,a')"
 check "b->a never discarded at beta=100000" 0 "$n"
 
-echo "== wABA BUDGETED ADMISSIBLE (structured inconsistency budget) =="
-budadm() { "$CLINGO" --warn=no-atom-undefined -n 0 -c beta="$1" "$ROOT/core/base.lp" "$ROOT/semiring/$2.lp" "$ROOT/defaults/aba.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/admissible_budgeted.lp" "$3" 2>&1; }
+echo "== wABA BUDGETED ADMISSIBLE (Dunne Def 6 lift, semantics/admissible_dunne.lp) =="
+# Ported from the retired semantics/admissible_budgeted.lp on 2026-07-29. Every expected
+# value was RE-MEASURED under admissible_dunne rather than carried over: the two encodings
+# are not equivalent (the retired one budgeted defence but never internal conflict), so the
+# properties survive but the numbers do not.
+dun() { "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta="$1" "$ROOT/core/base.lp" \
+          "$ROOT/semiring/$2.lp" "$ROOT/defaults/aba.lp" "$ROOT/filter/projection.lp" \
+          "$ROOT/semantics/admissible_dunne.lp" "$3" 2>&1; }
 # A1: beta=0 recovers classical admissible (7 on the reference), across the strength semirings
 for s in godel arctic lukasiewicz; do
-  check "beta=0 == classical admissible (7) / $s" 7 "$(budadm 0 $s "$REF" | models)"
+  check "beta=0 == classical admissible (7) / $s" 7 "$(dun 0 $s "$REF" | models)"
 done
 # beta grows => strictly more admissible sets (the budget does real work)
-check "reference beta=1000 > classical (budget admits undefended)" 11 "$(budadm 1000 godel "$REF" | models)"
-# polarity guard: cost semirings rejected
+check "reference beta=1000 > classical (16 vs 7)" 16 "$(dun 1000 godel "$REF" | models)"
+# polarity guard: cost semirings rejected (the known leak, pinned by N7)
 for s in tropical bottleneck_cost; do
-  check "cost semiring $s rejected (UNSAT)" UNSATISFIABLE "$(budadm 0 $s "$REF" | grep -aoE 'UNSATISFIABLE|SATISFIABLE' | head -1)"
+  check "cost semiring $s rejected (UNSAT)" UNSATISFIABLE \
+    "$(dun 0 $s "$REF" | grep -aoE 'UNSATISFIABLE|SATISFIABLE' | head -1)"
 done
-# A2 monoid-awareness: two strength-4 objections SUM to 8, so {t1,t2} admissible only at beta>=8
+# A2 monoid-awareness: two strength-4 objections SUM to 8, so {t1,t2} needs beta >= 8
 printf 'assumption(t1). contrary(t1,o1).\nassumption(t2). contrary(t2,o2).\nassumption(s1). weight(s1,4). contrary(s1,cs1). head(r1,o1). body(r1,s1).\nassumption(s2). weight(s2,4). contrary(s2,cs2). head(r2,o2). body(r2,s2).\n' > "$tmp/agg.lp"
-check "both t1,t2 NOT admissible at beta=6 (sum 8, not per-attack 4)" 0 "$(budadm 6 godel "$tmp/agg.lp" | grep -acE 'in\(t1\).*in\(t2\)|in\(t2\).*in\(t1\)')"
-check "both t1,t2 admissible at beta=8" 1 "$(budadm 8 godel "$tmp/agg.lp" | grep -acE 'in\(t1\).*in\(t2\)|in\(t2\).*in\(t1\)')"
+check "both t1,t2 NOT admissible at beta=6 (sum 8, not per-attack 4)" 0 \
+  "$(dun 6 godel "$tmp/agg.lp" | grep -acE 'in\(t1\).*in\(t2\)|in\(t2\).*in\(t1\)')"
+check "both t1,t2 admissible at beta=8" 4 \
+  "$(dun 8 godel "$tmp/agg.lp" | grep -acE 'in\(t1\).*in\(t2\)|in\(t2\).*in\(t1\)')"
 # A5 faithfulness: an un-counterable maximal (#sup) objection is never overrulable
 printf 'assumption(t). contrary(t,obj).\nassumption(o). contrary(o,co). head(r1,obj). body(r1,o).\n' > "$tmp/sup.lp"
-check "un-counterable #sup objection never admits t (beta=1e6)" 0 "$(budadm 1000000 godel "$tmp/sup.lp" | grep -c 'in(t)')"
+check "un-counterable #sup objection never admits t (beta=1e6)" 0 \
+  "$(dun 1000000 godel "$tmp/sup.lp" | grep -c 'in(t)')"
+# the retired encoding could never buy INTERNAL conflict repair; the Dunne lift can, which
+# is the substantive difference between them and the reason the port changes numbers.
+printf 'assumption(a). contrary(a,ca).\nassumption(b). contrary(b,cb).\nhead(w1,l1). weight(l1,5).\nhead(r1,ca). body(r1,b). body(r1,l1).\nhead(r2,cb). body(r2,a). body(r2,l1).\n' > "$tmp/internal.lp"
+check "mutual conflict NOT repairable at beta=5" 0 \
+  "$(dun 5 godel "$tmp/internal.lp" | grep -acE 'in\(a\).*in\(b\)|in\(b\).*in\(a\)')"
+check "mutual conflict repairable at beta=10 (5+5)" 1 \
+  "$(dun 10 godel "$tmp/internal.lp" | grep -acE 'in\(a\).*in\(b\)|in\(b\).*in\(a\)')"
 
 echo "== wABA FULL DUNNE DEF 6 (shared internal+external budget) =="
 dun() { "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta="$1" "$ROOT/core/base.lp" "$ROOT/semiring/$2.lp" "$ROOT/defaults/aba.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/$3.lp" "$4" 2>&1; }

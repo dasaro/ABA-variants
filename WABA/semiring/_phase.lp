@@ -2,25 +2,19 @@
 %% _phase.lp — shared weight-propagation skeleton (algebra-agnostic part)
 %% ============================================================================
 %% Weight propagation as one parameterized computation pweight(Phase, X, W):
-%%   support    : weights over the selected (in) atoms       -> supported_with_weight/2
-%%   undefeated : weights over the NOT-DEFEATED atoms        -> undefeated_weight/2
+%%   support : weights over the selected (in) atoms          -> supported_with_weight/2
+%%   maximal : weights over ALL assumptions                  -> arg_weight/2
 %%
-%% Both the undefeated and the maximal phases are INERT by default; the CLASSICAL defence
-%% semantics (semantics/admissible.lp) are weight-blind and need neither. There are TWO
-%% budgeted-defence encodings in the tree and they use DIFFERENT phases:
+%% The maximal phase is INERT by default: the CLASSICAL defence semantics
+%% (semantics/admissible.lp) are weight-blind and do not need it. It is switched on by
+%% semantics/admissible_dunne.lp, which declares `budgeted_full` and supplies arg/1 +
+%% arg_triggered/1; arg_weight is then each attacker's strength in the maximal argument
+%% context, used as a fixed (extension-independent) attack cost.
 %%
-%%   semantics/admissible_dunne.lp     declares `budgeted_full`    -> maximal phase
-%%                                     (arg_weight). This is the one bin/waba exposes as
-%%                                     --semantics budgeted-admissible, and the one the
-%%                                     paper describes.
-%%   semantics/admissible_budgeted.lp  declares `budgeted_defense` -> undefeated phase
-%%                                     (undefeated_weight). An earlier design, reachable
-%%                                     only by hand-composition. It is NOT equivalent:
-%%                                     the two disagree once beta exceeds the cheapest
-%%                                     objection.
-%%
-%% Each budgeted module defines its own derived_from_undefeated/1 + triggered_by_undefeated/1
-%% (or arg/1 + arg_triggered/1) so the skeleton stays algebra- and semantics-agnostic.
+%% A third phase, `undefeated`, existed for an earlier budgeted-defence encoding
+%% (semantics/admissible_budgeted.lp) that priced attacks over the not-defeated set.
+%% Both were retired on 2026-07-29: that design budgeted defence but never internal
+%% conflict, so it was not the Dunne Def 6 lift the paper defines.
 %%
 %% A concrete algebra is fixed by a thin shim that declares:
 %%   oplus(min|max)      -- ⊕ combine of alternative derivations
@@ -28,23 +22,16 @@
 %% and includes a ⊗ skeleton (_idempotent.lp or _additive.lp) defining rule_deriv/4.
 
 %% ---- phase bridges -----------------------------------------------------------
-%% support    : weights over the in-set S           (always on)     -> supported_with_weight/2
-%% undefeated : weights over the not-defeated set    (budgeted_defense) -> undefeated_weight/2
-%% maximal    : weights over ALL assumptions in      (budgeted_full)    -> arg_weight/2
+%% support : weights over the in-set S          (always on)      -> supported_with_weight/2
+%% maximal : weights over ALL assumptions       (budgeted_full)  -> arg_weight/2
 %%              (the intrinsic strongest strength of an argument, used as a fixed attack cost)
 phase(support).
-phase(undefeated) :- budgeted_defense.
-phase(maximal)    :- budgeted_full.
+phase(maximal) :- budgeted_full.
 
 phase_active(support, X)    :- supported(X).
 phase_triggered(support, R) :- triggered_by_in(R).
 %% "selected" = the assumption is committed in this phase (in).
 phase_selected(support, X)  :- in(X).
-
-%% undefeated phase — gated on budgeted_defense so it adds no grounding otherwise.
-phase_active(undefeated, X)    :- budgeted_defense, derived_from_undefeated(X).
-phase_triggered(undefeated, R) :- budgeted_defense, triggered_by_undefeated(R).
-phase_selected(undefeated, X)  :- budgeted_defense, assumption(X), derived_from_undefeated(X).
 
 %% maximal phase — gated on budgeted_full; every assumption is selected, so arg_weight is
 %% the strength of an argument in the largest possible context (its intrinsic strongest form).
@@ -84,5 +71,4 @@ pweight(P, X, W) :-
 
 %% ---- expose the phases under their conventional names ------------------------
 supported_with_weight(X, W) :- pweight(support, X, W).
-undefeated_weight(X, W)     :- pweight(undefeated, X, W).
 arg_weight(X, W)            :- pweight(maximal, X, W).
