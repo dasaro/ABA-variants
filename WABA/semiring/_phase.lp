@@ -7,7 +7,7 @@
 %%
 %% The maximal phase is INERT by default: the CLASSICAL defence semantics
 %% (semantics/admissible.lp) are weight-blind and do not need it. It is switched on by
-%% semantics/admissible_dunne.lp, which declares `budgeted_full` and supplies arg/1 +
+%% semantics/admissible.lp, which declares `budgeted_full` and supplies arg/1 +
 %% arg_triggered/1; arg_weight is then each attacker's strength in the maximal argument
 %% context, used as a fixed (extension-independent) attack cost.
 %%

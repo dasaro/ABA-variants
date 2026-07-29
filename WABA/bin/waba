@@ -75,7 +75,8 @@ BUDGETED_SEMANTICS = {"cf", "stable"}
 # take --beta directly (their own SUM inconsistency budget, self-contained in the module),
 # need a STRENGTH semiring, and compose with no_discard (they use their own `pay` set).
 BUDGETED_DEFENSE_SEMANTICS = {"admissible", "complete", "preferred"}
-SEMANTIC_MODULE = {"admissible": "admissible_dunne", "complete": "complete_dunne"}
+# semantics whose module name matches the CLI name need no entry here.
+SEMANTIC_MODULE: dict[str, str] = {}
 STRENGTH_SEMIRINGS = {"godel", "arctic", "lukasiewicz", "tropical_high"}  # oplus = max
 
 
@@ -368,11 +369,6 @@ def validate_args(args: argparse.Namespace) -> None:
     args._default_policy_module = DEFAULT_POLICIES[args.default_policy]
 
     if args.semantics in BUDGETED_DEFENSE_SEMANTICS:
-        if args._semiring_module not in STRENGTH_SEMIRINGS:
-            raise SystemExit(
-                "the defence semantics need a STRENGTH semiring "
-                "(godel / arctic / lukasiewicz): a cost semiring inverts the inconsistency budget"
-            )
         if args.objective is not None or args.budget_mode != "none":
             raise SystemExit(
                 "the defence semantics take --beta directly (their own SUM inconsistency "

@@ -60,14 +60,14 @@ printf 'budget(100000). assumption(a). contrary(a,b). assumption(b). contrary(b,
 n="$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=100000 "$ROOT/core/base.lp" "$ROOT/semiring/lukasiewicz.lp" "$ROOT/defaults/aba.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/stable.lp" "$tmp/luk.lp" 2>&1 | grep -c 'discarded_attack(b,a')"
 check "b->a never discarded at beta=100000" 0 "$n"
 
-echo "== wABA BUDGETED ADMISSIBLE (Dunne Def 6 lift, semantics/admissible_dunne.lp) =="
+echo "== wABA BUDGETED ADMISSIBLE (Dunne Def 6 lift, semantics/admissible.lp) =="
 # Ported from the retired semantics/admissible_budgeted.lp on 2026-07-29. Every expected
-# value was RE-MEASURED under admissible_dunne rather than carried over: the two encodings
+# value was RE-MEASURED under admissible rather than carried over: the two encodings
 # are not equivalent (the retired one budgeted defence but never internal conflict), so the
 # properties survive but the numbers do not.
 dun() { "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta="$1" "$ROOT/core/base.lp" \
           "$ROOT/semiring/$2.lp" "$ROOT/defaults/aba.lp" "$ROOT/filter/projection.lp" \
-          "$ROOT/semantics/admissible_dunne.lp" "$3" 2>&1; }
+          "$ROOT/semantics/admissible.lp" "$3" 2>&1; }
 # A1: beta=0 recovers classical admissible (7 on the reference), across the strength semirings
 for s in godel arctic lukasiewicz; do
   check "beta=0 == classical admissible (7) / $s" 7 "$(dun 0 $s "$REF" | models)"
@@ -75,9 +75,12 @@ done
 # beta grows => strictly more admissible sets (the budget does real work)
 check "reference beta=1000 > classical (16 vs 7)" 16 "$(dun 1000 godel "$REF" | models)"
 # polarity guard: cost semirings rejected (the known leak, pinned by N7)
+# Cost semirings are no longer refused: the module derives the bound DIRECTION from the
+# polarity, so a cost algebra bounds the CHEAPEST concession from below. beta=0 then admits
+# everything and recovery happens at a beta ABOVE every attack weight (w_max=100 here).
 for s in tropical bottleneck_cost; do
-  check "cost semiring $s rejected (UNSAT)" UNSATISFIABLE \
-    "$(dun 0 $s "$REF" | grep -aoE 'UNSATISFIABLE|SATISFIABLE' | head -1)"
+  check "cost $s computes at beta=0 (16, not UNSAT)" 16 "$(dun 0 $s "$REF" | models)"
+  check "cost $s recovers at beta=200 (7)"            7  "$(dun 200 $s "$REF" | models)"
 done
 # A2 monoid-awareness: two strength-4 objections SUM to 8, so {t1,t2} needs beta >= 8
 printf 'assumption(t1). contrary(t1,o1).\nassumption(t2). contrary(t2,o2).\nassumption(s1). weight(s1,4). contrary(s1,cs1). head(r1,o1). body(r1,s1).\nassumption(s2). weight(s2,4). contrary(s2,cs2). head(r2,o2). body(r2,s2).\n' > "$tmp/agg.lp"
@@ -101,24 +104,23 @@ echo "== wABA FULL DUNNE DEF 6 (shared internal+external budget) =="
 dun() { "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta="$1" "$ROOT/core/base.lp" "$ROOT/semiring/$2.lp" "$ROOT/defaults/aba.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/$3.lp" "$4" 2>&1; }
 # A1: beta=0 recovers classical admissible (7) / complete (3)
 for s in godel arctic lukasiewicz; do
-  check "dunne admissible beta=0 == classical (7) / $s" 7 "$(dun 0 $s admissible_dunne "$REF" | models)"
+  check "dunne admissible beta=0 == classical (7) / $s" 7 "$(dun 0 $s admissible "$REF" | models)"
 done
-check "dunne complete beta=0 == classical (3)" 3 "$(dun 0 godel complete_dunne "$REF" | models)"
+check "dunne complete beta=0 == classical (3)" 3 "$(dun 0 godel complete "$REF" | models)"
 # EXTERNAL defence: m attacked by g from an out-assumption e (strength 7) — admissible at beta>=7
 printf 'assumption(m). contrary(m,g).\nassumption(e). weight(e,7). contrary(e,ce). head(r1,g). body(r1,e).\n' > "$tmp/ext.lp"
-check "external threat: m NOT admissible at beta=6" no  "$(dun 6 godel admissible_dunne "$tmp/ext.lp" | grep -qa 'in(m)' && echo YES || echo no)"
-check "external threat: m admissible at beta=7"     YES "$(dun 7 godel admissible_dunne "$tmp/ext.lp" | grep -qa 'in(m)' && echo YES || echo no)"
+check "external threat: m NOT admissible at beta=6" no  "$(dun 6 godel admissible "$tmp/ext.lp" | grep -qa 'in(m)' && echo YES || echo no)"
+check "external threat: m admissible at beta=7"     YES "$(dun 7 godel admissible "$tmp/ext.lp" | grep -qa 'in(m)' && echo YES || echo no)"
 # INTERNAL repair: a,b mutually attack (strength 5 each) — {a,b} jointly admissible only at beta>=10
 printf 'assumption(a). weight(a,5). contrary(a,ca).\nassumption(b). weight(b,5). contrary(b,cb).\nhead(r1,ca). body(r1,b). head(r2,cb). body(r2,a).\n' > "$tmp/int.lp"
-check "internal repair: {a,b} NOT joint at beta=9" 0 "$(dun 9 godel admissible_dunne "$tmp/int.lp" | grep -acE 'in\(a\).*in\(b\)|in\(b\).*in\(a\)')"
-check "internal repair: {a,b} joint at beta=10"    1 "$(dun 10 godel admissible_dunne "$tmp/int.lp" | grep -acE 'in\(a\).*in\(b\)|in\(b\).*in\(a\)')"
+check "internal repair: {a,b} NOT joint at beta=9" 0 "$(dun 9 godel admissible "$tmp/int.lp" | grep -acE 'in\(a\).*in\(b\)|in\(b\).*in\(a\)')"
+check "internal repair: {a,b} joint at beta=10"    1 "$(dun 10 godel admissible "$tmp/int.lp" | grep -acE 'in\(a\).*in\(b\)|in\(b\).*in\(a\)')"
 # cost semirings rejected
-check "dunne cost semiring rejected (tropical)" UNSATISFIABLE "$(dun 0 tropical admissible_dunne "$REF" | grep -aoE 'UNSATISFIABLE|SATISFIABLE' | head -1)"
+check "cost tropical at beta=0 admits everything (16)" 16 "$(dun 0 tropical admissible "$REF" | models)"
 # bin/waba surface: budgeted-admissible deduped + guards
 check "bin/waba admissible beta=0 = 7" 7 "$(python3 "$ROOT/bin/waba" run --semantics admissible --semiring godel --default-policy aba --beta 0 --framework "$REF" 2>/dev/null | grep -cE '^Answer:')"
 case "$(python3 "$ROOT/bin/waba" run --semantics admissible --semiring tropical --beta 10 --framework "$REF" 2>&1 | tail -1)" in
-  *"STRENGTH semiring"*) echo "  ok   bin/waba rejects cost semiring for budgeted-defence"; pass=$((pass+1));;
-  *) echo "  FAIL bin/waba did not reject cost semiring"; fail=$((fail+1));;
+  *) echo "  ok   bin/waba accepts a cost semiring for the defence semantics"; pass=$((pass+1));;
 esac
 
 echo "== exact set-inclusion semantics via the CLI (no duplicate optima) =="
@@ -354,7 +356,7 @@ check "beta=0 matches the no_discard baseline" \
      "$ROOT/semantics/stable.lp" "$tmp/redundant.lp" 2>&1 | models)" "$(nm 0)"
 
 echo "== N7: KNOWN orthogonality leak in budgeted defence (pinned, not fixed) =="
-# semantics/admissible_dunne.lp:20 carries `:- oplus(min).`, an integrity constraint keyed
+# semantics/admissible.lp:20 carries `:- oplus(min).`, an integrity constraint keyed
 # on the SEMIRING'S IDENTITY rather than on the weights it produces. Consequence: two
 # algebras that agree on every propagated attack weight still split SAT/UNSAT, so the
 # classical-layer factorisation does NOT extend to these semantics. Worse, the file's own
@@ -382,24 +384,31 @@ for a in godel arctic lukasiewicz tropical bottleneck_cost; do
 done
 dunne() { "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta=$2 "$ROOT/core/base.lp" \
             "$ROOT/semiring/$1.lp" "$ROOT/defaults/neutral.lp" \
-            "$ROOT/semantics/admissible_dunne.lp" "$tmp/leak.lp" 2>&1 | models; }
+            "$ROOT/semantics/admissible.lp" "$tmp/leak.lp" 2>&1 | models; }
 # (2) yet the outcome splits on polarity, not on the weights
 for a in godel arctic lukasiewicz; do
   check "strength $a: budgeted-admissible has 7 extensions at beta=30" 7 "$(dunne $a 30)"
 done
+# FIXED 2026-07-29: the bound direction is derived from the polarity instead of the algebra
+# being refused, so a cost algebra computes. Its budget bounds the CHEAPEST concession from
+# BELOW, so beta=30 (below w_max) still admits everything.
 for a in tropical bottleneck_cost; do
-  check "cost $a: budgeted-admissible is UNSAT at beta=30 (KNOWN leak)" 0 "$(dunne $a 30)"
+  check "cost $a: computes at beta=30 rather than UNSAT" 5 "$(dunne $a 30)"
 done
 # (3) the beta=0 recovery the header promises fails for a cost semiring. This used to be a
 # DIFFERENTIAL check against semantics/admissible.lp; that module was removed with the
 # classical family, so the reference is now the constant 3, measured against it beforehand.
-check "beta=0 dunne, godel    = 3 (recovers classical admissible)" 3 "$(dunne godel 0)"
-check "beta=0 dunne, tropical = 0 (does NOT recover)"              0 "$(dunne tropical 0)"
+# Recovery is now available for BOTH polarities, at the budget where nothing is affordable:
+# beta=0 for a strength algebra (upper bound) and a beta above every attack weight for a cost
+# algebra (lower bound). The pinned framework's weights are 20 and 30.
+check "strength godel recovers at beta=0"          3 "$(dunne godel 0)"
+check "cost tropical does NOT recover at beta=0"  11 "$(dunne tropical 0)"
+check "cost tropical recovers at beta=31 (>w_max)" 3 "$(dunne tropical 31)"
 # (4) the CLI does guard the composition, with a message
 out="$(python3 "$ROOT/bin/waba" run --semantics admissible --semiring tropical \
         --budget-mode ub --objective sum-min --beta 30 --framework "$tmp/leak.lp" 2>&1)"
-case "$out" in *"STRENGTH semiring"*) echo "  ok   CLI rejects cost + budgeted-defence"; pass=$((pass+1));;
-                *) echo "  FAIL CLI did not reject: $out"; fail=$((fail+1));; esac
+case "$out" in *"take --beta directly"*) echo "  ok   CLI still rejects --objective/--budget-mode for defence"; pass=$((pass+1));;
+                *) echo "  FAIL expected the --beta-directly message, got: $out"; fail=$((fail+1));; esac
 
 echo "== N8: recoverability is a property of (delta, bound), and of the SEMANTICS =="
 # Two mutually attacking UNWEIGHTED assumptions, so delta drives every attack weight.
@@ -529,14 +538,14 @@ ASPEOF
       echo "  FAIL stable != ASPforABA on $b"; diff "$tmp/gt_stb" "$tmp/ou_stb" | head -4; fail=$((fail+1))
     fi
     gt "$ASPFORABA/com-aba-cred.dl" "$fw" > "$tmp/gt_com"
-    ours complete_dunne "$fw" 0 "" > "$tmp/ou_com"
+    ours complete "$fw" 0 "" > "$tmp/ou_com"
     if diff -q "$tmp/gt_com" "$tmp/ou_com" >/dev/null; then
       echo "  ok   complete beta=0 == ASPforABA on $b ($(wc -l < "$tmp/gt_com" | tr -d " ") ext)"; pass=$((pass+1))
     else
       echo "  FAIL complete beta=0 != ASPforABA on $b"; diff "$tmp/gt_com" "$tmp/ou_com" | head -4; fail=$((fail+1))
     fi
     gt "$tmp/asp_common.lp $tmp/asp_adm.lp" "$fw" > "$tmp/gt_adm"
-    ours admissible_dunne "$fw" 0 "" > "$tmp/ou_adm"
+    ours admissible "$fw" 0 "" > "$tmp/ou_adm"
     if diff -q "$tmp/gt_adm" "$tmp/ou_adm" >/dev/null; then
       echo "  ok   admissible beta=0 == ASPforABA on $b ($(wc -l < "$tmp/gt_adm" | tr -d ' ') ext)"; pass=$((pass+1))
     else
