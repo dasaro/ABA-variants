@@ -15,7 +15,7 @@ INCLUDE_PATTERN = re.compile(r'^#include\s+"([^"]+)"')
 WEIGHT_PATTERN = re.compile(r"^weight\s*\(\s*[^,]+,\s*([^)]+?)\s*\)\s*\.$")
 
 SUPPORTED_SEMANTICS = {
-    "cf", "stable", "admissible", "complete", "grounded", "preferred",
+    "cf", "stable",
     # wABA budgeted-defence (Dunne Def 6 lift): weighted admissible/complete/preferred
     "budgeted-admissible", "budgeted-complete", "budgeted-preferred",
 }
@@ -54,17 +54,13 @@ OBJECTIVES = {
 }
 CANONICAL_PRESETS = {("sum", "ub"), ("max", "ub"), ("min", "lb")}
 
-DIRECT_SEMANTICS = {"cf", "stable", "admissible", "complete"}
+DIRECT_SEMANTICS = {"cf", "stable"}
 # Exact set-inclusion semantics: enumerate candidates, then keep the subset-extremal ones.
 # grounded is the subset-LEAST complete extension; preferred the subset-maximal admissible one.
 POST_FILTER_SEMANTICS = {
-    "grounded": "complete",
-    "preferred": "complete",
     "budgeted-preferred": "budgeted-admissible",
 }
 SUBSET_FILTER = {
-    "grounded": "subset_minimal_filter.lp",
-    "preferred": "subset_maximal_filter.lp",
     "budgeted-preferred": "subset_maximal_filter.lp",
 }
 

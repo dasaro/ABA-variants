@@ -32,30 +32,17 @@ check() { # check "desc" expected actual
   else echo "  FAIL $1 — expected [$2] got [$3]"; fail=$((fail+1)); fi
 }
 
-echo "== D1: classical defense reproduces the ABA reference =="
-check "stable = 2"     2 "$(compose godel aba no_discard stable     "$REF" | models)"
-check "admissible = 7" 7 "$(compose godel aba no_discard admissible "$REF" | models)"
-check "complete = 3"   3 "$(compose godel aba no_discard complete   "$REF" | models)"
-
-echo "== D1: admissible is weight-blind (identical across all 5 semirings) =="
-for s in godel tropical arctic bottleneck_cost lukasiewicz; do
-  check "admissible/$s = 7" 7 "$(compose $s aba no_discard admissible "$REF" | models)"
-done
-
-echo "== D1: admissible is budget-INVARIANT (an undefended attacker stays out at every beta) =="
-printf 'assumption(x). contrary(x,cx). assumption(p). weight(p,5). contrary(p,dp). head(r1,cx). body(r1,p).\n' > "$tmp/aff.lp"
-for b in 3 6 1000; do
-  n="$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=$b "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" "$ROOT/defaults/legacy.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/admissible.lp" "$tmp/aff.lp" 2>&1 | grep -c 'in(x)')"
-  check "in(x) never admissible at beta=$b" 0 "$n"
-done
-
-echo "== D4: defense semantics never discard (pinned no-discards) =="
-n="$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=1000 "$ROOT/core/base.lp" "$ROOT/semiring/tropical.lp" "$ROOT/defaults/legacy.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/admissible.lp" "$REF" 2>&1 | grep -c 'discarded_attack(')"
-check "no discarded_attack in any admissible model" 0 "$n"
-
-echo "== D1/restrict: bin/waba rejects defense + a budget mode =="
-out="$($WABA run --semantics admissible --budget-mode ub --objective sum-min --beta 100 --framework "$REF" 2>&1)"
-case "$out" in *"are classical and take no budget"*) echo "  ok   rejected with guidance"; pass=$((pass+1));; *) echo "  FAIL not rejected: $out"; fail=$((fail+1));; esac
+echo "== D1: the reference framework under the surviving weighted semantics =="
+# The classical defence semantics (admissible/complete/grounded/preferred) were REMOVED on
+# 2026-07-29: wABA is a weighted framework and those four ignored the weights entirely,
+# returning the same answer under every algebra. Their loss is real and recorded here:
+# the beta=0 recovery checks below can no longer be DIFFERENTIAL (beta-sigma vs sigma
+# computed in the same system) and are now against the CONSTANTS 7 and 3, which were
+# measured against the classical modules before they were deleted, and which ASPforABA
+# independently confirms for stable. If a future change makes them wrong, nothing in this
+# tree will notice -- re-derive them against an external ABA solver, not by editing them.
+check "stable = 2" 2 "$(compose godel aba no_discard stable "$REF" | models)"
+check "cf = 11"    11 "$(compose godel aba no_discard cf     "$REF" | models)"
 
 echo "== D2: no_discard is the exact ABA recovery (stable = 2) =="
 check "no_discard stable = 2" 2 "$(compose godel aba no_discard stable "$REF" | models)"
@@ -135,14 +122,24 @@ case "$(python3 "$ROOT/bin/waba" run --semantics budgeted-admissible --semiring 
 esac
 
 echo "== exact set-inclusion semantics via the CLI (no duplicate optima) =="
-# grounded is the subset-LEAST complete extension: exactly ONE on the reference, reported once.
-# (The former cardinality-#minimize encoding printed the unique optimum twice: "Models : 2".)
-check "grounded reports exactly 1 extension" 1 \
-  "$(python3 "$ROOT/bin/waba" run --semantics grounded --semiring godel --default-policy aba --framework "$REF" 2>/dev/null | grep -acE '^Answer:')"
-check "grounded is {a}" "in(a)" \
-  "$(python3 "$ROOT/bin/waba" run --semantics grounded --semiring godel --default-policy aba --framework "$REF" 2>/dev/null | grep -aoE '^in\(a\)' | head -1)"
-check "preferred still reports 2" 2 \
-  "$(python3 "$ROOT/bin/waba" run --semantics preferred --semiring godel --default-policy aba --framework "$REF" 2>/dev/null | grep -acE '^Answer:')"
+# grounded and preferred were removed with the classical defence family on 2026-07-29.
+# budgeted-preferred is the only surviving subset-filtered semantics: it enumerates the
+# budgeted-admissible candidates and keeps the subset-maximal ones, so it must report each
+# extension ONCE (the former cardinality-#minimize encoding printed the optimum twice).
+check "budgeted-preferred reports each extension once" 2 \
+  "$(python3 "$ROOT/bin/waba" run --semantics budgeted-preferred --semiring godel \
+     --default-policy aba --beta 0 --framework "$REF" 2>/dev/null | grep -acE '^Answer:')"
+# NOT monotone in beta, and that is the documented behaviour, not a defect. beta-preferred
+# is subset-maximal AMONG the beta-admissible sets, so raising beta can promote a competitor
+# that SUBSUMES an existing preferred extension and thereby remove it. Measured on the
+# reference: budgeted-admissible grows 7,7,7,11,16 over beta=0,5,10,100,1000 while
+# budgeted-preferred goes 2,2,2,2,1. See the paper's remark on the extremal semantics.
+check "budgeted-preferred is NOT monotone: 2 at beta=100" 2 \
+  "$(python3 "$ROOT/bin/waba" run --semantics budgeted-preferred --semiring godel \
+     --default-policy aba --beta 100 --framework "$REF" 2>/dev/null | grep -acE '^Answer:')"
+check "budgeted-preferred DROPS to 1 at beta=1000" 1 \
+  "$(python3 "$ROOT/bin/waba" run --semantics budgeted-preferred --semiring godel \
+     --default-policy aba --beta 1000 --framework "$REF" 2>/dev/null | grep -acE '^Answer:')"
 
 echo "== every documented semiring is selectable from the CLI =="
 for s in godel tropical arctic bottleneck_cost lukasiewicz godel_low tropical_high; do
@@ -393,14 +390,11 @@ done
 for a in tropical bottleneck_cost; do
   check "cost $a: budgeted-admissible is UNSAT at beta=30 (KNOWN leak)" 0 "$(dunne $a 30)"
 done
-# (3) and the beta=0 classical recovery the header promises fails for a cost semiring
-classical() { "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta=0 "$ROOT/core/base.lp" \
-                "$ROOT/semiring/$1.lp" "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" \
-                "$ROOT/semantics/admissible.lp" "$tmp/leak.lp" 2>&1 | models; }
-check "classical admissible, godel    = 3" 3 "$(classical godel)"
-check "classical admissible, tropical = 3" 3 "$(classical tropical)"
-check "beta=0 dunne, godel    = 3 (recovers)"            3 "$(dunne godel 0)"
-check "beta=0 dunne, tropical = 0 (does NOT recover)"    0 "$(dunne tropical 0)"
+# (3) the beta=0 recovery the header promises fails for a cost semiring. This used to be a
+# DIFFERENTIAL check against semantics/admissible.lp; that module was removed with the
+# classical family, so the reference is now the constant 3, measured against it beforehand.
+check "beta=0 dunne, godel    = 3 (recovers classical admissible)" 3 "$(dunne godel 0)"
+check "beta=0 dunne, tropical = 0 (does NOT recover)"              0 "$(dunne tropical 0)"
 # (4) the CLI does guard the composition, with a message
 out="$(python3 "$ROOT/bin/waba" run --semantics budgeted-admissible --semiring tropical \
         --budget-mode ub --objective sum-min --beta 30 --framework "$tmp/leak.lp" 2>&1)"
@@ -434,15 +428,7 @@ for spec in "arctic neutral" "tropical neutral"; do
 done
 check "bottleneck_cost/neutral recovers under (min,lb) at beta=0" 2 \
   "$(nmod bottleneck_cost neutral stable lb 0 min)"
-# (c) the classical DEFENCE semantics are weight-blind, so the pathology cannot touch them
-for sem in admissible complete grounded; do
-  base="$(nmod bottleneck_cost neutral $sem no_discard 0)"
-  for b in 0 5 1000000; do
-    check "$sem is budget-invariant at beta=$b (weight-blind)" "$base" \
-      "$(nmod bottleneck_cost neutral $sem ub $b sum)"
-  done
-done
-# (d) whereas cf and stable are not
+# (c) cf and stable DO feel it (the weight-blind semantics that did not were removed)
 for sem in cf stable; do
   base="$(nmod bottleneck_cost neutral $sem no_discard 0)"
   got="$(nmod bottleneck_cost neutral $sem ub 0 sum)"
