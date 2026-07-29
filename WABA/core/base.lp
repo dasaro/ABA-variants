@@ -1,14 +1,11 @@
-%% WABA Base Logic (Semiring/Monoid-Independent) - GROUNDING OPTIMIZED
-%% This file contains the core argumentation logic that is independent
-%% of the choice of semiring (weight propagation) and monoid (cost aggregation).
+%% WABA base logic: the part that is independent of the semiring (weight
+%% propagation) and of the monoid (cost aggregation).
 %%
-%% OPTIMIZATIONS APPLIED:
-%% - Added unary domain predicates to reduce grounding size
-%% - Use rule/1 consistently instead of head(R,_)
-%% - Removed redundant supported(X) joins
-
-%% Budget constant used by the supported CLI wrapper and by raw clingo runs.
-%% Framework files may also state budget(beta); duplicate identical facts are harmless.
+%% Unary domain predicates (rule/1, is_head/1, has_body/1, derived_atom/1) exist to keep
+%% grounding small by avoiding repeated existential patterns.
+%%
+%% Three well-formedness guards live here, and all three REJECT rather than warn:
+%% flatness, well-foundedness of derivations, and functionality of weight/2.
 
 %% ====================
 %% DOMAIN PREDICATES
@@ -26,6 +23,17 @@ has_body(R) :- body(R,_).
 
 %% Derived atoms: heads that are not assumptions
 derived_atom(X) :- is_head(X), not assumption(X).
+
+%% ====================
+%% FUNCTIONALITY GUARD (weight/2 is a partial FUNCTION on atoms)
+%% ====================
+%% Two weight facts for the same atom make supported_with_weight/2 non-functional, which
+%% splits ONE conflict into SEVERAL independently discardable attacks_with_weight/3 atoms.
+%% The budget then double-charges, and there are answer sets in which the same
+%% (attacker, target) conflict is simultaneously discarded AND successful. Rejected here
+%% alongside the other two well-formedness conditions rather than silently mis-costed.
+multi_weight(X) :- weight(X,V1), weight(X,V2), V1 != V2.
+:- multi_weight(_).
 
 %% ====================
 %% FLATNESS GUARD
@@ -93,26 +101,34 @@ attacks_successfully_with_weight(X,Y,W) :- attacks_with_weight(X,Y,W), not disca
 %% atoms get their weight by PROPAGATION; an explicit weight on a derived atom is combined
 %% with its derivation via the semiring's ⊕, and is SILENTLY dominated in several algebras
 %% (Gödel/Bottleneck/Łukasiewicz drive it to the ⊗-identity #sup/#inf/k). This predicate is
-%% empty for a well-formed framework; the filter modules #show it so a modeller sees it.
+%% empty for a framework that keeps its weights on the leaves; the filter modules #show
+%% it so a modeller sees it. It is ADVISORY: a framework that trips it still solves.
 %% See README.md, "Where weights live (leaves vs derived atoms)".
 weight_on_derived_dominated(X, Declared, Effective) :-
     weight(X, Declared), derived_atom(X),
     supported_with_weight(X, Effective), Effective != Declared.
 
 %% ====================
-%% BUDGET CONSTRAINT
+%% BUDGET
 %% ====================
-%% Budget Constraints
-%% ====================
-%%
-%% Budget value is typically set via command line: -c beta=N
+%% Set with -c beta=N. This fact is ALWAYS added, so a framework that also states
+%% budget(N) does NOT override it: both facts survive, and constraint/ub.lp and lb.lp
+%% quantify over budget(B). The effective bound is therefore min(N,beta) under ub and
+%% max(N,beta) under lb. To let a framework own its budget, pass -c beta with the same N.
 budget(beta).
 
-%% Budget constraints are in constraint/ directory.
-%% `constraint/ub.lp` and `constraint/lb.lp` read the aggregate family from
-%% the loaded monoid module.
-%%
-%% Load appropriate constraint file for budget enforcement:
-%% - constraint/ub.lp - Upper bound for the active monoid family (cost ≤ beta)
-%% - constraint/lb.lp - Lower bound for the active monoid family (cost ≥ beta)
-%% - constraint/no_discard.lp - Plain ABA mode (no attack discarding)
+%% An unbound `beta` is not "budget disabled": clingo orders every integer strictly BELOW
+%% an uninterpreted constant, so `C > beta` never holds (ub silently unbounded) and
+%% `C < beta` always holds (lb silently collapses to no_discard). Both are silent, and
+%% they fail in opposite directions, so we reject the composition instead. The guard is
+%% gated on a mode that actually READS beta: no_discard forbids every discard regardless
+%% of the budget, so those runs legitimately need no beta. (The `B+0` test is arithmetic,
+%% which is undefined on a symbolic constant; clingo's resulting "operation undefined" info
+%% appears only in the misconfigured case and is itself a useful pointer.)
+integer_budget(B) :- budget(B), B = B + 0.
+:- active_budget_mode(M), M != no_discard, budget(B), not integer_budget(B).
+
+%% Budget enforcement modules (choose exactly one):
+%% - constraint/ub.lp         upper bound: reject when the aggregate EXCEEDS beta
+%% - constraint/lb.lp         lower bound: reject when the aggregate is BELOW beta
+%% - constraint/no_discard.lp forbid every discard (exact classical ABA recovery)

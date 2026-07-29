@@ -433,6 +433,49 @@ for sem in cf stable; do
   else echo "  ok   $sem diverges from classical under the pathological config ($base vs $got)"; pass=$((pass+1)); fi
 done
 
+echo "== N9: the two well-formedness guards added by the 2026-07 source review =="
+# (a) weight/2 must be a partial FUNCTION. Two weight facts for one atom split a single
+#     conflict into several independently discardable attacks: the budget double-charges
+#     and the same (attacker,target) pair can be discarded AND successful in one model.
+printf 'assumption(a). contrary(a,b).\nassumption(b). contrary(b,cb).\nweight(b,3). weight(b,40). weight(a,5).\n' > "$tmp/dupw.lp"
+out="$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=1000 "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
+      "$ROOT/defaults/legacy.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" \
+      "$ROOT/semantics/cf.lp" "$tmp/dupw.lp" 2>&1)"
+case "$out" in *UNSATISFIABLE*) echo "  ok   duplicate weight/2 is rejected"; pass=$((pass+1));;
+               *) echo "  FAIL duplicate weight/2 was accepted"; fail=$((fail+1));; esac
+# a single weight on the same shape must still solve
+printf 'assumption(a). contrary(a,b).\nassumption(b). contrary(b,cb).\nweight(b,3). weight(a,5).\n' > "$tmp/onew.lp"
+check "a single weight/2 still solves" 5 \
+  "$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=1000 "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
+      "$ROOT/defaults/legacy.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" \
+      "$ROOT/filter/projection.lp" "$ROOT/semantics/cf.lp" "$tmp/onew.lp" 2>&1 | models)"
+
+# (b) an UNBOUND beta is rejected under ub/lb. clingo orders every integer strictly BELOW
+#     a symbolic constant, so `C > beta` never fires (ub silently unbounded) and `C < beta`
+#     always fires (lb silently collapses to no_discard) -- silent, and in OPPOSITE
+#     directions. no_discard must remain usable without beta, since it ignores the budget.
+printf 'assumption(p). contrary(p,cp).\nassumption(q). contrary(q,cq).\nhead(r1,cp). body(r1,q).\nhead(r2,cq). body(r2,p).\n' > "$tmp/nb.lp"
+for con in ub lb; do
+  mon=sum; [ "$con" = lb ] && mon=min
+  out="$("$CLINGO" --warn=no-atom-undefined -n 0 "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
+        "$ROOT/defaults/legacy.lp" "$ROOT/monoid/$mon.lp" "$ROOT/constraint/$con.lp" \
+        "$ROOT/semantics/cf.lp" "$tmp/nb.lp" 2>&1)"
+  case "$out" in *UNSATISFIABLE*) echo "  ok   unbound beta rejected under $con"; pass=$((pass+1));;
+                 *) echo "  FAIL unbound beta accepted under $con"; fail=$((fail+1));; esac
+done
+check "no_discard still runs without beta" 3 \
+  "$("$CLINGO" --warn=no-atom-undefined -n 0 "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
+      "$ROOT/defaults/legacy.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/filter/projection.lp" \
+      "$ROOT/semantics/cf.lp" "$tmp/nb.lp" 2>&1 | models)"
+
+# (c) no shipped example trips the weight-on-derived advisory
+for ex in "$ROOT"/examples/*/*.lp; do
+  n="$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=1000 "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
+       "$ROOT/defaults/legacy.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" \
+       "$ROOT/filter/standard.lp" "$ROOT/semantics/stable.lp" "$ex" 2>&1 | grep -ac 'weight_on_derived_dominated')"
+  check "$(basename "$ex") trips no advisory" 0 "$n"
+done
+
 echo
 echo "==== $pass passed, $fail failed ===="
 [ "$fail" -eq 0 ]

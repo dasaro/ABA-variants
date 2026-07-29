@@ -70,10 +70,10 @@ weight(traffic_heavy, 8).
 weight(rain_detected, 6).
 weight(meeting_scheduled, 9).
 
-%% Plan weights
-weight(plan_early_workout, 5).
-weight(plan_drive_downtown, 6).
-weight(plan_outdoor_run, 5).
+%% NOTE: the plans are DERIVED atoms (heads of r1/r2/r3), so they take their weight by
+%% propagation from the leaves above. Declaring weight(plan_*, N) here would be silently
+%% dominated -- core/base.lp's weight_on_derived_dominated advisory flagged exactly that --
+%% so the plan weights are intentionally absent. Weights belong on the leaves.
 
 %% ============================================================================
 %% RULES (Defaults → Plans, Disruptions Defeat Defaults)

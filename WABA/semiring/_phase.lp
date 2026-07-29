@@ -5,11 +5,22 @@
 %%   support    : weights over the selected (in) atoms       -> supported_with_weight/2
 %%   undefeated : weights over the NOT-DEFEATED atoms        -> undefeated_weight/2
 %%
-%% The undefeated phase is INERT by default. The CLASSICAL defense semantics
-%% (semantics/admissible.lp) are weight-blind and do not need it. It is switched on
-%% only by a BUDGETED defense module (semantics/admissible_budgeted.lp), which declares
-%% `budgeted_defense` and defines derived_from_undefeated/1 + triggered_by_undefeated/1;
-%% then attack weights over the undefeated set are available for a budgeted discard.
+%% Both the undefeated and the maximal phases are INERT by default; the CLASSICAL defence
+%% semantics (semantics/admissible.lp) are weight-blind and need neither. There are TWO
+%% budgeted-defence encodings in the tree and they use DIFFERENT phases:
+%%
+%%   semantics/admissible_dunne.lp     declares `budgeted_full`    -> maximal phase
+%%                                     (arg_weight). This is the one bin/waba exposes as
+%%                                     --semantics budgeted-admissible, and the one the
+%%                                     paper describes.
+%%   semantics/admissible_budgeted.lp  declares `budgeted_defense` -> undefeated phase
+%%                                     (undefeated_weight). An earlier design, reachable
+%%                                     only by hand-composition. It is NOT equivalent:
+%%                                     the two disagree once beta exceeds the cheapest
+%%                                     objection.
+%%
+%% Each budgeted module defines its own derived_from_undefeated/1 + triggered_by_undefeated/1
+%% (or arg/1 + arg_triggered/1) so the skeleton stays algebra- and semantics-agnostic.
 %%
 %% A concrete algebra is fixed by a thin shim that declares:
 %%   oplus(min|max)      -- ⊕ combine of alternative derivations
