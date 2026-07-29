@@ -422,7 +422,12 @@ def validate_args(args: argparse.Namespace) -> None:
 
 
 def run_direct(args: argparse.Namespace) -> int:
-    opt_mode = args.opt_mode if args.opt_mode is not None else "ignore"
+    # optN by default: --objective is MANDATORY for budgeted runs, so defaulting to
+    # "ignore" meant the objective was loaded and then discarded -- a ranking nobody saw.
+    # Pass --opt-mode ignore explicitly to enumerate without optimising.
+    opt_mode = args.opt_mode if args.opt_mode is not None else (
+        "optN" if args.objective is not None else "ignore"
+    )
 
     command = build_clingo_command(args, args.semantics, opt_mode)
     print(shell_join(command), file=sys.stderr)
@@ -476,7 +481,7 @@ def run_post_filtered(args: argparse.Namespace) -> int:
     models = asp_keep_subset(models, SUBSET_FILTER[args.semantics])
     optimum = False
 
-    if args.objective is not None and args.opt_mode == "optN":
+    if args.objective is not None and (args.opt_mode or "optN") == "optN":
         models = keep_optimal(models)
         optimum = True
 

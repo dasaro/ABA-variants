@@ -111,11 +111,17 @@ weight_on_derived_dominated(X, Declared, Effective) :-
 %% ====================
 %% BUDGET
 %% ====================
-%% Set with -c beta=N. This fact is ALWAYS added, so a framework that also states
-%% budget(N) does NOT override it: both facts survive, and constraint/ub.lp and lb.lp
-%% quantify over budget(B). The effective bound is therefore min(N,beta) under ub and
-%% max(N,beta) under lb. To let a framework own its budget, pass -c beta with the same N.
-budget(beta).
+%% The budget is supplied ONLY by -c beta=N, through effective_budget/1. A framework may
+%% still contain budget/1 facts -- earlier versions of this code and of the README asked for
+%% them -- but they are now INERT: every consumer reads effective_budget/1, so a framework
+%% cannot clamp, raise or nullify the budget the caller asked for. Previously both facts
+%% survived and the bound became min(N,beta) under ub, with budget(0) silently disabling
+%% --beta altogether.
+budget(beta).                  %% kept so existing frameworks and tooling still ground
+effective_budget(beta).
+
+%% Advisory: a framework asked for a budget of its own and it was ignored. Not a constraint.
+framework_budget_ignored(N) :- budget(N), N != beta.
 
 %% An unbound `beta` is not "budget disabled": clingo orders every integer strictly BELOW
 %% an uninterpreted constant, so `C > beta` never holds (ub silently unbounded) and

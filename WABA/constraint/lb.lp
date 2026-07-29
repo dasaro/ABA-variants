@@ -14,7 +14,7 @@ active_constraint(lb).
 %% reject the no-discard extension outright. The min empty aggregate (#sup) already
 %% passes a lower bound, so guarding only changes the otherwise-broken max+lb case.
 some_discard :- discarded_attack(_,_,_).
-:- budget_value(C), C < B, budget(B), some_discard.
+:- budget_value(C), C < B, effective_budget(B), some_discard.
 
 %% #sup weights are un-discardable at any budget (a maximal-cost / un-droppable attack).
 :- discarded_attack(_,_,#sup).
@@ -26,5 +26,5 @@ some_discard :- discarded_attack(_,_,_).
 %% or always fires (lb) -- silent, and in opposite directions. Reject instead. The `B+0` test
 %% is arithmetic, undefined on a symbolic constant, so the rule simply does not fire; the
 %% accompanying "operation undefined" info is emitted only in that misconfigured case.
-integer_budget(B) :- budget(B), B = B + 0.
-:- budget(B), not integer_budget(B).
+integer_budget(B) :- effective_budget(B), B = B + 0.
+:- effective_budget(B), not integer_budget(B).

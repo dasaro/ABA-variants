@@ -214,14 +214,14 @@ echo "== N3: canonicity -- the D=empty guard is redundant exactly for (+,<=),(ma
 # vacuously if someone deleted the gate from the shipped constraint files, since
 # there would then be nothing for sed to strip.
 for b in ub lb; do
-  if grep -q 'budget(B), some_discard\.' "$ROOT/constraint/$b.lp"; then
+  if grep -qE ':- budget_value\(C\).*some_discard\.' "$ROOT/constraint/$b.lp"; then
     echo "  ok   constraint/$b.lp still carries the D=empty guard"; pass=$((pass+1))
   else
     echo "  FAIL constraint/$b.lp has LOST the D=empty guard (Prop. Canonicity relies on it)"; fail=$((fail+1))
   fi
-  sed 's/^:- budget_value(C), C \(.\) B, budget(B), some_discard\./:- budget_value(C), C \1 B, budget(B)./' \
+  sed 's/\(^:- budget_value(C).*\), some_discard\./\1./' \
       "$ROOT/constraint/$b.lp" > "$tmp/${b}_noguard.lp"
-  grep -q 'budget(B), some_discard\.' "$tmp/${b}_noguard.lp" && { echo "  FAIL could not strip the guard from $b.lp"; fail=$((fail+1)); }
+  grep -qE ':- budget_value\(C\).*some_discard\.' "$tmp/${b}_noguard.lp" && { echo "  FAIL could not strip the guard from $b.lp"; fail=$((fail+1)); }
 done
 noguard() { # noguard <monoid> <bound> <beta>
   "$CLINGO" --warn=no-atom-undefined -n 0 -c beta=$3 "$ROOT/core/base.lp" \
@@ -580,15 +580,18 @@ out="$(python3 "$ROOT/bin/waba" run --framework "$REF" --semantics preferred --b
 case "$out" in *"two passes"*) echo "  ok   --print-command flags the two-pass semantics"; pass=$((pass+1));;
                *) echo "  FAIL --print-command silently printed only pass 1"; fail=$((fail+1));; esac
 
-# (d) --objective is a NO-OP without --opt-mode optN. Pinned as KNOWN, not fixed: the
-#     remedy (defaulting to optN) would change every existing budgeted invocation.
-noopt="$(python3 "$ROOT/bin/waba" run --framework "$REF" --semantics stable --budget-mode ub \
-         --beta 20 --objective sum-min 2>&1 | grep -ac 'Optimization')"
-wopt="$(python3 "$ROOT/bin/waba" run --framework "$REF" --semantics stable --budget-mode ub \
-         --beta 20 --objective sum-min --opt-mode optN 2>&1 | grep -ac 'Optimization')"
-check "KNOWN: --objective reports nothing without --opt-mode optN" 0 "$noopt"
-if [ "$wopt" -gt 0 ]; then echo "  ok   --opt-mode optN does optimise"; pass=$((pass+1));
-else echo "  FAIL --opt-mode optN did not optimise"; fail=$((fail+1)); fi
+# (d) --objective now optimises BY DEFAULT (--opt-mode defaults to optN when an objective
+#     is given). Previously the default was `ignore`, so the objective was loaded and then
+#     discarded -- a ranking nobody saw, even though --objective is mandatory for budgeted
+#     runs. `--opt-mode ignore` must still be available to enumerate without optimising.
+opt() { python3 "$ROOT/bin/waba" run --framework "$REF" --semantics stable --budget-mode ub \
+          --beta 20 --objective "$1" ${2:+--opt-mode $2} 2>&1; }
+n="$(opt sum-min | grep -ac 'Optimization')"
+if [ "$n" -gt 0 ]; then echo "  ok   --objective optimises with no --opt-mode"; pass=$((pass+1));
+else echo "  FAIL --objective still a no-op by default"; fail=$((fail+1)); fi
+case "$(opt sum-min | grep -a 'OPTIMUM')" in *"OPTIMUM FOUND"*) echo "  ok   OPTIMUM FOUND reported"; pass=$((pass+1));;
+  *) echo "  FAIL no OPTIMUM FOUND"; fail=$((fail+1));; esac
+check "--opt-mode ignore still enumerates without optimising" 0 "$(opt sum-min ignore | grep -ac 'Optimization')"
 
 echo
 echo "==== $pass passed, $fail failed ===="
