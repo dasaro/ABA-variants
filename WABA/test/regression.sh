@@ -339,6 +339,57 @@ check "beta=0 matches the no_discard baseline" \
      "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/filter/projection.lp" \
      "$ROOT/semantics/stable.lp" "$tmp/redundant.lp" 2>&1 | models)" "$(nm 0)"
 
+echo "== N7: KNOWN orthogonality leak in budgeted defence (pinned, not fixed) =="
+# semantics/admissible_dunne.lp:20 carries `:- oplus(min).`, an integrity constraint keyed
+# on the SEMIRING'S IDENTITY rather than on the weights it produces. Consequence: two
+# algebras that agree on every propagated attack weight still split SAT/UNSAT, so the
+# classical-layer factorisation does NOT extend to these semantics. Worse, the file's own
+# header promises that beta=0 gives classical admissibility, and for a cost semiring it
+# gives UNSAT instead.
+#
+# This test PINS the current behaviour so the discrepancy is visible and cannot drift. If
+# the Dunne lift is ever made order-aware, these expectations SHOULD change -- update them
+# deliberately rather than deleting the test.
+cat > "$tmp/leak.lp" <<'FW'
+assumption(a). contrary(a, ca).
+assumption(b). contrary(b, cb).
+head(w1, l1). weight(l1, 20).
+head(w2, l2). weight(l2, 30).
+head(r1, ca). body(r1, b). body(r1, l1).
+head(r2, cb). body(r2, a). body(r2, l2).
+FW
+# (1) all five algebras agree on the attack weights
+for a in godel arctic lukasiewicz tropical bottleneck_cost; do
+  check "$a: attack weights are 20 and 30" "20 30" \
+    "$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=0 "$ROOT/core/base.lp" "$ROOT/semiring/$a.lp" \
+        "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/semantics/cf.lp" \
+        "$tmp/leak.lp" 2>&1 | grep -aoE 'attacks_with_weight\([a-z]+,[a-z]+,[0-9]+\)' \
+        | sed 's/.*,//;s/)//' | sort -un | tr '\n' ' ' | sed 's/ $//')"
+done
+dunne() { "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta=$2 "$ROOT/core/base.lp" \
+            "$ROOT/semiring/$1.lp" "$ROOT/defaults/neutral.lp" \
+            "$ROOT/semantics/admissible_dunne.lp" "$tmp/leak.lp" 2>&1 | models; }
+# (2) yet the outcome splits on polarity, not on the weights
+for a in godel arctic lukasiewicz; do
+  check "strength $a: budgeted-admissible has 7 extensions at beta=30" 7 "$(dunne $a 30)"
+done
+for a in tropical bottleneck_cost; do
+  check "cost $a: budgeted-admissible is UNSAT at beta=30 (KNOWN leak)" 0 "$(dunne $a 30)"
+done
+# (3) and the beta=0 classical recovery the header promises fails for a cost semiring
+classical() { "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta=0 "$ROOT/core/base.lp" \
+                "$ROOT/semiring/$1.lp" "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" \
+                "$ROOT/semantics/admissible.lp" "$tmp/leak.lp" 2>&1 | models; }
+check "classical admissible, godel    = 3" 3 "$(classical godel)"
+check "classical admissible, tropical = 3" 3 "$(classical tropical)"
+check "beta=0 dunne, godel    = 3 (recovers)"            3 "$(dunne godel 0)"
+check "beta=0 dunne, tropical = 0 (does NOT recover)"    0 "$(dunne tropical 0)"
+# (4) the CLI does guard the composition, with a message
+out="$(python3 "$ROOT/bin/waba" run --semantics budgeted-admissible --semiring tropical \
+        --budget-mode ub --objective sum-min --beta 30 --framework "$tmp/leak.lp" 2>&1)"
+case "$out" in *"STRENGTH semiring"*) echo "  ok   CLI rejects cost + budgeted-defence"; pass=$((pass+1));;
+                *) echo "  FAIL CLI did not reject: $out"; fail=$((fail+1));; esac
+
 echo
 echo "==== $pass passed, $fail failed ===="
 [ "$fail" -eq 0 ]
