@@ -25,3 +25,11 @@ some_discard :- discarded_attack(_,_,_).
 %% attack or a fact-derived contrary) is free to discard at any budget by design — a
 %% zero-cost attack costs nothing to drop. For plain ABA use no_discard, or the `aba`
 %% default policy (unweighted attacks are then #sup, hence un-discardable above).
+
+%% An unbound `beta` is not "budget disabled". clingo orders every integer strictly BELOW an
+%% uninterpreted constant, so with a symbolic beta the comparison above can never fire (ub)
+%% or always fires (lb) -- silent, and in opposite directions. Reject instead. The `B+0` test
+%% is arithmetic, undefined on a symbolic constant, so the rule simply does not fire; the
+%% accompanying "operation undefined" info is emitted only in that misconfigured case.
+integer_budget(B) :- budget(B), B = B + 0.
+:- budget(B), not integer_budget(B).

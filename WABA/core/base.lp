@@ -119,14 +119,10 @@ budget(beta).
 
 %% An unbound `beta` is not "budget disabled": clingo orders every integer strictly BELOW
 %% an uninterpreted constant, so `C > beta` never holds (ub silently unbounded) and
-%% `C < beta` always holds (lb silently collapses to no_discard). Both are silent, and
-%% they fail in opposite directions, so we reject the composition instead. The guard is
-%% gated on a mode that actually READS beta: no_discard forbids every discard regardless
-%% of the budget, so those runs legitimately need no beta. (The `B+0` test is arithmetic,
-%% which is undefined on a symbolic constant; clingo's resulting "operation undefined" info
-%% appears only in the misconfigured case and is itself a useful pointer.)
-integer_budget(B) :- budget(B), B = B + 0.
-:- active_budget_mode(M), M != no_discard, budget(B), not integer_budget(B).
+%% `C < beta` always holds (lb silently collapses to no_discard). Both fail silently and in
+%% opposite directions, so constraint/ub.lp and constraint/lb.lp reject that composition.
+%% The check lives THERE, not here, so that runs which load no budget module do not ground
+%% its arithmetic and do not emit clingo's "operation undefined" info.
 
 %% Budget enforcement modules (choose exactly one):
 %% - constraint/ub.lp         upper bound: reject when the aggregate EXCEEDS beta
