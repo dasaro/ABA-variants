@@ -22,12 +22,14 @@ SUPPORTED_SEMANTICS = {
 ALL_SEMANTICS = sorted(SUPPORTED_SEMANTICS)
 
 # Four clean algebras + two polarity-dual aliases (godel_low->bottleneck_cost,
-# tropical_high->arctic), kept as thin #include shims under semiring/.
+# tropical_high->arctic), kept as thin #include shims under semiring/, plus the
+# standalone Lukasiewicz algebra (no polarity variants).
 SEMIRING_VARIANTS = {
     "godel",            # (max, min)  strength / fuzzy
     "tropical",         # (min, +)    cost / shortest path
     "arctic",           # (max, +)    strength / reward accumulation
     "bottleneck_cost",  # (min, max)  cost / worst-case
+    "lukasiewicz",      # (max, bounded sum) strength / erosion; standalone family
     "godel_low",        # alias -> bottleneck_cost
     "tropical_high",    # alias -> arctic
 }
@@ -52,8 +54,19 @@ OBJECTIVES = {
 }
 CANONICAL_PRESETS = {("sum", "ub"), ("max", "ub"), ("min", "lb")}
 
-DIRECT_SEMANTICS = {"cf", "stable", "admissible", "complete", "grounded"}
-POST_FILTER_SEMANTICS = {"preferred": "complete", "budgeted-preferred": "budgeted-admissible"}
+DIRECT_SEMANTICS = {"cf", "stable", "admissible", "complete"}
+# Exact set-inclusion semantics: enumerate candidates, then keep the subset-extremal ones.
+# grounded is the subset-LEAST complete extension; preferred the subset-maximal admissible one.
+POST_FILTER_SEMANTICS = {
+    "grounded": "complete",
+    "preferred": "complete",
+    "budgeted-preferred": "budgeted-admissible",
+}
+SUBSET_FILTER = {
+    "grounded": "subset_minimal_filter.lp",
+    "preferred": "subset_maximal_filter.lp",
+    "budgeted-preferred": "subset_maximal_filter.lp",
+}
 
 # Defense semantics are CLASSICAL (weight-blind, no budget): the budget/discard knob is
 # only meaningful for cf/stable. See semantics/admissible.lp.
@@ -260,7 +273,8 @@ def print_filtered_models(models: list[Model], semantics: str, candidate_semanti
     return 0
 
 
-def asp_keep_subset_maximal(models: list[Model]) -> list[Model]:
+def asp_keep_subset(models: list[Model], filter_module: str) -> list[Model]:
+    """Keep the subset-maximal (or subset-minimal) candidates, exactly, via ASP."""
     if not models:
         return []
 
@@ -280,7 +294,7 @@ def asp_keep_subset_maximal(models: list[Model]) -> list[Model]:
         "--warn=no-atom-undefined",
         "-n",
         "0",
-        str(root / "semantics" / "subset_maximal_filter.lp"),
+        str(root / "semantics" / filter_module),
         str(facts_path),
     ]
     try:
@@ -289,7 +303,7 @@ def asp_keep_subset_maximal(models: list[Model]) -> list[Model]:
         facts_path.unlink(missing_ok=True)
 
     if completed.returncode not in {0, 10, 20, 30}:
-        raise RuntimeError(completed.stderr or completed.stdout or "subset-maximal ASP filter failed")
+        raise RuntimeError(completed.stderr or completed.stdout or f"{filter_module} ASP filter failed")
 
     keep_ids = {int(match) for match in re.findall(r"keep\((\d+)\)", completed.stdout)}
     kept = [model for index, model in enumerate(models, start=1) if index in keep_ids]
@@ -409,14 +423,10 @@ def validate_args(args: argparse.Namespace) -> None:
         args._monoid_module = f"{objective['family']}.lp"
         args._optimize_module = objective["optimization"]
 
-    if args.semantics == "grounded" and args.opt_mode == "ignore":
-        raise SystemExit("grounded requires --opt-mode optN")
 
 
 def run_direct(args: argparse.Namespace) -> int:
-    opt_mode = args.opt_mode
-    if opt_mode is None:
-        opt_mode = "optN" if args.semantics == "grounded" else "ignore"
+    opt_mode = args.opt_mode if args.opt_mode is not None else "ignore"
 
     command = build_clingo_command(args, args.semantics, opt_mode)
     print(shell_join(command), file=sys.stderr)
@@ -456,7 +466,7 @@ def run_post_filtered(args: argparse.Namespace) -> int:
         return completed.returncode
 
     models = parse_models(completed.stdout)
-    models = asp_keep_subset_maximal(models)
+    models = asp_keep_subset(models, SUBSET_FILTER[args.semantics])
     optimum = False
 
     if args.objective is not None and args.opt_mode == "optN":

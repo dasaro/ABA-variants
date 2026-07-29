@@ -117,6 +117,32 @@ case "$(python3 "$ROOT/bin/waba" run --semantics budgeted-admissible --semiring 
   *) echo "  FAIL bin/waba did not reject cost semiring"; fail=$((fail+1));;
 esac
 
+echo "== exact set-inclusion semantics via the CLI (no duplicate optima) =="
+# grounded is the subset-LEAST complete extension: exactly ONE on the reference, reported once.
+# (The former cardinality-#minimize encoding printed the unique optimum twice: "Models : 2".)
+check "grounded reports exactly 1 extension" 1 \
+  "$(python3 "$ROOT/bin/waba" run --semantics grounded --semiring godel --default-policy aba --framework "$REF" 2>/dev/null | grep -acE '^Answer:')"
+check "grounded is {a}" "in(a)" \
+  "$(python3 "$ROOT/bin/waba" run --semantics grounded --semiring godel --default-policy aba --framework "$REF" 2>/dev/null | grep -aoE '^in\(a\)' | head -1)"
+check "preferred still reports 2" 2 \
+  "$(python3 "$ROOT/bin/waba" run --semantics preferred --semiring godel --default-policy aba --framework "$REF" 2>/dev/null | grep -acE '^Answer:')"
+
+echo "== every documented semiring is selectable from the CLI =="
+for s in godel tropical arctic bottleneck_cost lukasiewicz godel_low tropical_high; do
+  check "--semiring $s runs" 2 \
+    "$(python3 "$ROOT/bin/waba" run --semantics stable --semiring $s --default-policy aba --framework "$REF" 2>/dev/null | grep -acE '^Answer:')"
+done
+
+echo "== Lukasiewicz otimes-identity law (a #sup premise must NOT inflate the derivation) =="
+# otimes identity is k: k (x) 300 = max(0, k+300-k) = 300. Under the `aba` policy an
+# unweighted assumption is #sup, so this is reachable in ordinary use.
+printf 'assumption(u). contrary(u,cu).\nassumption(w). weight(w,300). contrary(w,cw).\nhead(r1,conj). body(r1,u). body(r1,w).\nbudget(0).\n' > "$tmp/luk_id.lp"
+check "#sup (x) 300 = 300 (identity preserved)" "supported_with_weight(conj,300)" \
+  "$("$CLINGO" --warn=no-atom-undefined -n 1 -c beta=0 "$ROOT/core/base.lp" "$ROOT/semiring/lukasiewicz.lp" "$ROOT/defaults/aba.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/cf.lp" "$tmp/luk_id.lp" 2>&1 | grep -aoE 'supported_with_weight\(conj,[^)]*\)' | head -1)"
+printf 'assumption(x). contrary(x,cx).\nweight(p,900). head(f1,p). weight(q,900). head(f2,q).\nhead(r,t). body(r,p). body(r,q).\nbudget(0).\n' > "$tmp/luk_er.lp"
+check "900 (x) 900 = 800 (erosion intact)" "supported_with_weight(t,800)" \
+  "$("$CLINGO" --warn=no-atom-undefined -n 1 -c beta=0 "$ROOT/core/base.lp" "$ROOT/semiring/lukasiewicz.lp" "$ROOT/defaults/legacy.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/cf.lp" "$tmp/luk_er.lp" 2>&1 | grep -aoE 'supported_with_weight\(t,[^)]*\)' | head -1)"
+
 echo
 echo "==== $pass passed, $fail failed ===="
 [ "$fail" -eq 0 ]
