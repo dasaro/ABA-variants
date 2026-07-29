@@ -490,10 +490,32 @@ ASPFORABA="${ASPFORABA:-/Users/fdasaro/Downloads/aspforaba/encodings}"
 if [ ! -f "$ASPFORABA/stb-aba-enum.dl" ]; then
   echo "  SKIP  ASPforABA not found at $ASPFORABA (set ASPFORABA=... to enable)"
 else
+  # ASPforABA ships no ADMISSIBLE encoding in encodings/ (the ICCMA'23 track needs only
+  # CO/ST/PR), but src/aspforaba/encoder.py on the master branch does. Reproduced verbatim
+  # below so the admissible check is against THEIR encoding, not one of ours. Cross-checked:
+  # COMMON+STABLE_ADD and COMMON+ADMISSIBLE_ADD+COMPLETE_ADD reproduce the counts that
+  # encodings/stb-aba-enum.dl and encodings/com-aba-cred.dl give.
+  cat > "$tmp/asp_common.lp" <<'ASPEOF'
+{ in(X) : assumption(X) }.
+out(X) :- not in(X), assumption(X).
+supported(X) :- assumption(X), in(X).
+supported(X) :- head(R,X), triggered_by_in(R).
+triggered_by_in(R) :- head(R,_), supported(X) : body(R,X).
+:- in(X), contrary(X,Y), supported(Y).
+defeated(X) :- supported(Y), contrary(X,Y).
+#show in/1.
+ASPEOF
+  cat > "$tmp/asp_adm.lp" <<'ASPEOF'
+derived_from_undefeated(X) :- assumption(X), not defeated(X).
+derived_from_undefeated(X) :- head(R,X), triggered_by_undefeated(R).
+triggered_by_undefeated(R) :- head(R,_), derived_from_undefeated(X) : body(R,X).
+attacked_by_undefeated(X) :- contrary(X,Y), derived_from_undefeated(Y).
+:- in(X), attacked_by_undefeated(X).
+ASPEOF
   # canonical extension set: one sorted, comma-joined line per extension, deduplicated
   norm() { awk '/^Answer/{getline; s=""; for(i=1;i<=NF;i++) if($i ~ /^in\(/){gsub(/in\(|\)/,"",$i); s=s $i" "} print s}' \
            | while read -r l; do echo "$l" | tr ' ' '\n' | grep . | sort | tr '\n' ',' ; echo; done | sort -u; }
-  gt()  { "$CLINGO" --warn=none -n 0 "$1" "$2" 2>/dev/null | norm; }
+  gt()  { "$CLINGO" --warn=none -n 0 $1 "$2" 2>/dev/null | norm; }
   ours(){ "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta=0 "$ROOT/core/base.lp" \
             "$ROOT/semiring/godel.lp" "$ROOT/defaults/aba.lp" $4 "$ROOT/filter/projection.lp" \
             "$ROOT/semantics/$1.lp" "$2" 2>/dev/null | norm; }
@@ -513,10 +535,13 @@ else
     else
       echo "  FAIL complete beta=0 != ASPforABA on $b"; diff "$tmp/gt_com" "$tmp/ou_com" | head -4; fail=$((fail+1))
     fi
-    # admissible has no ASPforABA encoding; check the containment that must hold
+    gt "$tmp/asp_common.lp $tmp/asp_adm.lp" "$fw" > "$tmp/gt_adm"
     ours admissible_dunne "$fw" 0 "" > "$tmp/ou_adm"
-    m=0; while read -r c; do [ -n "$c" ] && { grep -qxF "$c" "$tmp/ou_adm" || m=1; }; done < "$tmp/gt_com"
-    check "every ASPforABA complete ext is admissible on $b" 0 "$m"
+    if diff -q "$tmp/gt_adm" "$tmp/ou_adm" >/dev/null; then
+      echo "  ok   admissible beta=0 == ASPforABA on $b ($(wc -l < "$tmp/gt_adm" | tr -d ' ') ext)"; pass=$((pass+1))
+    else
+      echo "  FAIL admissible beta=0 != ASPforABA on $b"; diff "$tmp/gt_adm" "$tmp/ou_adm" | head -4; fail=$((fail+1))
+    fi
   done
 fi
 
