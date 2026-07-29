@@ -143,6 +143,89 @@ printf 'assumption(x). contrary(x,cx).\nweight(p,900). head(f1,p). weight(q,900)
 check "900 (x) 900 = 800 (erosion intact)" "supported_with_weight(t,800)" \
   "$("$CLINGO" --warn=no-atom-undefined -n 1 -c beta=0 "$ROOT/core/base.lp" "$ROOT/semiring/lukasiewicz.lp" "$ROOT/defaults/legacy.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/cf.lp" "$tmp/luk_er.lp" 2>&1 | grep -aoE 'supported_with_weight\(t,[^)]*\)' | head -1)"
 
+# ---------------------------------------------------------------------------
+# N1-N3: neutral elements and their roles.
+#
+# A neutral element is neutral FOR AN OPERATION. An element neutral for (x) has
+# no reason to be inert with respect to (+) or to a budget comparison, and the
+# three guards below exist because of that. These tests pin the three.
+# ---------------------------------------------------------------------------
+
+echo "== N1: delta = e_otimes is transparent in a conjunction, for every algebra =="
+# probe <- a, d  with w(d)=5 and `a` an unweighted assumption, so wt(probe) = delta (x) 5.
+printf 'assumption(a). contrary(a,ca).\nhead(rd,d). weight(d,5).\nhead(r1,probe). body(r1,a). body(r1,d).\n' > "$tmp/mix.lp"
+wt() { # wt <semiring> <policy>
+  "$CLINGO" --warn=no-atom-undefined -n 0 -c beta=0 "$ROOT/core/base.lp" \
+    "$ROOT/semiring/$1.lp" "$ROOT/defaults/$2.lp" "$ROOT/constraint/no_discard.lp" \
+    "$ROOT/filter/standard.lp" "$ROOT/semantics/cf.lp" "$tmp/mix.lp" 2>&1 \
+    | grep -aoE 'supported_with_weight\(probe,[^)]*\)' | sed 's/.*,//;s/)//' | sort -u | head -1
+}
+for s in godel tropical arctic bottleneck_cost lukasiewicz; do
+  check "neutral: delta (x) 5 = 5 for $s" 5 "$(wt $s neutral)"
+done
+
+echo "== N2: delta = top buys recovery by ANNIHILATING declared weights =="
+# The aba policy sets delta = #sup, which is the (x)-annihilator of the three
+# algebras whose e_otimes is not the top. Recovery is restored, but a derivation
+# through any unweighted assumption stops feeling the weights it passes through.
+for s in godel lukasiewicz;                       do check "aba: weight survives in $s" 5      "$(wt $s aba)"; done
+for s in tropical arctic bottleneck_cost;         do check "aba: weight annihilated in $s" '#sup' "$(wt $s aba)"; done
+
+echo "== N2b: recovery under delta = e_otimes holds iff e_otimes is unaffordable =="
+# Two mutually attacking UNWEIGHTED assumptions: classically 2 stable extensions.
+# Under `neutral` an all-unweighted derivation weighs e_otimes, which beta=0 already
+# affords whenever e_otimes <= 0 -- true for tropical/arctic (0) and bottleneck (-inf).
+printf 'assumption(p). contrary(p,cp).\nassumption(q). contrary(q,cq).\nhead(r1,cp). body(r1,q).\nhead(r2,cq). body(r2,p).\n' > "$tmp/pos.lp"
+rec() { # rec <semiring> <policy>
+  "$CLINGO" --warn=no-atom-undefined -n 0 -c beta=0 "$ROOT/core/base.lp" \
+    "$ROOT/semiring/$1.lp" "$ROOT/defaults/$2.lp" "$ROOT/monoid/sum.lp" \
+    "$ROOT/constraint/ub.lp" "$ROOT/filter/projection.lp" \
+    "$ROOT/semantics/stable.lp" "$tmp/pos.lp" 2>&1 | models
+}
+check "neutral: godel recovers"        2 "$(rec godel neutral)"
+check "neutral: lukasiewicz recovers"  2 "$(rec lukasiewicz neutral)"
+for s in tropical arctic bottleneck_cost; do
+  check "neutral: $s does NOT recover (documented)" 3 "$(rec $s neutral)"
+done
+for s in godel tropical arctic bottleneck_cost lukasiewicz; do
+  check "aba: $s recovers" 2 "$(rec $s aba)"
+done
+
+echo "== N3: canonicity -- the D=empty guard is redundant exactly for (+,<=),(max,<=),(min,>=) =="
+# Strip the `some_discard` gate so the budget condition applies to D=empty too.
+# Classical extensions must then survive at every beta for the canonical pairings
+# and be lost for the other three. If this section starts failing, someone has
+# changed which pairings are canonical -- a published characterisation.
+# First: the guard must actually BE there. Without this the rest of N3 would pass
+# vacuously if someone deleted the gate from the shipped constraint files, since
+# there would then be nothing for sed to strip.
+for b in ub lb; do
+  if grep -q 'budget(B), some_discard\.' "$ROOT/constraint/$b.lp"; then
+    echo "  ok   constraint/$b.lp still carries the D=empty guard"; pass=$((pass+1))
+  else
+    echo "  FAIL constraint/$b.lp has LOST the D=empty guard (Prop. Canonicity relies on it)"; fail=$((fail+1))
+  fi
+  sed 's/^:- budget_value(C), C \(.\) B, budget(B), some_discard\./:- budget_value(C), C \1 B, budget(B)./' \
+      "$ROOT/constraint/$b.lp" > "$tmp/${b}_noguard.lp"
+  grep -q 'budget(B), some_discard\.' "$tmp/${b}_noguard.lp" && { echo "  FAIL could not strip the guard from $b.lp"; fail=$((fail+1)); }
+done
+noguard() { # noguard <monoid> <bound> <beta>
+  "$CLINGO" --warn=no-atom-undefined -n 0 -c beta=$3 "$ROOT/core/base.lp" \
+    "$ROOT/semiring/godel.lp" "$ROOT/defaults/aba.lp" "$ROOT/monoid/$1.lp" \
+    "$tmp/$2_noguard.lp" "$ROOT/filter/projection.lp" \
+    "$ROOT/semantics/stable.lp" "$tmp/pos.lp" 2>&1 | models
+}
+for beta in 0 3 10; do
+  check "canonical (+,<=)   keeps the 2 classical extensions at beta=$beta" 2 "$(noguard sum ub  $beta)"
+  check "canonical (max,<=) keeps the 2 classical extensions at beta=$beta" 2 "$(noguard max ub  $beta)"
+  check "canonical (min,>=) keeps the 2 classical extensions at beta=$beta" 2 "$(noguard min lb  $beta)"
+done
+# the non-canonical pairings filter rather than relax, so without the guard they lose them
+check "non-canonical (max,>=) loses them at beta=0"  0 "$(noguard max lb 0)"
+check "non-canonical (min,<=) loses them at beta=0"  0 "$(noguard min ub 0)"
+check "non-canonical (+,>=)   loses them at beta=3"  0 "$(noguard sum lb 3)"
+check "non-canonical (+,>=)   is fine at beta=0 only" 2 "$(noguard sum lb 0)"
+
 echo
 echo "==== $pass passed, $fail failed ===="
 [ "$fail" -eq 0 ]
