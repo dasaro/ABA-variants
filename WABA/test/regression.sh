@@ -226,6 +226,56 @@ check "non-canonical (min,<=) loses them at beta=0"  0 "$(noguard min ub 0)"
 check "non-canonical (+,>=)   loses them at beta=3"  0 "$(noguard sum lb 3)"
 check "non-canonical (+,>=)   is fine at beta=0 only" 2 "$(noguard sum lb 0)"
 
+echo "== N4: the framework is a PRODUCT -- semiring x (monoid,bound) with no interference =="
+# Enriched Example 3.9: ca has two derivations, so the algebras give different wt(ca)
+# (godel 3, arctic 9, tropical 7, bottleneck 5, lukasiewicz 0) while wt(cb)=3 throughout.
+# Each canonical pairing must then price those weights independently of which algebra
+# produced them. All 15 cells are pinned; a failure means the two layers have started
+# to interfere, which would invalidate the product claim in the paper.
+cat > "$tmp/prod.lp" <<'FW'
+assumption(a). assumption(b).
+contrary(a, ca). contrary(b, cb).
+head(rd, d). weight(d, 5).
+head(re, e). weight(e, 3).
+head(rf, f). weight(f, 2).
+head(rg, g). weight(g, 6).
+head(r1, ca). body(r1, b). body(r1, d). body(r1, f).
+head(r2, ca). body(r2, b). body(r2, g). body(r2, e).
+head(r3, c).  body(r3, a). body(r3, e).
+head(r4, cb). body(r4, a). body(r4, c).
+FW
+has_ab() { # has_ab <semiring> <monoid> <bound> <beta>
+  "$CLINGO" --warn=no-atom-undefined -n 0 -c beta=$4 "$ROOT/core/base.lp" \
+    "$ROOT/semiring/$1.lp" "$ROOT/defaults/neutral.lp" "$ROOT/monoid/$2.lp" \
+    "$ROOT/constraint/$3.lp" "$ROOT/filter/projection.lp" "$ROOT/semantics/stable.lp" \
+    "$tmp/prod.lp" 2>&1 | grep -cE 'in\(a\).*in\(b\)|in\(b\).*in\(a\)'
+}
+thr() { # thr <semiring> <monoid> <bound> -> least beta at which {a,b} first appears (ub)
+  for B in $(seq 0 16); do [ "$(has_ab $1 $2 $3 $B)" != "0" ] && { echo "$B"; return; }; done; echo "-"
+}
+lastyes() { # lastyes <semiring> min lb -> greatest beta at which {a,b} still appears
+  local last="-"; for B in $(seq 0 16); do [ "$(has_ab $1 $2 $3 $B)" != "0" ] && last="$B"; done; echo "$last"
+}
+# wt(ca) per algebra, then the predicted thresholds: sum = wt(ca)+3, max = max(wt(ca),3)
+set -- "godel 3 6 3" "arctic 9 12 9" "tropical 7 10 7" "bottleneck_cost 5 8 5" "lukasiewicz 0 3 3"
+for spec in "$@"; do
+  a=$(echo $spec | cut -d' ' -f1); wca=$(echo $spec | cut -d' ' -f2)
+  esum=$(echo $spec | cut -d' ' -f3); emax=$(echo $spec | cut -d' ' -f4)
+  check "$a: wt(ca)=$wca"                "$wca" \
+    "$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=0 "$ROOT/core/base.lp" "$ROOT/semiring/$a.lp" \
+        "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" \
+        "$ROOT/semantics/cf.lp" "$tmp/prod.lp" 2>&1 \
+        | grep -aoE 'attacks_with_weight\(ca,a,[^)]*\)' | sed 's/.*,//;s/)//' | sort -u | head -1)"
+  check "$a x (+,<=)   threshold $esum"  "$esum" "$(thr $a sum ub)"
+  check "$a x (max,<=) threshold $emax"  "$emax" "$(thr $a max ub)"
+done
+# (min,>=) is governed by the EASIER concession, so it collapses onto wt(cb)=3 except for
+# lukasiewicz, whose eroded wt(ca)=0 takes over. Pins the weakness reading's character.
+for a in godel arctic tropical bottleneck_cost; do
+  check "$a x (min,>=) last-yes 3" 3 "$(lastyes $a min lb)"
+done
+check "lukasiewicz x (min,>=) last-yes 0" 0 "$(lastyes lukasiewicz min lb)"
+
 echo
 echo "==== $pass passed, $fail failed ===="
 [ "$fail" -eq 0 ]
