@@ -390,6 +390,49 @@ out="$(python3 "$ROOT/bin/waba" run --semantics budgeted-admissible --semiring t
 case "$out" in *"STRENGTH semiring"*) echo "  ok   CLI rejects cost + budgeted-defence"; pass=$((pass+1));;
                 *) echo "  FAIL CLI did not reject: $out"; fail=$((fail+1));; esac
 
+echo "== N8: recoverability is a property of (delta, bound), and of the SEMANTICS =="
+# Two mutually attacking UNWEIGHTED assumptions, so delta drives every attack weight.
+printf 'assumption(p). contrary(p,cp).\nassumption(q). contrary(q,cq).\nhead(r1,cp). body(r1,q).\nhead(r2,cq). body(r2,p).\n' > "$tmp/unw.lp"
+nmod() { # nmod <semiring> <policy> <semantics> <constraint> <beta> [monoid]
+  local extra=""; [ -n "${6:-}" ] && extra="$ROOT/monoid/$6.lp"
+  "$CLINGO" --warn=no-atom-undefined -n 0 -c beta=$5 "$ROOT/core/base.lp" \
+    "$ROOT/semiring/$1.lp" "$ROOT/defaults/$2.lp" $extra "$ROOT/constraint/$4.lp" \
+    "$ROOT/filter/projection.lp" "$ROOT/semantics/$3.lp" "$tmp/unw.lp" 2>&1 | models
+}
+check "classical stable = 2" 2 "$(nmod godel aba stable no_discard 0)"
+# (a) delta at 0 or the order bottom: NO beta >= 0 recovers under an upper bound
+for spec in "arctic neutral" "tropical neutral" "bottleneck_cost neutral" "bottleneck_cost legacy"; do
+  a=$(echo $spec | cut -d' ' -f1); pol=$(echo $spec | cut -d' ' -f2)
+  for b in 0 1 100 1000000; do
+    n="$(nmod $a $pol stable ub $b sum)"
+    if [ "$n" = "2" ]; then echo "  FAIL $a/$pol recovered at beta=$b under ub (expected never)"; fail=$((fail+1));
+    else pass=$((pass+1)); fi
+  done
+  echo "  ok   $a/$pol never recovers under (sum,ub), beta in {0,1,100,1e6}"
+done
+# (b) but the SAME configurations recover under a lower bound
+for spec in "arctic neutral" "tropical neutral"; do
+  a=$(echo $spec | cut -d' ' -f1); pol=$(echo $spec | cut -d' ' -f2)
+  check "$a/$pol recovers under (min,lb) at beta=1" 2 "$(nmod $a $pol stable lb 1 min)"
+done
+check "bottleneck_cost/neutral recovers under (min,lb) at beta=0" 2 \
+  "$(nmod bottleneck_cost neutral stable lb 0 min)"
+# (c) the classical DEFENCE semantics are weight-blind, so the pathology cannot touch them
+for sem in admissible complete grounded; do
+  base="$(nmod bottleneck_cost neutral $sem no_discard 0)"
+  for b in 0 5 1000000; do
+    check "$sem is budget-invariant at beta=$b (weight-blind)" "$base" \
+      "$(nmod bottleneck_cost neutral $sem ub $b sum)"
+  done
+done
+# (d) whereas cf and stable are not
+for sem in cf stable; do
+  base="$(nmod bottleneck_cost neutral $sem no_discard 0)"
+  got="$(nmod bottleneck_cost neutral $sem ub 0 sum)"
+  if [ "$base" = "$got" ]; then echo "  FAIL $sem unexpectedly matched classical ($base)"; fail=$((fail+1));
+  else echo "  ok   $sem diverges from classical under the pathological config ($base vs $got)"; pass=$((pass+1)); fi
+done
+
 echo
 echo "==== $pass passed, $fail failed ===="
 [ "$fail" -eq 0 ]
