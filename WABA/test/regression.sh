@@ -602,6 +602,42 @@ case "$(opt sum-min | grep -a 'OPTIMUM')" in *"OPTIMUM FOUND"*) echo "  ok   OPT
   *) echo "  FAIL no OPTIMUM FOUND"; fail=$((fail+1));; esac
 check "--opt-mode ignore still enumerates without optimising" 0 "$(opt sum-min ignore | grep -ac 'Optimization')"
 
+echo "== N11: infinite arg_weight is REACHABLE and the two guards are exact duals =="
+# arg_weight can be an infinity: a leaf weighted #inf or #sup (raw clingo only -- bin/waba
+# rejects both) propagates through otimes to the attack. semantics/admissible.lp guards #sup
+# under a strength polarity and #inf under a cost one, and clingo's #sum drops #inf while #min
+# drops #sup. The question was whether that combination lets a real objection be paid for
+# nothing. It does not: in each polarity the guarded infinity is the MAXIMAL objection and the
+# dropped one is the oplus-identity, i.e. an objection of no force at all, which should indeed
+# be free. Crucially strength + #inf is still blocked at beta=0, so recovery survives.
+printf 'assumption(t). contrary(t,obj).\nassumption(u). contrary(u,cu).\nhead(f1,l). weight(l,#inf).\nhead(r1,obj). body(r1,u). body(r1,l).\n' > "$tmp/infleaf.lp"
+sed 's/weight(l,#inf)/weight(l,#sup)/' "$tmp/infleaf.lp" > "$tmp/supleaf.lp"
+adm() { "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta=$3 "$ROOT/core/base.lp" \
+          "$ROOT/semiring/$1.lp" "$ROOT/defaults/neutral.lp" "$ROOT/filter/projection.lp" \
+          "$ROOT/semantics/admissible.lp" "$2" 2>&1 | grep -ac 'in(t)'; }
+# the infinity really does reach arg_weight
+w() { "$CLINGO" --warn=no-atom-undefined -n 1 -c beta=5 "$ROOT/core/base.lp" \
+        "$ROOT/semiring/$1.lp" "$ROOT/defaults/neutral.lp" "$ROOT/semantics/admissible.lp" \
+        "$tmp/infleaf.lp" 2>&1 | grep -aoE 'arg_weight\(obj,[^)]*\)' | sed 's/.*,//;s/)//' | sort -u | head -1; }
+for a in godel arctic tropical bottleneck_cost; do
+  check "$a: arg_weight(obj) is #inf (reachable)" '#inf' "$(w $a)"
+done
+# STRENGTH: #inf is the oplus-identity, a null objection -- blocked at beta=0, free above it
+for a in godel arctic; do
+  check "strength $a: #inf objection blocked at beta=0" 0 "$(adm $a "$tmp/infleaf.lp" 0)"
+  check "strength $a: #inf objection free at beta=1"    2 "$(adm $a "$tmp/infleaf.lp" 1)"
+  check "strength $a: #sup objection never droppable"   0 "$(adm $a "$tmp/supleaf.lp" 1000)"
+done
+# COST: the roles swap -- #inf is minimal cost, hence best supported, hence un-droppable
+for a in tropical bottleneck_cost; do
+  check "cost $a: #inf objection never droppable" 0 "$(adm $a "$tmp/infleaf.lp" 1000)"
+  check "cost $a: #sup objection is a null one"   2 "$(adm $a "$tmp/supleaf.lp" 0)"
+done
+# and the CLI refuses infinite weights outright, so this is a raw-composition matter only
+out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/infleaf.lp" --semantics admissible --beta 5 2>&1)"
+case "$out" in *"outside the normalized wrapper surface"*) echo "  ok   CLI rejects an infinite leaf weight"; pass=$((pass+1));;
+               *) echo "  FAIL CLI accepted an infinite leaf weight"; fail=$((fail+1));; esac
+
 echo
 echo "==== $pass passed, $fail failed ===="
 [ "$fail" -eq 0 ]

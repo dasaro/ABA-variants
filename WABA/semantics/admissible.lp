@@ -55,6 +55,14 @@ haspay :- pay(_,_).
 %% overrule, so the total strength conceded is bounded ABOVE and a maximal-strength (#sup)
 %% objection can never be paid for. beta = 0 then forbids every concession, which is exactly
 %% classical admissibility.
+%% An infinite arg_weight IS reachable: a leaf weighted #inf or #sup (raw clingo only --
+%% bin/waba rejects both) propagates through otimes. The two guards below are exact duals, and
+%% between them they leave nothing mis-priced. Under STRENGTH, #sup is the maximal objection and
+%% is un-droppable, while #inf is the oplus-identity -- an objection of no force at all -- which
+%% clingo's #sum drops, so it costs nothing above beta=0 and is still blocked AT beta=0 by the
+%% guard below it, preserving recovery. Under COST the roles swap: #inf is minimal cost, hence
+%% the best-supported objection, and is un-droppable; #sup is unestablishable, hence null, and
+%% #min drops it. Pinned by N11 in test/regression.sh.
 :- oplus(max), pay(X,Y), arg_weight(X,#sup).
 :- oplus(max), haspay, effective_budget(0).
 :- oplus(max), haspay, V = #sum{ W,X,Y : pay(X,Y), arg_weight(X,W) },
