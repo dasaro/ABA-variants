@@ -12,7 +12,9 @@ from pathlib import Path
 
 IN_PATTERN = re.compile(r"in\(([^)]+)\)")
 INCLUDE_PATTERN = re.compile(r'^#include\s+"([^"]+)"')
-WEIGHT_PATTERN = re.compile(r"^weight\s*\(\s*[^,]+,\s*([^)]+?)\s*\)\s*\.$")
+# Scan every weight/2 term on a line, not just one anchored at the start: ASP allows
+# several facts per line, and anchoring let `assumption(a). weight(a,-5).` slip through.
+WEIGHT_PATTERN = re.compile(r"\bweight\s*\(\s*[^,()]+,\s*([^)]+?)\s*\)")
 
 SUPPORTED_SEMANTICS = {
     "cf", "stable",
@@ -123,29 +125,26 @@ def validate_authored_weights(framework: Path, semiring_module: str) -> None:
             line = raw_line.split("%", 1)[0].strip()
             if not line:
                 continue
-            match = WEIGHT_PATTERN.match(line)
-            if match is None:
-                continue
+            for match in WEIGHT_PATTERN.finditer(line):
+                value = match.group(1).strip()
+                if value in {"#inf", "#sup"}:
+                    errors.append(
+                        f"{source}:{line_number}: explicit weight {value} is outside the normalized wrapper surface"
+                    )
+                    continue
 
-            value = match.group(1).strip()
-            if value in {"#inf", "#sup"}:
-                errors.append(
-                    f"{source}:{line_number}: explicit weight {value} is outside the normalized wrapper surface"
-                )
-                continue
+                if not re.fullmatch(r"-?\d+", value):
+                    errors.append(
+                        f"{source}:{line_number}: explicit weight {value!r} must be a finite integer literal"
+                    )
+                    continue
 
-            if not re.fullmatch(r"-?\d+", value):
-                errors.append(
-                    f"{source}:{line_number}: explicit weight {value!r} must be a finite integer literal"
-                )
-                continue
-
-            numeric_value = int(value)
-            if numeric_value < 0:
-                errors.append(
-                    f"{source}:{line_number}: explicit weight {numeric_value} must be nonnegative"
-                )
-                continue
+                numeric_value = int(value)
+                if numeric_value < 0:
+                    errors.append(
+                        f"{source}:{line_number}: explicit weight {numeric_value} must be nonnegative"
+                    )
+                    continue
 
     if errors:
         details = "\n".join(errors[:8])
@@ -317,6 +316,7 @@ def build_clingo_command(args: argparse.Namespace, semantic_name: str, opt_mode:
         "--opt-mode=" + opt_mode,
         "-c",
         f"beta={args._effective_beta}",
+        *(["-c", f"k={args.luk_k}"] if getattr(args, "luk_k", None) is not None else []),
         str(root / "core" / "base.lp"),
         str(root / "semiring" / f"{args._semiring_module}.lp"),
     ]
@@ -444,6 +444,17 @@ def run_post_filtered(args: argparse.Namespace) -> int:
         file=sys.stderr,
     )
     if args.print_command:
+        # This semantics needs TWO solver calls: the printed command is only the first,
+        # which enumerates the CANDIDATES. Pasting it back returns those candidates, not
+        # the subset-extremal ones this run reports. Say so on stdout, where the command
+        # goes, rather than only on stderr -- a caller capturing stdout would otherwise
+        # get a command that silently answers a different question.
+        print(
+            f"% NOTE: {args.semantics} is computed in two passes. The command below is pass 1"
+            f" and yields the {candidate_semantics} CANDIDATES; pass 2 filters them with"
+            f" semantics/{SUBSET_FILTER[args.semantics]} over a generated facts file and is"
+            f" not reproducible as a single command."
+        )
         print(shell_join(command))
         return 0
 
@@ -493,6 +504,12 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--beta", type=int)
     run.add_argument("--show", default="projection", choices=sorted(SHOW_FILTERS))
     run.add_argument("--opt-mode", choices=["ignore", "optN"])
+    run.add_argument(
+        "--luk-k", type=int, default=None, metavar="K",
+        help="Lukasiewicz bound k (default 1000). Its conjunction is max(0, a+b-k), so with "
+             "the default an ordinary small-integer derivation erodes to 0; set k near the "
+             "scale of your weights. Ignored by the other algebras.",
+    )
     run.add_argument("--print-command", action="store_true")
     return parser
 

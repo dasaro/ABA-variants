@@ -545,6 +545,51 @@ ASPEOF
   done
 fi
 
+echo "== N10: CLI surface defects found by the 2026-07 exploration =="
+# (a) weight/2 validation was anchored to the start of a line, so a weight sharing a line
+#     with another fact escaped every check and a NEGATIVE weight reached the solver.
+printf 'assumption(a). weight(a, -5).\nassumption(b).\nweight(b,4).\ncontrary(b,a).\ncontrary(a,nope).\n' > "$tmp/oneline.lp"
+out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/oneline.lp" --show standard 2>&1)"
+case "$out" in *"must be nonnegative"*) echo "  ok   negative weight rejected even when sharing a line"; pass=$((pass+1));;
+               *) echo "  FAIL negative weight slipped through a shared line"; fail=$((fail+1));; esac
+printf 'assumption(a). weight(a,#sup).\nassumption(b). contrary(b,a). contrary(a,z).\n' > "$tmp/onesup.lp"
+out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/onesup.lp" 2>&1)"
+case "$out" in *"outside the normalized wrapper surface"*) echo "  ok   #sup weight rejected on a shared line"; pass=$((pass+1));;
+               *) echo "  FAIL #sup weight slipped through"; fail=$((fail+1));; esac
+check "a well-formed framework still runs" 2 \
+  "$(python3 "$ROOT/bin/waba" run --framework "$REF" --semantics stable 2>/dev/null | grep -acE '^Answer:')"
+
+# (b) Lukasiewicz's bound k was unreachable from the CLI: with the default 1000 every
+#     ordinary small-integer derivation erodes to 0, and a framework cannot set the
+#     constant (clingo rejects redefinition). --luk-k plumbs it through.
+printf 'assumption(c). contrary(c,p).\nassumption(d). contrary(d,cd).\nhead(w1,x). weight(x,3).\nhead(w2,y). weight(y,5).\nhead(r1,p). body(r1,d). body(r1,x). body(r1,y).\n' > "$tmp/luk_k.lp"
+lukw() { python3 "$ROOT/bin/waba" run --framework "$tmp/luk_k.lp" --semiring lukasiewicz \
+           --semantics cf --default-policy neutral --show standard ${1:+--luk-k $1} 2>&1 \
+         | grep -aoE 'supported_with_weight\(p,[0-9]+\)' | sort -u | head -1; }
+check "luk k=4  -> max(0,3+5-4)=4" "supported_with_weight(p,4)" "$(lukw 4)"
+check "luk k=6  -> max(0,3+5-6)=2" "supported_with_weight(p,2)" "$(lukw 6)"
+check "luk k=8  -> max(0,3+5-8)=0" "supported_with_weight(p,0)" "$(lukw 8)"
+check "luk default k=1000 -> 0"    "supported_with_weight(p,0)" "$(lukw '')"
+check "--luk-k does not affect godel" "supported_with_weight(p,3)" \
+  "$(python3 "$ROOT/bin/waba" run --framework "$tmp/luk_k.lp" --semiring godel --semantics cf \
+     --default-policy neutral --show standard --luk-k 6 2>&1 | grep -aoE 'supported_with_weight\(p,[0-9]+\)' | sort -u | head -1)"
+
+# (c) --print-command must not hand back a command that answers a different question.
+#     preferred needs two solver passes; pass 1 alone returns the CANDIDATES.
+out="$(python3 "$ROOT/bin/waba" run --framework "$REF" --semantics preferred --beta 200 --print-command 2>/dev/null)"
+case "$out" in *"two passes"*) echo "  ok   --print-command flags the two-pass semantics"; pass=$((pass+1));;
+               *) echo "  FAIL --print-command silently printed only pass 1"; fail=$((fail+1));; esac
+
+# (d) --objective is a NO-OP without --opt-mode optN. Pinned as KNOWN, not fixed: the
+#     remedy (defaulting to optN) would change every existing budgeted invocation.
+noopt="$(python3 "$ROOT/bin/waba" run --framework "$REF" --semantics stable --budget-mode ub \
+         --beta 20 --objective sum-min 2>&1 | grep -ac 'Optimization')"
+wopt="$(python3 "$ROOT/bin/waba" run --framework "$REF" --semantics stable --budget-mode ub \
+         --beta 20 --objective sum-min --opt-mode optN 2>&1 | grep -ac 'Optimization')"
+check "KNOWN: --objective reports nothing without --opt-mode optN" 0 "$noopt"
+if [ "$wopt" -gt 0 ]; then echo "  ok   --opt-mode optN does optimise"; pass=$((pass+1));
+else echo "  FAIL --opt-mode optN did not optimise"; fail=$((fail+1)); fi
+
 echo
 echo "==== $pass passed, $fail failed ===="
 [ "$fail" -eq 0 ]
