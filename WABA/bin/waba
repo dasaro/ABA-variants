@@ -17,7 +17,7 @@ WEIGHT_PATTERN = re.compile(r"^weight\s*\(\s*[^,]+,\s*([^)]+?)\s*\)\s*\.$")
 SUPPORTED_SEMANTICS = {
     "cf", "stable",
     # wABA budgeted-defence (Dunne Def 6 lift): weighted admissible/complete/preferred
-    "budgeted-admissible", "budgeted-complete", "budgeted-preferred",
+    "admissible", "complete", "preferred",
 }
 ALL_SEMANTICS = sorted(SUPPORTED_SEMANTICS)
 
@@ -58,10 +58,10 @@ DIRECT_SEMANTICS = {"cf", "stable"}
 # Exact set-inclusion semantics: enumerate candidates, then keep the subset-extremal ones.
 # grounded is the subset-LEAST complete extension; preferred the subset-maximal admissible one.
 POST_FILTER_SEMANTICS = {
-    "budgeted-preferred": "budgeted-admissible",
+    "preferred": "admissible",
 }
 SUBSET_FILTER = {
-    "budgeted-preferred": "subset_maximal_filter.lp",
+    "preferred": "subset_maximal_filter.lp",
 }
 
 # Defense semantics are CLASSICAL (weight-blind, no budget): the budget/discard knob is
@@ -72,8 +72,8 @@ BUDGETED_SEMANTICS = {"cf", "stable"}
 # wABA budgeted DEFENCE (Dunne et al. AIJ 2011, Def 6, lifted to structured ABA). These
 # take --beta directly (their own SUM inconsistency budget, self-contained in the module),
 # need a STRENGTH semiring, and compose with no_discard (they use their own `pay` set).
-BUDGETED_DEFENSE_SEMANTICS = {"budgeted-admissible", "budgeted-complete", "budgeted-preferred"}
-SEMANTIC_MODULE = {"budgeted-admissible": "admissible_dunne", "budgeted-complete": "complete_dunne"}
+BUDGETED_DEFENSE_SEMANTICS = {"admissible", "complete", "preferred"}
+SEMANTIC_MODULE = {"admissible": "admissible_dunne", "complete": "complete_dunne"}
 STRENGTH_SEMIRINGS = {"godel", "arctic", "lukasiewicz", "tropical_high"}  # oplus = max
 
 
@@ -370,12 +370,12 @@ def validate_args(args: argparse.Namespace) -> None:
     if args.semantics in BUDGETED_DEFENSE_SEMANTICS:
         if args._semiring_module not in STRENGTH_SEMIRINGS:
             raise SystemExit(
-                "budgeted-defence semantics need a STRENGTH semiring "
+                "the defence semantics need a STRENGTH semiring "
                 "(godel / arctic / lukasiewicz): a cost semiring inverts the inconsistency budget"
             )
         if args.objective is not None or args.budget_mode != "none":
             raise SystemExit(
-                "budgeted-defence semantics take --beta directly (their own SUM inconsistency "
+                "the defence semantics take --beta directly (their own SUM inconsistency "
                 "budget); do not pass --objective or --budget-mode"
             )
         # self-contained budget in the module; compose with no_discard (base discards are pinned off)

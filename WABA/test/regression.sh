@@ -115,8 +115,8 @@ check "internal repair: {a,b} joint at beta=10"    1 "$(dun 10 godel admissible_
 # cost semirings rejected
 check "dunne cost semiring rejected (tropical)" UNSATISFIABLE "$(dun 0 tropical admissible_dunne "$REF" | grep -aoE 'UNSATISFIABLE|SATISFIABLE' | head -1)"
 # bin/waba surface: budgeted-admissible deduped + guards
-check "bin/waba budgeted-admissible beta=0 = 7" 7 "$(python3 "$ROOT/bin/waba" run --semantics budgeted-admissible --semiring godel --default-policy aba --beta 0 --framework "$REF" 2>/dev/null | grep -cE '^Answer:')"
-case "$(python3 "$ROOT/bin/waba" run --semantics budgeted-admissible --semiring tropical --beta 10 --framework "$REF" 2>&1 | tail -1)" in
+check "bin/waba admissible beta=0 = 7" 7 "$(python3 "$ROOT/bin/waba" run --semantics admissible --semiring godel --default-policy aba --beta 0 --framework "$REF" 2>/dev/null | grep -cE '^Answer:')"
+case "$(python3 "$ROOT/bin/waba" run --semantics admissible --semiring tropical --beta 10 --framework "$REF" 2>&1 | tail -1)" in
   *"STRENGTH semiring"*) echo "  ok   bin/waba rejects cost semiring for budgeted-defence"; pass=$((pass+1));;
   *) echo "  FAIL bin/waba did not reject cost semiring"; fail=$((fail+1));;
 esac
@@ -126,19 +126,19 @@ echo "== exact set-inclusion semantics via the CLI (no duplicate optima) =="
 # budgeted-preferred is the only surviving subset-filtered semantics: it enumerates the
 # budgeted-admissible candidates and keeps the subset-maximal ones, so it must report each
 # extension ONCE (the former cardinality-#minimize encoding printed the optimum twice).
-check "budgeted-preferred reports each extension once" 2 \
-  "$(python3 "$ROOT/bin/waba" run --semantics budgeted-preferred --semiring godel \
+check "preferred reports each extension once" 2 \
+  "$(python3 "$ROOT/bin/waba" run --semantics preferred --semiring godel \
      --default-policy aba --beta 0 --framework "$REF" 2>/dev/null | grep -acE '^Answer:')"
 # NOT monotone in beta, and that is the documented behaviour, not a defect. beta-preferred
 # is subset-maximal AMONG the beta-admissible sets, so raising beta can promote a competitor
 # that SUBSUMES an existing preferred extension and thereby remove it. Measured on the
-# reference: budgeted-admissible grows 7,7,7,11,16 over beta=0,5,10,100,1000 while
+# reference: admissible grows 7,7,7,11,16 over beta=0,5,10,100,1000 while
 # budgeted-preferred goes 2,2,2,2,1. See the paper's remark on the extremal semantics.
-check "budgeted-preferred is NOT monotone: 2 at beta=100" 2 \
-  "$(python3 "$ROOT/bin/waba" run --semantics budgeted-preferred --semiring godel \
+check "preferred is NOT monotone: 2 at beta=100" 2 \
+  "$(python3 "$ROOT/bin/waba" run --semantics preferred --semiring godel \
      --default-policy aba --beta 100 --framework "$REF" 2>/dev/null | grep -acE '^Answer:')"
-check "budgeted-preferred DROPS to 1 at beta=1000" 1 \
-  "$(python3 "$ROOT/bin/waba" run --semantics budgeted-preferred --semiring godel \
+check "preferred DROPS to 1 at beta=1000" 1 \
+  "$(python3 "$ROOT/bin/waba" run --semantics preferred --semiring godel \
      --default-policy aba --beta 1000 --framework "$REF" 2>/dev/null | grep -acE '^Answer:')"
 
 echo "== every documented semiring is selectable from the CLI =="
@@ -396,7 +396,7 @@ done
 check "beta=0 dunne, godel    = 3 (recovers classical admissible)" 3 "$(dunne godel 0)"
 check "beta=0 dunne, tropical = 0 (does NOT recover)"              0 "$(dunne tropical 0)"
 # (4) the CLI does guard the composition, with a message
-out="$(python3 "$ROOT/bin/waba" run --semantics budgeted-admissible --semiring tropical \
+out="$(python3 "$ROOT/bin/waba" run --semantics admissible --semiring tropical \
         --budget-mode ub --objective sum-min --beta 30 --framework "$tmp/leak.lp" 2>&1)"
 case "$out" in *"STRENGTH semiring"*) echo "  ok   CLI rejects cost + budgeted-defence"; pass=$((pass+1));;
                 *) echo "  FAIL CLI did not reject: $out"; fail=$((fail+1));; esac
@@ -478,6 +478,47 @@ for ex in "$ROOT"/examples/*/*.lp; do
        "$ROOT/filter/standard.lp" "$ROOT/semantics/stable.lp" "$ex" 2>&1 | grep -ac 'weight_on_derived_dominated')"
   check "$(basename "$ex") trips no advisory" 0 "$n"
 done
+
+echo "== GT: ground truth against ASPforABA (external ABA oracle) =="
+# Removing the classical defence family cost us the in-tree reference for the recovery
+# theorem (beta-sigma = sigma(F-)). This block restores it from an INDEPENDENT solver
+# instead of from constants. ASPforABA's encodings take the same assumption/contrary/
+# head/body facts we do, and com-aba-cred.dl is the complete-extension encoding whose
+# query filter (`:- not supported(X), query(X).`) is vacuous when no query/1 is given,
+# so it enumerates. Run with clingo directly, not the python driver.
+ASPFORABA="${ASPFORABA:-/Users/fdasaro/Downloads/aspforaba/encodings}"
+if [ ! -f "$ASPFORABA/stb-aba-enum.dl" ]; then
+  echo "  SKIP  ASPforABA not found at $ASPFORABA (set ASPFORABA=... to enable)"
+else
+  # canonical extension set: one sorted, comma-joined line per extension, deduplicated
+  norm() { awk '/^Answer/{getline; s=""; for(i=1;i<=NF;i++) if($i ~ /^in\(/){gsub(/in\(|\)/,"",$i); s=s $i" "} print s}' \
+           | while read -r l; do echo "$l" | tr ' ' '\n' | grep . | sort | tr '\n' ',' ; echo; done | sort -u; }
+  gt()  { "$CLINGO" --warn=none -n 0 "$1" "$2" 2>/dev/null | norm; }
+  ours(){ "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta=0 "$ROOT/core/base.lp" \
+            "$ROOT/semiring/godel.lp" "$ROOT/defaults/aba.lp" $4 "$ROOT/filter/projection.lp" \
+            "$ROOT/semantics/$1.lp" "$2" 2>/dev/null | norm; }
+  for fw in "$REF" "$ROOT"/examples/*/*.lp; do
+    b="$(basename "$fw")"
+    gt "$ASPFORABA/stb-aba-enum.dl" "$fw" > "$tmp/gt_stb"
+    ours stable "$fw" 0 "$ROOT/constraint/no_discard.lp" > "$tmp/ou_stb"
+    if diff -q "$tmp/gt_stb" "$tmp/ou_stb" >/dev/null; then
+      echo "  ok   stable == ASPforABA on $b ($(wc -l < "$tmp/gt_stb" | tr -d " ") ext)"; pass=$((pass+1))
+    else
+      echo "  FAIL stable != ASPforABA on $b"; diff "$tmp/gt_stb" "$tmp/ou_stb" | head -4; fail=$((fail+1))
+    fi
+    gt "$ASPFORABA/com-aba-cred.dl" "$fw" > "$tmp/gt_com"
+    ours complete_dunne "$fw" 0 "" > "$tmp/ou_com"
+    if diff -q "$tmp/gt_com" "$tmp/ou_com" >/dev/null; then
+      echo "  ok   complete beta=0 == ASPforABA on $b ($(wc -l < "$tmp/gt_com" | tr -d " ") ext)"; pass=$((pass+1))
+    else
+      echo "  FAIL complete beta=0 != ASPforABA on $b"; diff "$tmp/gt_com" "$tmp/ou_com" | head -4; fail=$((fail+1))
+    fi
+    # admissible has no ASPforABA encoding; check the containment that must hold
+    ours admissible_dunne "$fw" 0 "" > "$tmp/ou_adm"
+    m=0; while read -r c; do [ -n "$c" ] && { grep -qxF "$c" "$tmp/ou_adm" || m=1; }; done < "$tmp/gt_com"
+    check "every ASPforABA complete ext is admissible on $b" 0 "$m"
+  done
+fi
 
 echo
 echo "==== $pass passed, $fail failed ===="
