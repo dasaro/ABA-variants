@@ -21,7 +21,7 @@ The tree is intentionally small:
 
 - `core/`: shared WABA attack and discard logic
 - `semiring/`: the four algebras of the 2x2 (`godel`, `tropical`, `arctic`, `bottleneck_cost`) plus `lukasiewicz` (bounded sum, outside the 2x2), with `godel_low` / `tropical_high` as thin polarity-dual aliases
-- `defaults/`: `legacy`, `aba`, and `neutral` policies for unweighted assumptions
+- `defaults/`: `aba` and `neutral` policies for unweighted assumptions (`neutral` is the default)
 - `monoid/` and `optimize/`: aggregate family and optimization direction
 - `constraint/`: generic `ub`, generic `lb`, and `no_discard`
 - `semantics/`: supported raw semantics plus the exact subset-maximal filter used by `preferred`
@@ -112,7 +112,7 @@ The **monoid** aggregates the *discarded* attacks into the extension's cost, bou
 - **`max`** (`ub`) — worst single concession: dismiss freely, but never an attack stronger than `beta`.
 - **`min`** (`lb`) — quality floor: every dismissed attack must be at least `beta`-strong.
 
-**`no_discard` recovers classical ABA exactly** — it forbids *every* discard, for any weight. Prefer it (or `--aba-recovery`) to `ub` with `beta = 0`: a budget of 0 is a genuine budget, and under the cost semirings the `⊗`-identity (`#inf`, the "negligible-cost" weight of an unweighted `legacy` attack or a fact-derived contrary) is free to drop at any budget by design. The `aba` default policy also makes unweighted attacks `#sup` (un-droppable), so it recovers ABA under a budget too. **Frameworks must be well-founded:** `core/base.lp` rejects derivation cycles (`p ← q`, `q ← p`) outright, since a cyclic derivation has no well-defined propagated weight — as with the flatness guard, the framework is refused rather than given ill-defined weights. **Weights as probabilities:** encode `w = round(-K ln p)` and run `tropical`; the propagated weight is then the surprisal of an atom's most-probable proof (decode `p = exp(-w/K)`) — see `examples/probabilistic/`.
+**`no_discard` recovers classical ABA exactly** — it forbids *every* discard, for any weight. Prefer it (or `--aba-recovery`) to `ub` with `beta = 0`: a budget of 0 is a genuine budget, and under the cost semirings the `⊗`-identity (`#inf`, the "negligible-cost" weight of an unweighted attack or a fact-derived contrary) is free to drop at any budget by design. The `aba` default policy also makes unweighted attacks `#sup` (un-droppable), so it recovers ABA under a budget too. **Frameworks must be well-founded:** `core/base.lp` rejects derivation cycles (`p ← q`, `q ← p`) outright, since a cyclic derivation has no well-defined propagated weight — as with the flatness guard, the framework is refused rather than given ill-defined weights. **Weights as probabilities:** encode `w = round(-K ln p)` and run `tropical`; the propagated weight is then the surprisal of an atom's most-probable proof (decode `p = exp(-w/K)`) — see `examples/probabilistic/`.
 
 ### Where weights live (leaves vs derived atoms)
 
@@ -123,14 +123,14 @@ An explicit `weight/2` on a *derived* atom is combined with its own derivation v
 |                  | `⊗`-identity | explicit weight `W` on a derived atom (from unweighted supports) |
 |------------------|--------------|-------------------------------------------------------------------|
 | `arctic`         | `0`          | **survives** — `max(W, 0) = W`                                    |
-| `tropical`       | `0`          | **survives** — `min(W, #sup) = W` (via the legacy `#sup` default) |
+| `tropical`       | `0`          | **survives** under `aba` — `min(W, #sup) = W`; dominated to `0` under the default `neutral` |
 | `godel`          | `#sup`       | dominated → `#sup`  (`max(W, #sup)`)                              |
 | `bottleneck_cost`| `#inf`       | dominated → `#inf`  (`min(W, #inf)`)                             |
 | `lukasiewicz`    | `k`          | dominated → `k`     (`max(W, k)`)                                |
 
 `core/base.lp` flags this as **`weight_on_derived_dominated(X, Declared, Effective)`** (the filter modules `#show` it; it is empty for a well-formed framework). A declared weight that did not take effect almost always means it belongs on a leaf instead. The "a weighted non-assumption atom" requirement is met cleanly by a **weighted fact** — `weight(f, W). head(r, f).` with an empty body — whose weight is intrinsic and always survives.
 
-**`tropical` is the one asymmetric algebra.** Its `⊗`-identity is `0`, but the *legacy* default weight for an unweighted assumption is `#sup` (the `⊕`-identity / `⊗`-annihilator), **not** `0`. So an unweighted assumption *annihilates* a `tropical` conjunction: `c_acc ← t_acc, objection` collapses to `#sup`. Route the objection through an intermediate instead (`objection ← t_acc`; `c_acc ← objection`) — which works because a *weighted* intermediate survives under `tropical`. There is **no free lunch**: the `#sup` default is exactly what makes weighted intermediates survive, while the `neutral` default (`0`) fixes the annihilation but then kills weighted intermediates — choose per model. The other four algebras use their `⊗`-identity as the default, so unweighted assumptions are transparent in a conjunction.
+**`tropical` is the one asymmetric algebra**, and it is the only one where the choice of default policy changes anything. Under the default `neutral` its delta is its `⊗`-identity `0`, so an unweighted assumption is transparent — but then an explicit weight on a derived atom is dominated to `0`. Under `aba` its delta is `#sup` (the `⊕`-identity / `⊗`-annihilator), which makes weighted intermediates survive but *annihilates* a conjunction through an unweighted assumption: `c_acc ← t_acc, objection` collapses to `#sup`. There is **no free lunch** — choose per model, or route the objection through an intermediate (`objection ← t_acc`; `c_acc ← objection`) so the conjunction never mixes a weight with delta. For the other four algebras `neutral` and the retired `legacy` policy agreed, so nothing there depends on the choice.
 
 ## Web Playground Sync
 

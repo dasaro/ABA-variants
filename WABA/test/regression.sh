@@ -157,7 +157,7 @@ check "#sup (x) 300 = 300 (identity preserved)" "supported_with_weight(conj,300)
   "$("$CLINGO" --warn=no-atom-undefined -n 1 -c beta=0 "$ROOT/core/base.lp" "$ROOT/semiring/lukasiewicz.lp" "$ROOT/defaults/aba.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/cf.lp" "$tmp/luk_id.lp" 2>&1 | grep -aoE 'supported_with_weight\(conj,[^)]*\)' | head -1)"
 printf 'assumption(x). contrary(x,cx).\nweight(p,900). head(f1,p). weight(q,900). head(f2,q).\nhead(r,t). body(r,p). body(r,q).\nbudget(0).\n' > "$tmp/luk_er.lp"
 check "900 (x) 900 = 800 (erosion intact)" "supported_with_weight(t,800)" \
-  "$("$CLINGO" --warn=no-atom-undefined -n 1 -c beta=0 "$ROOT/core/base.lp" "$ROOT/semiring/lukasiewicz.lp" "$ROOT/defaults/legacy.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/cf.lp" "$tmp/luk_er.lp" 2>&1 | grep -aoE 'supported_with_weight\(t,[^)]*\)' | head -1)"
+  "$("$CLINGO" --warn=no-atom-undefined -n 1 -c beta=0 "$ROOT/core/base.lp" "$ROOT/semiring/lukasiewicz.lp" "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/cf.lp" "$tmp/luk_er.lp" 2>&1 | grep -aoE 'supported_with_weight\(t,[^)]*\)' | head -1)"
 
 # ---------------------------------------------------------------------------
 # N1-N3: neutral elements and their roles.
@@ -421,7 +421,7 @@ nmod() { # nmod <semiring> <policy> <semantics> <constraint> <beta> [monoid]
 }
 check "classical stable = 2" 2 "$(nmod godel aba stable no_discard 0)"
 # (a) delta at 0 or the order bottom: NO beta >= 0 recovers under an upper bound
-for spec in "arctic neutral" "tropical neutral" "bottleneck_cost neutral" "bottleneck_cost legacy"; do
+for spec in "arctic neutral" "tropical neutral" "bottleneck_cost neutral"; do
   a=$(echo $spec | cut -d' ' -f1); pol=$(echo $spec | cut -d' ' -f2)
   for b in 0 1 100 1000000; do
     n="$(nmod $a $pol stable ub $b sum)"
@@ -451,7 +451,7 @@ echo "== N9: the two well-formedness guards added by the 2026-07 source review =
 #     and the same (attacker,target) pair can be discarded AND successful in one model.
 printf 'assumption(a). contrary(a,b).\nassumption(b). contrary(b,cb).\nweight(b,3). weight(b,40). weight(a,5).\n' > "$tmp/dupw.lp"
 out="$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=1000 "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
-      "$ROOT/defaults/legacy.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" \
+      "$ROOT/defaults/neutral.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" \
       "$ROOT/semantics/cf.lp" "$tmp/dupw.lp" 2>&1)"
 case "$out" in *UNSATISFIABLE*) echo "  ok   duplicate weight/2 is rejected"; pass=$((pass+1));;
                *) echo "  FAIL duplicate weight/2 was accepted"; fail=$((fail+1));; esac
@@ -459,7 +459,7 @@ case "$out" in *UNSATISFIABLE*) echo "  ok   duplicate weight/2 is rejected"; pa
 printf 'assumption(a). contrary(a,b).\nassumption(b). contrary(b,cb).\nweight(b,3). weight(a,5).\n' > "$tmp/onew.lp"
 check "a single weight/2 still solves" 5 \
   "$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=1000 "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
-      "$ROOT/defaults/legacy.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" \
+      "$ROOT/defaults/neutral.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" \
       "$ROOT/filter/projection.lp" "$ROOT/semantics/cf.lp" "$tmp/onew.lp" 2>&1 | models)"
 
 # (b) an UNBOUND beta is rejected under ub/lb. clingo orders every integer strictly BELOW
@@ -470,20 +470,20 @@ printf 'assumption(p). contrary(p,cp).\nassumption(q). contrary(q,cq).\nhead(r1,
 for con in ub lb; do
   mon=sum; [ "$con" = lb ] && mon=min
   out="$("$CLINGO" --warn=no-atom-undefined -n 0 "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
-        "$ROOT/defaults/legacy.lp" "$ROOT/monoid/$mon.lp" "$ROOT/constraint/$con.lp" \
+        "$ROOT/defaults/neutral.lp" "$ROOT/monoid/$mon.lp" "$ROOT/constraint/$con.lp" \
         "$ROOT/semantics/cf.lp" "$tmp/nb.lp" 2>&1)"
   case "$out" in *UNSATISFIABLE*) echo "  ok   unbound beta rejected under $con"; pass=$((pass+1));;
                  *) echo "  FAIL unbound beta accepted under $con"; fail=$((fail+1));; esac
 done
 check "no_discard still runs without beta" 3 \
   "$("$CLINGO" --warn=no-atom-undefined -n 0 "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
-      "$ROOT/defaults/legacy.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/filter/projection.lp" \
+      "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/filter/projection.lp" \
       "$ROOT/semantics/cf.lp" "$tmp/nb.lp" 2>&1 | models)"
 
 # (c) no shipped example trips the weight-on-derived advisory
 for ex in "$ROOT"/examples/*/*.lp; do
   n="$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=1000 "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
-       "$ROOT/defaults/legacy.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" \
+       "$ROOT/defaults/neutral.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" \
        "$ROOT/filter/standard.lp" "$ROOT/semantics/stable.lp" "$ex" 2>&1 | grep -ac 'weight_on_derived_dominated')"
   check "$(basename "$ex") trips no advisory" 0 "$n"
 done

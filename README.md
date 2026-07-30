@@ -36,7 +36,7 @@ The modules can also be loaded directly, one from each layer:
 clingo --warn=no-atom-undefined -n 0 -c beta=0 \
   WABA/core/base.lp \
   WABA/semiring/godel.lp \
-  WABA/defaults/legacy.lp \
+  WABA/defaults/neutral.lp \
   WABA/constraint/no_discard.lp \
   WABA/filter/projection.lp \
   WABA/semantics/stable.lp \

@@ -13,7 +13,6 @@ oplus(max).
 oplus_identity(0).
 otimes_identity(k).
 
-semiring_default_weight(legacy,k).
 %% aba default is #sup (un-discardable): an unweighted assumption then behaves as a
 %% plain ABA assumption whose attack survives any finite budget, so β=0 / no_discard
 %% recovers classical ABA at every k. (In luk's ⊗, a #sup premise saturates to the

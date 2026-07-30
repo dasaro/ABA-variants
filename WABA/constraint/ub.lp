@@ -21,7 +21,7 @@ some_discard :- discarded_attack(_,_,_).
 
 %% Exact classical-ABA recovery is constraint/no_discard.lp (forbids ALL discards, for
 %% ANY weight) — NOT ub with beta=0. A budget of 0 here is a genuine budget=0: the cost
-%% semirings' ⊗-identity (#inf, the "negligible-cost" weight of an unweighted legacy
+%% semirings' ⊗-identity (#inf, the "negligible-cost" weight of an unweighted
 %% attack or a fact-derived contrary) is free to discard at any budget by design — a
 %% zero-cost attack costs nothing to drop. For plain ABA use no_discard, or the `aba`
 %% default policy (unweighted attacks are then #sup, hence un-discardable above).

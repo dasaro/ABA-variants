@@ -9,7 +9,6 @@ oplus(min).
 oplus_identity(#sup).
 otimes_identity(0).
 
-semiring_default_weight(legacy,#sup).
 semiring_default_weight(aba,#sup).
 semiring_default_weight(neutral,0).
 

@@ -41,7 +41,6 @@ SEMIRING_FAMILIES = {
 }
 SHOW_FILTERS = {"projection": "projection.lp", "standard": "standard.lp"}
 DEFAULT_POLICIES = {
-    "legacy": "legacy.lp",
     "aba": "aba.lp",
     "neutral": "neutral.lp",
 }
@@ -360,7 +359,7 @@ def validate_args(args: argparse.Namespace) -> None:
         args._semiring_module = args.semiring
 
     if args.default_policy is None:
-        args.default_policy = "neutral" if args.aba_recovery else "legacy"
+        args.default_policy = "neutral"
     args._default_policy_module = DEFAULT_POLICIES[args.default_policy]
 
     if args.semantics in BUDGETED_DEFENSE_SEMANTICS:
