@@ -118,6 +118,66 @@ function discoverExamples() {
     return result;
 }
 
+/**
+ * Describe a semiring module FROM ITS SOURCE.
+ *
+ * Everything the playground UI needs about an algebra -- which way its polarity runs, whether
+ * it carries a tunable constant, which delta policies it supports -- is already declared in the
+ * .lp file. It used to be re-typed in the playground (POLARITY_BY_KEY, an `isLukasiewicz`
+ * special case, a RECOMMENDED_BUDGET table and a prose table), so adding an algebra here meant
+ * editing four JS files and an <option> list, and forgetting one produced a control that looked
+ * right and computed the wrong thing. Extract it instead: the .lp file stays the single source.
+ */
+function describeSemiring(src, raw = src) {
+    const one = (re) => { const m = src.match(re); return m ? m[1].trim() : null; };
+    const oplus = one(/^\s*oplus\(([^)]+)\)\s*\./m);
+    // The additive algebras (arctic, tropical) do not declare otimes: they compose the shared
+    // _additive.lp skeleton, whose rule body IS the #sum. Read the skeleton they include rather
+    // than reporting null, or the UI would have nothing to say about their conjunction.
+    // A module supplying its OWN rule_deriv/4 is outside the shared skeletons; today that is
+    // only Lukasiewicz, whose conjunction is a bounded sum rather than a plain one.
+    const ownRuleDeriv = /^rule_deriv\(/m.test(raw);
+    const otimes = one(/^\s*otimes\(([^)]+)\)\s*\./m)
+        || (ownRuleDeriv ? 'bounded +' : (/_additive\.lp/.test(raw) ? '+' : null))
+        // An ALIAS shim (`#include "arctic.lp".`) declares nothing of its own; take the target's.
+        || (raw.match(/#include\s+"(\w+)\.lp"/) && /#sum\s*\{/.test(src) ? '+' : null);
+    return {
+        oplus,
+        otimes,
+        oplusIdentity: one(/^\s*oplus_identity\(([^)]+)\)\s*\./m),
+        otimesIdentity: one(/^\s*otimes_identity\(([^)]+)\)\s*\./m),
+        // oplus = max means a bigger weight is a STRONGER objection ("higher"); oplus = min
+        // means a smaller weight is a better-supported one ("lower"). Every bound direction in
+        // the app follows from this, so it must not be re-derived by hand anywhere else.
+        polarity: oplus === 'max' ? 'higher' : (oplus === 'min' ? 'lower' : null),
+        // `#const k = 1000.` -> the UI must offer a control for k, and pass -c k.
+        constants: [...src.matchAll(/^\s*#const\s+(\w+)\s*=\s*([^.]+)\./gm)]
+            .map((m) => ({ name: m[1], default: Number(m[2].trim()) })),
+        // FACTS only, at the start of a line. The resolved source also contains defaults/base.lp,
+        // whose RULES mention semiring_default_weight(P, W) with an ASP variable -- scanning the
+        // whole text harvested `P` and `policy` as if they were selectable policies.
+        defaultPolicies: [...new Set(
+            [...src.matchAll(/^semiring_default_weight\(\s*([a-z]\w*)\s*,[^)]*\)\s*\./gm)]
+                .map((m) => m[1])
+        )].sort()
+    };
+}
+
+/**
+ * Describe a semantics module from its source. A DEFENCE semantics is one that prices a `pay`
+ * set -- that is what makes it carry its own budget, take beta directly and reject a
+ * monoid/bound pairing. Detected structurally rather than listed by name in three JS files.
+ */
+function describeSemantics(src) {
+    const usesPay = /\bpay\([^)]*\)/.test(src);
+    return {
+        defence: usesPay,
+        // The bound direction of a defence module follows the polarity, exactly as its own
+        // guards do. Recorded so the UI copy cannot drift from the module again.
+        polarityDependentBound: usesPay && /oplus\(min\)/.test(src) && /oplus\(max\)/.test(src)
+    };
+}
+
 function serializeSection(sectionObject, indent = '        ') {
     return Object.entries(sectionObject)
         .map(([key, value]) => `${indent}${JSON.stringify(key)}: \`${escapeTemplateLiteral(value)}\``)
@@ -154,8 +214,40 @@ const supportedBudgetPairs = monoids
     .filter((m) => POLICY.budgetSide[m])
     .map((m) => ({ monoid: m, budgetMode: POLICY.budgetSide[m] }));
 
+// Per-module facts, read from the .lp sources so the playground never re-declares them.
+const semiringInfo = {};
+for (const [key, src] of Object.entries(sections.semiring)) {
+    if (key.startsWith('_')) continue;      // shared skeletons, not selectable algebras
+    const rawPath = path.join(WABA_ROOT, 'semiring', `${key}.lp`);
+    const raw = fs.existsSync(rawPath) ? fs.readFileSync(rawPath, 'utf8') : src;
+    semiringInfo[key] = describeSemiring(src, raw);
+    // A true ALIAS is a file whose entire content is one #include -- it declares nothing of its
+    // own. Matching any #include instead caught every module's shared skeleton, which would have
+    // hidden all five real algebras from the UI.
+    const body = raw.split('\n')
+        .map((l) => l.replace(/%.*$/, '').trim())
+        .filter(Boolean);
+    const soleInclude = body.length === 1 && body[0].match(/^#include\s+"(\w+)\.lp"\.$/);
+    semiringInfo[key].aliasOf = soleInclude ? soleInclude[1] : null;
+}
+const semanticsInfo = {};
+for (const key of SUPPORTED_SEMANTICS) {
+    const src = sections.semantics[key] ?? sections.semantics[POLICY.derivedSemantics[key]];
+    semanticsInfo[key] = describeSemantics(src || '');
+}
+
+// A selectable algebra with no polarity would silently break every bound direction, so fail
+// the sync rather than ship it.
+for (const [key, info] of Object.entries(semiringInfo)) {
+    if (!info.polarity) {
+        throw new Error(`semiring/${key}.lp declares no oplus(max|min); polarity is undeterminable`);
+    }
+}
+
 const metadata = {
     generatedFrom: 'ABA-variants/WABA',
+    semiringInfo,
+    semanticsInfo,
     semiringFamilies: POLICY.semiringFamilies,
     polarities: POLICY.polarities,
     // `_`-prefixed modules are shared skeletons, not selectable algebras.
