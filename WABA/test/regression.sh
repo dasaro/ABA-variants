@@ -602,6 +602,28 @@ case "$(opt sum-min | grep -a 'OPTIMUM')" in *"OPTIMUM FOUND"*) echo "  ok   OPT
   *) echo "  FAIL no OPTIMUM FOUND"; fail=$((fail+1));; esac
 check "--opt-mode ignore still enumerates without optimising" 0 "$(opt sum-min ignore | grep -ac 'Optimization')"
 
+echo "== N12: a non-integer weight is REJECTED, not silently un-priced =="
+# #sum/#max/#min drop a tuple whose weight term is not integral, so a non-numeric weight made its
+# attack cost nothing and become discardable at ANY budget. Measured before the guard: the string
+# framework admitted 2 models at beta=0 under (sum,ub) where the integer one admitted 1.
+printf 'assumption(a). assumption(b).\ncontrary(a,ca). contrary(b,cb).\nweight(wa,"heavy"). head(rwa,wa).\nhead(r1,ca). body(r1,wa).\nhead(r2,cb). body(r2,a).\n' > "$tmp/w_str.lp"
+printf 'assumption(a). assumption(b).\ncontrary(a,ca). contrary(b,cb).\nweight(wa,7). head(rwa,wa).\nhead(r1,ca). body(r1,wa).\nhead(r2,cb). body(r2,a).\n' > "$tmp/w_int.lp"
+printf 'assumption(a). assumption(b).\ncontrary(a,ca). contrary(b,cb).\nweight(wa,#sup). head(rwa,wa).\nhead(r1,ca). body(r1,wa).\nhead(r2,cb). body(r2,a).\n' > "$tmp/w_sup.lp"
+wguard() {
+  "$CLINGO" --warn=no-atom-undefined -n 0 -c beta=0 "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
+    "$ROOT/defaults/neutral.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" \
+    "$ROOT/filter/projection.lp" "$ROOT/semantics/stable.lp" "$1" 2>&1
+}
+if wguard "$tmp/w_str.lp" | grep -aq 'UNSATISFIABLE'; then
+  echo "  ok   a non-integer weight is rejected"; pass=$((pass+1))
+else
+  echo "  FAIL a non-integer weight was accepted (its attack is discardable for free)"; fail=$((fail+1))
+fi
+check "an integer weight still solves" 1 "$(wguard "$tmp/w_int.lp" | grep -ac '^Answer:')"
+# the two infinity sentinels stay legal: semiring identities are #sup/#inf and arg_weight can be
+# infinite by design (see N11)
+check "a #sup sentinel weight stays legal" 1 "$(wguard "$tmp/w_sup.lp" | grep -ac '^Answer:')"
+
 echo "== N11: infinite arg_weight is REACHABLE and the two guards are exact duals =="
 # arg_weight can be an infinity: a leaf weighted #inf or #sup (raw clingo only -- bin/waba
 # rejects both) propagates through otimes to the attack. semantics/admissible.lp guards #sup
