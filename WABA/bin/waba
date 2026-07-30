@@ -66,11 +66,6 @@ SUBSET_FILTER = {
     "preferred": "subset_maximal_filter.lp",
 }
 
-# Defense semantics are CLASSICAL (weight-blind, no budget): the budget/discard knob is
-# only meaningful for cf/stable. See semantics/admissible.lp.
-DEFENSE_SEMANTICS = {"admissible", "complete", "grounded", "preferred"}
-BUDGETED_SEMANTICS = {"cf", "stable"}
-
 # wABA budgeted DEFENCE (Dunne et al. AIJ 2011, Def 6, lifted to structured ABA). These
 # take --beta directly (their own SUM inconsistency budget, self-contained in the module),
 # need a STRENGTH semiring, and compose with no_discard (they use their own `pay` set).
@@ -394,12 +389,6 @@ def validate_args(args: argparse.Namespace) -> None:
         args._monoid_module = None
         args._optimize_module = None
     else:
-        if args.semantics in DEFENSE_SEMANTICS:
-            raise SystemExit(
-                "defense semantics (admissible/complete/grounded/preferred) are classical "
-                "and take no budget; run them with --budget-mode none (the default). For "
-                "budgeted reasoning use --semantics cf or stable with a budget mode."
-            )
         if args.objective is None:
             raise SystemExit("budgeted runs require --objective")
         if args.beta is None:
