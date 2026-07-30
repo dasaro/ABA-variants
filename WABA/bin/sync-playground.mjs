@@ -167,6 +167,7 @@ const metadata = {
     budgetModes: ['none', 'ub', 'lb'],
     supportedSemantics: SUPPORTED_SEMANTICS,
     postFilteredSemantics: Object.keys(POLICY.derivedSemantics),
+    derivedSemantics: POLICY.derivedSemantics,
     canonicalSemiring: POLICY.canonicalSemiring,
     aliases: POLICY.aliases,
     supportedBudgetPairs
