@@ -56,8 +56,9 @@ const POLICY = {
         godel_low: { family: 'godel', polarity: 'lower' },
         tropical_high: { family: 'tropical', polarity: 'higher' }
     },
-    supportedSemantics: ['cf', 'stable', 'admissible', 'complete', 'grounded', 'preferred'],
-    postFilteredSemantics: ['grounded', 'preferred'],
+    // Semantics that exist as their own module are discovered; these two are computed by
+    // post-filtering another semantics and so have no module of their own.
+    derivedSemantics: { preferred: 'admissible' },
     budgetSide: { sum: 'ub', max: 'ub', min: 'lb' }
 };
 
@@ -137,6 +138,14 @@ const sections = {};
 for (const [name, rel] of Object.entries(DIRS)) sections[name] = discoverDir(rel);
 const examples = discoverExamples();
 
+// A semantics is offered when it has a module of its own, excluding the internal
+// subset filters, plus the ones derived by post-filtering.
+const SEMANTICS_MODULES = Object.keys(sections.semantics).filter((k) => !k.endsWith('_filter'));
+const SUPPORTED_SEMANTICS = [
+    ...SEMANTICS_MODULES,
+    ...Object.keys(POLICY.derivedSemantics).filter((k) => !SEMANTICS_MODULES.includes(k))
+];
+
 const monoids = Object.keys(sections.monoid);
 const optimizations = Object.keys(sections.optimize).filter((k) => k === 'minimize' || k === 'maximize');
 const objectives = [];
@@ -149,14 +158,15 @@ const metadata = {
     generatedFrom: 'ABA-variants/WABA',
     semiringFamilies: POLICY.semiringFamilies,
     polarities: POLICY.polarities,
-    supportedSemiringKeys: Object.keys(sections.semiring),
+    // `_`-prefixed modules are shared skeletons, not selectable algebras.
+    supportedSemiringKeys: Object.keys(sections.semiring).filter((k) => !k.startsWith('_')),
     defaults: Object.keys(sections.defaults),
     monoids,
     optimizations,
     objectives,
     budgetModes: ['none', 'ub', 'lb'],
-    supportedSemantics: POLICY.supportedSemantics,
-    postFilteredSemantics: POLICY.postFilteredSemantics,
+    supportedSemantics: SUPPORTED_SEMANTICS,
+    postFilteredSemantics: Object.keys(POLICY.derivedSemantics),
     canonicalSemiring: POLICY.canonicalSemiring,
     aliases: POLICY.aliases,
     supportedBudgetPairs
