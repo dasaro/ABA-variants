@@ -5,18 +5,22 @@ WABA is a compact CLI-first `clingo` project with one supported logic surface.
 ## Supported Surface
 
 - primary entrypoint: `bin/waba`
-- supported semantics: `cf`, `stable`, `admissible`, `complete`, `grounded`, `preferred`
+- supported semantics: `cf`, `stable`, `admissible`, `complete`, `preferred` (all budgeted)
 - exact `preferred` semantics via `semantics/subset_maximal_filter.lp`
 - supported budget presets:
   - `sum + ub`
   - `max + ub`
   - `min + lb`
+- `--luk-k K` sets Lukasiewicz's bound (`#const k`, default 1000). Its conjunction is
+  `max(0, a+b-k)`, so at the default an ordinary small-integer derivation erodes to 0; keep
+  `k` near the scale of the declared weights. A framework cannot set the constant itself,
+  because clingo rejects the redefinition.
 - raw modular `clingo` runs remain available for the same mature files
 
 The tree is intentionally small:
 
 - `core/`: shared WABA attack and discard logic
-- `semiring/`: the four clean algebras (`godel`, `tropical`, `arctic`, `bottleneck_cost`) plus `godel_low` / `tropical_high` as thin polarity-dual aliases
+- `semiring/`: the four algebras of the 2x2 (`godel`, `tropical`, `arctic`, `bottleneck_cost`) plus `lukasiewicz` (bounded sum, outside the 2x2), with `godel_low` / `tropical_high` as thin polarity-dual aliases
 - `defaults/`: `legacy`, `aba`, and `neutral` policies for unweighted assumptions
 - `monoid/` and `optimize/`: aggregate family and optimization direction
 - `constraint/`: generic `ub`, generic `lb`, and `no_discard`
@@ -78,9 +82,11 @@ clingo --warn=no-atom-undefined -n 0 -c beta=0 \
 - constraint modules decide whether the aggregate must stay below or above `beta`
 - semantics modules decide which extensions survive once successful attacks are fixed
 
-**Two orthogonal knobs — semantics and budget.** The *budget* (monoid + `ub`/`lb`) resolves inconsistency by discarding attacks; it is only meaningful with `cf`/`stable`, which read the surviving attacks directly. The *defense* semantics — `admissible`, `complete`, `grounded`, `preferred` — are the **classical** ABA notions, computed over the attack graph and **weight-blind**: they take no budget and pin the discard set to empty (`semantics/admissible.lp`). So they are identical across all five semirings. To reason under a budget, use `cf`/`stable` with a monoid; for classical defense, use the defense family (the wrapper rejects a defense semantics combined with `--budget-mode ub/lb`).
+**Two ways to spend the budget.** For `cf`/`stable` the budget is external: a monoid aggregates the discarded attacks and `ub`/`lb` bounds that aggregate against `beta`. The *defence* semantics — `admissible`, `complete`, `preferred` — carry their **own** budget instead: a structured lift of the Dunne et al. (AIJ 2011) inconsistency budget, in which one shared `pay` set covers both internal conflict and undefended external attack, priced by the attacker's strength in the maximal argument context. They therefore take `--beta` directly and reject `--objective`/`--budget-mode`, and they are **not** weight-blind: different semirings give different extensions.
 
-`preferred` is the one supported higher-order semantics that is not a single raw `.lp` file. The wrapper generates `complete` candidates and keeps only the subset-maximal ones with `semantics/subset_maximal_filter.lp`.
+The direction of that internal bound follows the **polarity**, not the identity. Under a strength algebra (`oplus = max`) the conceded weights must *sum* to at most `beta`, so classical recovery is at `beta = 0`. Under a cost algebra (`oplus = min`) the *minimum* conceded weight must be at least `beta`, so recovery arrives at a `beta` above every attack weight. Verified against ASPforABA: on `examples/reference/aspforaba_journal_example.lp` (`w_max = 100`) `godel` recovers the 7 classical admissible extensions at `beta=0` and `tropical` recovers the same 7 at `beta=101`.
+
+`preferred` is the one supported higher-order semantics that is not a single raw `.lp` file. The wrapper enumerates `admissible` candidates and keeps only the subset-maximal ones with `semantics/subset_maximal_filter.lp`.
 
 ### Interpreting the choices
 
