@@ -57,6 +57,12 @@
 !semiring/tropical.lp
 !semiring/tropical_high.lp
 
+# Pre-flight framework validation + the optional support-set fold. Both are referenced by
+# tracked files -- bin/waba shells out to validate.lp, and test/regression.sh needs both -- so
+# omitting them from this allow-list leaves HEAD unrunnable, which is how they were missed.
+!/validate.lp
+!/setsupport.lp
+
 # Public regression tests
 !test/
 !test/regression.sh
