@@ -95,5 +95,23 @@ pweight(P, X, W) :-
     W = #min{ V,R : rule_deriv(P,R,X,V) ; V : direct_weight(P,X,V) }.
 
 %% ---- expose the phases under their conventional names ------------------------
+%% ---- ordered body positions (shared by the non-idempotent folds) -------------
+%% A rule body is folded as an ORDERED sequence of binary (x) steps rather than by
+%% one n-ary aggregate. The n-ary form is what the paper writes, and the two are
+%% equal because (x) is associative and commutative -- but the n-ary #sum sits
+%% inside the pweight/rule_deriv recursion, and gringo over-approximates a
+%% RECURSIVE aggregate's possible values by the sums of ALL SUBSETS of its
+%% possibly-true tuples. Along a derivation chain those candidate sets compound:
+%% measured on a 2-premise chain, depth 5 grounds in 0.4 s and depth 6 exceeds
+%% 20 s, for every (x) = sum algebra. min/max are immune (a subset's min IS one of
+%% its elements, so candidates stay linear), which is why the idempotent algebras
+%% never showed it. The binary fold keeps one candidate per (prefix, premise)
+%% pair, restoring linear grounding on chains; these three predicates are
+%% EDB-only, so they ground outside the recursive component.
+body_first(R, B) :- rule(R), has_body(R), B = #min{ A : body(R,A) }.
+body_next(R, B1, B2) :- body(R,B1), body(R,B2), B1 < B2,
+                        B2 = #min{ A : body(R,A), A > B1 }.
+body_last(R, B) :- rule(R), has_body(R), B = #max{ A : body(R,A) }.
+
 supported_with_weight(X, W) :- pweight(support, X, W).
 arg_weight(X, W)            :- pweight(maximal, X, W).

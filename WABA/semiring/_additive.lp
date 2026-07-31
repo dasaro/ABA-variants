@@ -30,8 +30,17 @@ rule_deriv(P, R, X, O) :-
     oplus_identity(A), not add_body_has(P, R, A),
     opposite_infinity(O), add_body_has(P, R, O).
 %% Finite case: plain integer sum (no infinities present).
+%% Finite bodies fold left-to-right in the body_first/body_next order: one binary
+%% (+) per premise, no aggregate inside the recursion (see _phase.lp for why the
+%% n-ary #sum form, though equal by associativity, is not usable here). An
+%% infinite premise contributes no add_prefix atom, so the fold silently stops --
+%% the two guard rules above own those cases, exactly as they did for the #sum.
+add_prefix(P, R, B, V) :- body_first(R, B), phase_triggered(P, R),
+    pweight(P, B, V), V != #inf, V != #sup.
+add_prefix(P, R, B2, V1 + V2) :- body_next(R, B1, B2), add_prefix(P, R, B1, V1),
+    pweight(P, B2, V2), V2 != #inf, V2 != #sup.
 rule_deriv(P, R, X, W) :-
     rule(R), head(R, X), has_body(R), phase_triggered(P, R),
     oplus_identity(A), not add_body_has(P, R, A),
     opposite_infinity(O), not add_body_has(P, R, O),
-    W = #sum{ V,B : body(R,B), pweight(P,B,V) }.
+    body_last(R, B), add_prefix(P, R, B, W).
