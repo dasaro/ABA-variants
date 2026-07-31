@@ -61,6 +61,28 @@ rule_deriv(P, R, X, I) :-
     phase_active(P, X), rule(R), head(R, X), not has_body(R), not weight(X, _),
     otimes_identity(I).
 
+%% ---- WHAT A WEIGHT IS A FUNCTION OF ------------------------------------------
+%% pweight(P, X, W) is the ⊕-best over X's DERIVATION TREES, each folded with ⊗ over its rule
+%% bodies. ⊗ therefore sees each leaf OCCURRENCE, so a leaf reached by two branches of one tree
+%% is folded twice.
+%%
+%% Whether that matters is decided by ⊗'s IDEMPOTENCE, and the five algebras split
+%% (machine-checked in test/semiring_axioms.py):
+%%
+%%   godel (⊗=min), bottleneck_cost (⊗=max)   IDEMPOTENT     duplicates collapse, so the weight
+%%                                                            depends only on the SUPPORT SET
+%%   tropical, arctic (⊗=+), lukasiewicz       NOT idempotent  the weight depends on the TREE
+%%
+%% Measured: two atoms with the identical support {f0=100, f1=200} but different tree shapes get
+%% 100/100 under godel and 300/500 under tropical.
+%%
+%% This file DEFINES the weight over derivation trees. That is a deliberate choice, not an
+%% oversight: it keeps the computation a semiring fold, which is what makes the whole algebra
+%% story work. ABA's own arguments (S, c) carry a SET, so for the non-idempotent algebras
+%% "the weight of an argument" is properly read as "the ⊕-best weight over the trees that
+%% derive it". setsupport.lp offers the set-based alternative for callers who need it, at the
+%% cost of leaving the fold behind.
+%%
 %% ---- derived atoms: combine alternative derivations + explicit weight via ⊕ --
 %% clingo #max keeps #sup / drops #inf and #min keeps #inf / drops #sup, which is
 %% exactly the ⊕ identity (max-identity #inf, min-identity #sup), so no special

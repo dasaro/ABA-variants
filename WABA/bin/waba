@@ -155,6 +155,15 @@ def validate_framework(framework: Path, semiring_module: str, luk_k: int | None)
     proc = subprocess.run(args, capture_output=True, text=True)
     if proc.returncode not in (0, 10, 20, 30):
         raise SystemExit(f"could not validate the framework:\n{proc.stderr.strip()}")
+    # UNSATISFIABLE means the framework's OWN integrity constraints fired against validate.lp,
+    # which defines none of the solver predicates they refer to. No violation atom is emitted,
+    # so treating that as a pass would silently skip validation altogether. Say so instead.
+    if "UNSATISFIABLE" in proc.stdout:
+        raise SystemExit(
+            "could not validate this framework: it contains integrity constraints that refer to "
+            "predicates the pre-flight check does not define (in/1, supported/1, ...).\n"
+            "Move them out of the framework, or compose the raw clingo modules directly."
+        )
 
     seen: list[tuple[str, str]] = []
     for match in VIOLATION_PATTERN.finditer(proc.stdout):

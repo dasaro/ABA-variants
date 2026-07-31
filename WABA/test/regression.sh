@@ -451,6 +451,39 @@ for sem in cf stable; do
   else echo "  ok   $sem diverges from classical under the pathological config ($base vs $got)"; pass=$((pass+1)); fi
 done
 
+echo "== S1: tree vs set support -- idempotence decides whether they differ =="
+# The core defines a weight as the (+)-best over derivation TREES, so (x) folds each leaf
+# OCCURRENCE. setsupport.lp folds the DISTINCT leaves of a chosen tree instead. The two must
+# coincide exactly when (x) is idempotent (godel, bottleneck_cost) and may differ otherwise.
+printf 'assumption(f0). contrary(f0,n0). weight(f0,105).\nassumption(f1). contrary(f1,n1). weight(f1,223).\nassumption(f2). contrary(f2,n2). weight(f2,357).\nhead(r0,m0). body(r0,f0). body(r0,f1).\nhead(r1,m1). body(r1,f1). body(r1,f2).\nhead(r2,q). body(r2,m0). body(r2,m1).\nquery_atom(q).\n:- assumption(X), not in(X).\n' > "$tmp/share.lp"
+treew() { "$CLINGO" --warn=none -n 1 --outf=0 -c beta=0 "$ROOT/core/base.lp" "$ROOT/semiring/$1.lp" \
+    "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/semantics/cf.lp" \
+    "$tmp/share.lp" 2>/dev/null | tr ' ' '\n' | grep -oE 'supported_with_weight\(q,[-0-9]+\)' | head -1; }
+setw() { "$CLINGO" --warn=none --opt-mode=opt -n 1 --outf=0 -c beta=0 "$ROOT/core/base.lp" \
+    "$ROOT/semiring/$1.lp" "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" \
+    "$ROOT/semantics/cf.lp" "$ROOT/setsupport.lp" "$tmp/share.lp" 2>/dev/null \
+    | tr ' ' '\n' | grep -oE 'set_weight\([-0-9]+\)' | tail -1; }
+# f1 is shared: the tree counts it twice (105+223+223+357), the set once (105+223+357).
+check "tropical tree counts the shared leaf twice" "supported_with_weight(q,908)" "$(treew tropical)"
+check "tropical set counts it once"                "set_weight(685)"               "$(setw tropical)"
+# idempotent (x): duplicates collapse, so the two agree by construction.
+check "godel tree == set"            "supported_with_weight(q,105)" "$(treew godel)"
+check "godel set"                    "set_weight(105)"              "$(setw godel)"
+check "bottleneck tree == set"       "supported_with_weight(q,357)" "$(treew bottleneck_cost)"
+check "bottleneck set"               "set_weight(357)"              "$(setw bottleneck_cost)"
+# the advisory names the atom whose derivation reuses a leaf
+# validate.lp is run on the FRAMEWORK ALONE: share.lp carries a `:- assumption(X), not in(X).`
+# for the solver runs above, and in/1 does not exist under the validator, so that constraint
+# would fire and make the check UNSAT.
+grep -v '^:-' "$tmp/share.lp" > "$tmp/share_facts.lp"
+check "validate flags the leaf reuse" "advisory(leaf_reuse,q)" \
+  "$("$CLINGO" --warn=none -n 1 --outf=0 "$ROOT/validate.lp" "$tmp/share_facts.lp" 2>/dev/null \
+     | tr ' ' '\n' | grep -oE 'advisory\(leaf_reuse,q\)' | head -1)"
+# and an UNSAT validation must NOT read as "well formed"
+check "an unvalidatable framework is refused, not passed" 1 \
+  "$(python3 "$ROOT/bin/waba" run --framework "$tmp/share.lp" --semantics cf 2>&1 \
+     | grep -c 'could not validate')"
+
 echo "== N9: the two well-formedness guards added by the 2026-07 source review =="
 # (a) weight/2 must be a partial FUNCTION. Two weight facts for one atom split a single
 #     conflict into several independently discardable attacks: the budget double-charges
