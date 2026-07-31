@@ -11,15 +11,12 @@
 %% behaviour already reachable. Its one distinctive effect was on TROPICAL, where delta was
 %% #sup (the ⊗-annihilator) rather than 0; `--default-policy aba` still provides exactly that.
 
-configured_default_policy :- explicit_default_policy(_).
-
-:- explicit_default_policy(P1), explicit_default_policy(P2), P1 != P2.
-
-active_default_policy(P) :- explicit_default_policy(P).
-active_default_policy(neutral) :- not configured_default_policy.
-
+%% delta resolves to ONE value, so say it in two rules rather than routing it through a
+%% `configured_default_policy` flag and an `active_default_policy` relation. The "exactly one
+%% policy module is loaded" and "that policy is defined for this semiring" checks moved to the
+%% boundary with the framework preconditions: bin/waba and the web program-builder each load
+%% exactly one defaults/*.lp by construction, so neither is reachable from a supported run.
 default_assumption_weight(W) :-
-    active_default_policy(P),
-    semiring_default_weight(P, W).
-
-:- active_default_policy(P), not semiring_default_weight(P, _).
+    explicit_default_policy(P), semiring_default_weight(P, W).
+default_assumption_weight(W) :-
+    not explicit_default_policy(_), semiring_default_weight(neutral, W).

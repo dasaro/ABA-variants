@@ -3,8 +3,6 @@
 active_optimization(minimize).
 
 :- active_optimization(maximize).
-:- not active_monoid(sum), not active_monoid(max), not active_monoid(min).
-:- 2 { active_monoid(sum); active_monoid(max); active_monoid(min) }.
 
 %% Sum: minimize the discarded multiset directly (fast path; no single aggregate term).
 #minimize { W,X,Y : active_monoid(sum), discarded_attack(X,Y,W) }.

@@ -50,9 +50,15 @@ check "no_discard stable = 2" 2 "$(compose godel aba no_discard stable "$REF" | 
 echo "== D3: derivation cycles are rejected; acyclic frameworks are accepted =="
 printf 'budget(100). assumption(a). contrary(a,ca). assumption(b). contrary(b,cb).\nhead(r1,p). body(r1,q). head(r2,q). body(r2,p). head(r3,ca). body(r3,b).\n' > "$tmp/cyc.lp"
 printf 'budget(100). assumption(a). contrary(a,ca). assumption(b). contrary(b,cb).\nhead(r1,p). body(r1,a). head(r2,cb). body(r2,p).\n' > "$tmp/acyc.lp"
-cyc="$(compose godel aba no_discard stable "$tmp/cyc.lp" | grep -aoE 'UNSATISFIABLE|SATISFIABLE' | head -1)"
+# NOTE: the framework PRECONDITIONS (flat, well-founded, w a function into the carrier) moved
+# out of core/base.lp on 2026-07-31. They are hypotheses of the definition, not part of the
+# semantics, so a paper states them once and the BOUNDARIES enforce them: bin/waba for the CLI,
+# runtime/framework-preconditions.js for the web playground. These checks therefore assert that
+# the boundary refuses the framework and NAMES the offender -- which an ASP constraint could
+# never do; it could only return an unexplained UNSATISFIABLE.
+cyc="$(python3 "$ROOT/bin/waba" run --framework "$tmp/cyc.lp" --semantics stable 2>&1 | grep -c 'WELL-FOUNDED')"
 acyc="$(compose godel aba no_discard stable "$tmp/acyc.lp" | grep -aoE 'UNSATISFIABLE|SATISFIABLE' | head -1)"
-check "cyclic framework rejected"   UNSATISFIABLE "$cyc"
+check "cyclic framework rejected at the boundary" 1 "$cyc"
 check "acyclic framework accepted"  SATISFIABLE   "$acyc"
 
 echo "== D5: Lukasiewicz bare-assumption attack is un-discardable under aba =="
@@ -450,10 +456,8 @@ echo "== N9: the two well-formedness guards added by the 2026-07 source review =
 #     conflict into several independently discardable attacks: the budget double-charges
 #     and the same (attacker,target) pair can be discarded AND successful in one model.
 printf 'assumption(a). contrary(a,b).\nassumption(b). contrary(b,cb).\nweight(b,3). weight(b,40). weight(a,5).\n' > "$tmp/dupw.lp"
-out="$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=1000 "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
-      "$ROOT/defaults/neutral.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" \
-      "$ROOT/semantics/cf.lp" "$tmp/dupw.lp" 2>&1)"
-case "$out" in *UNSATISFIABLE*) echo "  ok   duplicate weight/2 is rejected"; pass=$((pass+1));;
+out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/dupw.lp" --semantics cf 2>&1)"
+case "$out" in *"partial FUNCTION"*) echo "  ok   duplicate weight/2 is rejected, naming the atom"; pass=$((pass+1));;
                *) echo "  FAIL duplicate weight/2 was accepted"; fail=$((fail+1));; esac
 # a single weight on the same shape must still solve
 printf 'assumption(a). contrary(a,b).\nassumption(b). contrary(b,cb).\nweight(b,3). weight(a,5).\n' > "$tmp/onew.lp"
@@ -467,13 +471,22 @@ check "a single weight/2 still solves" 5 \
 #     always fires (lb silently collapses to no_discard) -- silent, and in OPPOSITE
 #     directions. no_discard must remain usable without beta, since it ignores the budget.
 printf 'assumption(p). contrary(p,cp).\nassumption(q). contrary(q,cq).\nhead(r1,cp). body(r1,q).\nhead(r2,cq). body(r2,p).\n' > "$tmp/nb.lp"
+# An unbound beta is now unreachable through the wrapper rather than rejected inside it:
+# --beta is an argparse int and buildSolverArgs always emits -c beta=N, so the symbolic-constant
+# hazard (clingo orders every integer BELOW a symbolic constant, so ub goes silently unbounded
+# and lb silently collapses to no_discard) cannot arise from a supported invocation.
 for con in ub lb; do
   mon=sum; [ "$con" = lb ] && mon=min
-  out="$("$CLINGO" --warn=no-atom-undefined -n 0 "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
-        "$ROOT/defaults/neutral.lp" "$ROOT/monoid/$mon.lp" "$ROOT/constraint/$con.lp" \
-        "$ROOT/semantics/cf.lp" "$tmp/nb.lp" 2>&1)"
-  case "$out" in *UNSATISFIABLE*) echo "  ok   unbound beta rejected under $con"; pass=$((pass+1));;
-                 *) echo "  FAIL unbound beta accepted under $con"; fail=$((fail+1));; esac
+  out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/nb.lp" --semantics cf \
+          --budget-mode $con --objective ${mon}-min --opt-mode ignore 2>&1)"
+  case "$out" in *"require --beta"*|*"requires --beta"*)
+      echo "  ok   a budgeted run without --beta is refused under $con"; pass=$((pass+1));;
+    *) echo "  FAIL beta was left symbolic under $con"; fail=$((fail+1));; esac
+  # ...and when it IS given, it is always grounded with -c.
+  out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/nb.lp" --semantics cf \
+          --budget-mode $con --objective ${mon}-min --opt-mode ignore --beta 3 --print-command 2>&1)"
+  case "$out" in *"-c beta=3"*) echo "  ok   --beta is grounded with -c under $con"; pass=$((pass+1));;
+                 *) echo "  FAIL beta not grounded under $con"; fail=$((fail+1));; esac
 done
 check "no_discard still runs without beta" 3 \
   "$("$CLINGO" --warn=no-atom-undefined -n 0 "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
@@ -563,7 +576,7 @@ case "$out" in *"must be nonnegative"*) echo "  ok   negative weight rejected ev
                *) echo "  FAIL negative weight slipped through a shared line"; fail=$((fail+1));; esac
 printf 'assumption(a). weight(a,#sup).\nassumption(b). contrary(b,a). contrary(a,z).\n' > "$tmp/onesup.lp"
 out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/onesup.lp" 2>&1)"
-case "$out" in *"outside the normalized wrapper surface"*) echo "  ok   #sup weight rejected on a shared line"; pass=$((pass+1));;
+case "$out" in *"normalises authored weights to finite integers"*) echo "  ok   #sup weight rejected on a shared line"; pass=$((pass+1));;
                *) echo "  FAIL #sup weight slipped through"; fail=$((fail+1));; esac
 check "a well-formed framework still runs" 2 \
   "$(python3 "$ROOT/bin/waba" run --framework "$REF" --semantics stable 2>/dev/null | grep -acE '^Answer:')"
@@ -620,8 +633,9 @@ wguard() {
     "$ROOT/defaults/neutral.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" \
     "$ROOT/filter/projection.lp" "$ROOT/semantics/stable.lp" "$1" 2>&1
 }
-if wguard "$tmp/w_str.lp" | grep -aq 'UNSATISFIABLE'; then
-  echo "  ok   a non-integer weight is rejected"; pass=$((pass+1))
+if python3 "$ROOT/bin/waba" run --framework "$tmp/w_str.lp" --semantics stable 2>&1 \
+     | grep -aq 'non-integral weight'; then
+  echo "  ok   a non-integer weight is rejected at the boundary"; pass=$((pass+1))
 else
   echo "  FAIL a non-integer weight was accepted (its attack is discardable for free)"; fail=$((fail+1))
 fi
@@ -663,7 +677,7 @@ for a in tropical bottleneck_cost; do
 done
 # and the CLI refuses infinite weights outright, so this is a raw-composition matter only
 out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/infleaf.lp" --semantics admissible --beta 5 2>&1)"
-case "$out" in *"outside the normalized wrapper surface"*) echo "  ok   CLI rejects an infinite leaf weight"; pass=$((pass+1));;
+case "$out" in *"normalises authored weights to finite integers"*) echo "  ok   CLI rejects an infinite leaf weight"; pass=$((pass+1));;
                *) echo "  FAIL CLI accepted an infinite leaf weight"; fail=$((fail+1));; esac
 
 echo

@@ -25,58 +25,25 @@ has_body(R) :- body(R,_).
 derived_atom(X) :- is_head(X), not assumption(X).
 
 %% ====================
-%% FUNCTIONALITY GUARD (weight/2 is a partial FUNCTION on atoms)
+%% PRECONDITIONS ON THE FRAMEWORK — enforced at the BOUNDARY, not here
 %% ====================
-%% Two weight facts for the same atom make supported_with_weight/2 non-functional, which
-%% splits ONE conflict into SEVERAL independently discardable attacks_with_weight/3 atoms.
-%% The budget then double-charges, and there are answer sets in which the same
-%% (attacker, target) conflict is simultaneously discarded AND successful. Rejected here
-%% alongside the other two well-formedness conditions rather than silently mis-costed.
-multi_weight(X) :- weight(X,V1), weight(X,V2), V1 != V2.
-:- multi_weight(_).
-
-%% ====================
-%% INTEGRALITY GUARD (a weight must be a number the budget can add up)
-%% ====================
-%% A weight/2 whose value is not an integer is SILENTLY DROPPED by the monoid aggregates:
-%% #sum/#max/#min ignore a tuple whose weight term is not integral. The attack it belongs to then
-%% costs nothing, so it can be discarded at ANY budget -- verified: a framework weighted
-%% `weight(wa,"heavy")` admits 2 models at beta=0 under (sum,ub) where the same framework
-%% weighted `weight(wa,7)` admits 1. That is a soundness hole, not a modelling choice, so it is
-%% rejected here alongside the other well-formedness conditions rather than mis-priced.
+%% wABA is defined for a WELL-FORMED weighted flat ABA framework:
 %%
-%% The two infinity SENTINELS stay legal: semiring identities are #sup/#inf, arg_weight can
-%% legitimately be infinite, and the budget guards handle both ends explicitly.
-integral_weight(X) :- weight(X,W), W = W + 0.
-sentinel_weight(X) :- weight(X,#sup).
-sentinel_weight(X) :- weight(X,#inf).
-:- weight(X,_), not integral_weight(X), not sentinel_weight(X).
-
-%% ====================
-%% FLATNESS GUARD
-%% ====================
-%% WABA's weighted/budgeted semantics is defined for FLAT ABA frameworks: no
-%% assumption may be the head of a rule. (The weight of an assumption is then
-%% intrinsic, not extension-dependent; this matches the established ABA theory the
-%% semantics rest on, and weighted non-flat ABA has no settled semantics.)
-%% A non-flat assumption is flagged here and the framework is rejected outright,
-%% rather than silently producing ill-defined weights.
-:- assumption(X), is_head(X).
-
-%% ====================
-%% WELL-FOUNDEDNESS GUARD (acyclic derivations)
-%% ====================
-%% The semiring weight of a derived atom is ⊕ over its derivations, each ⊗ over a rule
-%% body — well-defined only when the rule-dependency graph is ACYCLIC. A derivation cycle
-%% (p <- q, q <- p) admits an unfounded second fixpoint in which the cyclic atom floats in
-%% at the ⊗-identity, yielding spurious weights (and, under the cost semirings, spurious
-%% free-discard extensions). Such frameworks are rejected outright, like non-flat ones,
-%% rather than silently producing ill-defined weights. (WABA is defined for well-founded
-%% flat frameworks; the curated/reference examples are all acyclic.)
-derivation_reaches(X,Y) :- head(R,X), body(R,Y).
-derivation_reaches(X,Z) :- head(R,X), body(R,Y), derivation_reaches(Y,Z).
-derivation_cycle(X) :- derivation_reaches(X,X).
-:- derivation_cycle(_).
+%%   flat            no assumption is the head of a rule, so an assumption's weight is
+%%                   intrinsic rather than extension-dependent
+%%   well-founded    the rule-dependency graph is acyclic, so the ⊕-over-derivations /
+%%                   ⊗-over-body recursion has a unique least fixpoint
+%%   functional w    weight/2 is a partial FUNCTION on atoms
+%%   w into S        every declared weight is an element of the algebra's carrier
+%%
+%% These are hypotheses of the definition, not part of the semantics, and a paper states them
+%% once rather than encoding each as a constraint. They used to be five guards plus their
+%% helper predicates here; they now live where input is actually accepted -- bin/waba for the
+%% CLI, runtime/config-service.js for the web playground -- which is also the only place that
+%% can report WHICH atom is at fault instead of an unexplained UNSATISFIABLE.
+%%
+%% Nothing below assumes anything else about the framework: fed a malformed one, this file
+%% computes the least fixpoint of the rules it was given, which is the honest answer.
 
 %% ====================
 %% CORE LOGIC
@@ -108,22 +75,6 @@ attacks_with_weight(X,Y,W) :- supported_with_weight(X,W), assumption(Y), contrar
 attacks_successfully_with_weight(X,Y,W) :- attacks_with_weight(X,Y,W), not discarded_attack(X,Y,W).
 
 %% ====================
-%% DIAGNOSTIC (advisory — NOT a constraint; never rejects an answer set)
-%% ====================
-%% Flags an explicit weight/2 placed on a DERIVED atom (a rule head) whose propagated
-%% support weight ends up DIFFERENT from the declared one — i.e. the declared weight did
-%% not take effect. In WABA weights belong on the LEAVES (assumptions / facts) and derived
-%% atoms get their weight by PROPAGATION; an explicit weight on a derived atom is combined
-%% with its derivation via the semiring's ⊕, and is SILENTLY dominated in several algebras
-%% (Gödel/Bottleneck/Łukasiewicz drive it to the ⊗-identity #sup/#inf/k). This predicate is
-%% empty for a framework that keeps its weights on the leaves; the filter modules #show
-%% it so a modeller sees it. It is ADVISORY: a framework that trips it still solves.
-%% See README.md, "Where weights live (leaves vs derived atoms)".
-weight_on_derived_dominated(X, Declared, Effective) :-
-    weight(X, Declared), derived_atom(X),
-    supported_with_weight(X, Effective), Effective != Declared.
-
-%% ====================
 %% BUDGET
 %% ====================
 %% The budget is supplied ONLY by -c beta=N, through effective_budget/1. A framework may
@@ -132,11 +83,7 @@ weight_on_derived_dominated(X, Declared, Effective) :-
 %% cannot clamp, raise or nullify the budget the caller asked for. Previously both facts
 %% survived and the bound became min(N,beta) under ub, with budget(0) silently disabling
 %% --beta altogether.
-budget(beta).                  %% kept so existing frameworks and tooling still ground
 effective_budget(beta).
-
-%% Advisory: a framework asked for a budget of its own and it was ignored. Not a constraint.
-framework_budget_ignored(N) :- budget(N), N != beta.
 
 %% An unbound `beta` is not "budget disabled": clingo orders every integer strictly BELOW
 %% an uninterpreted constant, so `C > beta` never holds (ub silently unbounded) and

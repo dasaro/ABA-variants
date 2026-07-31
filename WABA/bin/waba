@@ -112,71 +112,71 @@ def iter_framework_sources(path: Path) -> list[Path]:
     return ordered
 
 
-def validate_authored_weights(framework: Path, semiring_module: str) -> None:
-    errors: list[str] = []
+VIOLATION_PATTERN = re.compile(r"violation\(([a-z_]+),(.+?)\)(?=\s|$)")
 
-    for source in iter_framework_sources(framework):
-        for line_number, raw_line in enumerate(source.read_text().splitlines(), start=1):
-            line = raw_line.split("%", 1)[0].strip()
-            if not line:
-                continue
-            for match in WEIGHT_PATTERN.finditer(line):
-                value = match.group(1).strip()
-                if value in {"#inf", "#sup"}:
-                    errors.append(
-                        f"{source}:{line_number}: explicit weight {value} is outside the normalized wrapper surface"
-                    )
-                    continue
-
-                if not re.fullmatch(r"-?\d+", value):
-                    errors.append(
-                        f"{source}:{line_number}: explicit weight {value!r} must be a finite integer literal"
-                    )
-                    continue
-
-                numeric_value = int(value)
-                if numeric_value < 0:
-                    errors.append(
-                        f"{source}:{line_number}: explicit weight {numeric_value} must be nonnegative"
-                    )
-                    continue
-
-    if errors:
-        details = "\n".join(errors[:8])
-        raise SystemExit(
-            "the supported wrapper surface normalizes authored weights to finite nonnegative integers; "
-            "use raw clingo modules for non-normalized experiments\n"
-            + details
-        )
+EXPLAIN = {
+    "not_flat": "wABA is defined for FLAT ABA: an assumption may not be the head of a rule",
+    "cyclic": "wABA is defined for WELL-FOUNDED frameworks: rule dependencies must be acyclic, "
+              "or a derived atom's weight has no unique least fixpoint",
+    "multi_weight": "weight/2 must be a partial FUNCTION: two weights for one atom split a "
+                    "single conflict into several independently discardable attacks",
+    "not_a_number": "a non-integral weight is dropped by the monoid aggregates, so its attack "
+                    "would cost nothing and be discardable at any budget",
+    "negative": "weights must be nonnegative",
+    "off_grid": "outside Lukasiewicz's carrier [0, k], where the bounded sum is not associative",
+    "not_finite": "the wrapper surface normalises authored weights to finite integers; compose "
+                  "the raw clingo modules for #sup/#inf leaf weights",
+}
 
 
-ASSUMPTION_PATTERN = re.compile(r"assumption\s*\(\s*([a-z_][A-Za-z0-9_]*)")
-HEAD_PATTERN = re.compile(r"head\s*\(\s*[a-z_][A-Za-z0-9_]*\s*,\s*([a-z_][A-Za-z0-9_]*)")
-
-
-def validate_flatness(framework: Path) -> None:
-    """Reject non-flat frameworks (an assumption that is also a rule head).
-
-    WABA's weighted/budgeted semantics is defined for flat ABA only; core/base.lp
-    also rejects these at the ASP level (UNSATISFIABLE). This gives a clear message.
+def validate_framework(framework: Path, semiring_module: str, luk_k: int | None) -> None:
     """
-    assumptions: set[str] = set()
-    heads: set[str] = set()
-    for source in iter_framework_sources(framework):
-        for raw_line in source.read_text().splitlines():
-            line = raw_line.split("%", 1)[0]
-            assumptions.update(ASSUMPTION_PATTERN.findall(line))
-            heads.update(HEAD_PATTERN.findall(line))
+    Check the framework's preconditions by RUNNING clingo on WABA/validate.lp.
 
-    non_flat = sorted(assumptions & heads)
-    if non_flat:
-        raise SystemExit(
-            "WABA's weighted/budgeted semantics is defined for FLAT ABA only: an "
-            "assumption must not be the head of a rule.\n"
-            "Non-flat assumption(s): " + ", ".join(non_flat) + "\n"
-            "Remove the offending rule head(s), or compose the raw clingo modules "
-            "directly for non-flat experiments."
-        )
+    This replaced three regex scanners. Adversarial review showed the regex approach was wrong
+    in both directions: it missed pooled facts (`head(r1,c; r1,a).` -- the compact form CLAUDE.md
+    tells authors to PREFER), facts split across lines, weights derived by a rule, and %* *%
+    block comments; and it REJECTED legal frameworks whose atoms are function terms. Parsing ASP
+    with regexes cannot be made to work; letting clingo parse it is exact and costs one grounding
+    pass with no search.
+    """
+    # finite_only=1: the wrapper normalises authored weights to finite nonnegative integers.
+    # A sentinel weight is legal MATHEMATICS for four of the five algebras -- it is a surface
+    # decision, which is why validate.lp leaves it off by default for raw composition.
+    args = ["clingo", "--warn=none", "-n", "1", "--outf=0", "-c", "finite_only=1",
+            str(project_root() / "validate.lp"), str(framework)]
+    if "lukasiewicz" in semiring_module:
+        # The module carries `#const k = 1000`, so the carrier applies whether or not --luk-k was
+        # given. Gating the check on the FLAG meant omitting it skipped the check while the
+        # algebra stayed bounded -- a framework weighted 5000 then reported a strength-4000
+        # attack where the algebra says 0, and silently lost a stable extension.
+        args += ["-c", f"k={luk_k if luk_k is not None else 1000}"]
+
+    proc = subprocess.run(args, capture_output=True, text=True)
+    if proc.returncode not in (0, 10, 20, 30):
+        raise SystemExit(f"could not validate the framework:\n{proc.stderr.strip()}")
+
+    seen: list[tuple[str, str]] = []
+    for match in VIOLATION_PATTERN.finditer(proc.stdout):
+        kind, atom = match.group(1), match.group(2).strip()
+        if (kind, atom) not in seen:
+            seen.append((kind, atom))
+    if not seen:
+        return
+
+    by_kind: dict[str, list[str]] = {}
+    for kind, atom in seen:
+        by_kind.setdefault(kind, []).append(atom)
+    lines = []
+    for kind, atoms in by_kind.items():
+        shown = ", ".join(sorted(atoms)[:6])
+        more = "" if len(atoms) <= 6 else f" (+{len(atoms) - 6} more)"
+        lines.append(f"  {EXPLAIN.get(kind, kind)}\n    {shown}{more}")
+    raise SystemExit(
+        "this is not a well-formed wABA framework:\n" + "\n".join(lines)
+        + "\n\nThese are preconditions of the definition, checked before solving. Compose the "
+          "raw clingo modules directly if you want them unchecked."
+    )
 
 
 def shell_join(parts: list[str]) -> str:
@@ -514,8 +514,7 @@ def main() -> int:
         raise SystemExit(f"framework not found: {framework}")
 
     validate_args(args)
-    validate_flatness(framework)
-    validate_authored_weights(framework, args._semiring_module)
+    validate_framework(framework, args._semiring_module, getattr(args, 'luk_k', None))
 
     if args.semantics in POST_FILTER_SEMANTICS:
         return run_post_filtered(args)

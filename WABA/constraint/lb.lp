@@ -1,9 +1,6 @@
 %% Generic lower-bound budget constraint.
 
 
-:- not active_monoid(sum), not active_monoid(max), not active_monoid(min).
-:- 2 { active_monoid(sum); active_monoid(max); active_monoid(min) }.
-
 %% budget_value/1 is the active monoid's aggregate, defined once in monoid/<m>.lp.
 
 %% An empty discard set spends nothing; it does not "meet" a positive lower bound,
@@ -19,10 +16,3 @@ some_discard :- discarded_attack(_,_,_).
 
 %% For plain ABA (no discards at all) use constraint/no_discard.lp, not a budget here.
 
-%% An unbound `beta` is not "budget disabled". clingo orders every integer strictly BELOW an
-%% uninterpreted constant, so with a symbolic beta the comparison above can never fire (ub)
-%% or always fires (lb) -- silent, and in opposite directions. Reject instead. The `B+0` test
-%% is arithmetic, undefined on a symbolic constant, so the rule simply does not fire; the
-%% accompanying "operation undefined" info is emitted only in that misconfigured case.
-integer_budget(B) :- effective_budget(B), B = B + 0.
-:- effective_budget(B), not integer_budget(B).
