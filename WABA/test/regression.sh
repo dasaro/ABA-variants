@@ -463,9 +463,15 @@ setw() { "$CLINGO" --warn=none --opt-mode=opt -n 0 --outf=0 -c beta=0 "$ROOT/cor
     "$ROOT/semiring/$1.lp" "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" \
     "$ROOT/semantics/cf.lp" "$ROOT/setsupport.lp" "$tmp/share.lp" 2>/dev/null \
     | tr ' ' '\n' | grep -oE 'set_weight\([-0-9]+\)' | tail -1; }
+# additive algebras emit no set_weight atom: the sum lives only in the objective (subset-sum
+# grounding measured 10.5s -> 0.04s on 120 facts), so their value is the LAST Optimization line
+setopt() { "$CLINGO" --warn=none --opt-mode=opt -n 0 --outf=0 -c beta=0 "$ROOT/core/base.lp" \
+    "$ROOT/semiring/$1.lp" "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" \
+    "$ROOT/semantics/cf.lp" "$ROOT/setsupport.lp" "$tmp/$2" 2>/dev/null \
+    | grep -oE 'Optimization ?: ?-?[0-9]+' | tail -1 | grep -oE '[-0-9]+$'; }
 # f1 is shared: the tree counts it twice (105+223+223+357), the set once (105+223+357).
 check "tropical tree counts the shared leaf twice" "supported_with_weight(q,908)" "$(treew tropical)"
-check "tropical set counts it once"                "set_weight(685)"               "$(setw tropical)"
+check "tropical set counts it once"                "685"               "$(setopt tropical share.lp)"
 # idempotent (x): duplicates collapse, so the two agree by construction.
 check "godel tree == set"            "supported_with_weight(q,105)" "$(treew godel)"
 check "godel set"                    "set_weight(105)"              "$(setw godel)"
@@ -476,11 +482,7 @@ check "bottleneck set"               "set_weight(357)"              "$(setw bott
 # set_weight comes from an OPTIMISATION, and `-n 1` reports the first model, not the best.
 # Here proof B is better (3+17=20) than proof A (32+17+3=52), so a non-optimal run reads 52.
 printf 'assumption(a1). contrary(a1,x1). weight(a1,3).\nassumption(a2). contrary(a2,x2). weight(a2,17).\nassumption(a4). contrary(a4,x4). weight(a4,32).\nhead(p0,m0). body(p0,a2). body(p0,a1).\nhead(p1,m1). body(p1,a2).\nhead(p2,m2). body(p2,a4).\nhead(qa,q). body(qa,m2). body(qa,m0).\nhead(qb,q). body(qb,m1). body(qb,m0).\nquery_atom(q).\n:- assumption(X), not in(X).\n' > "$tmp/share2.lp"
-setw2() { "$CLINGO" --warn=none --opt-mode=opt -n 0 --outf=0 -c beta=0 "$ROOT/core/base.lp" \
-    "$ROOT/semiring/$1.lp" "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" \
-    "$ROOT/semantics/cf.lp" "$ROOT/setsupport.lp" "$tmp/share2.lp" 2>/dev/null \
-    | tr ' ' '\n' | grep -oE 'set_weight\([-0-9]+\)' | tail -1; }
-check "set support optimises over proofs, not first-model" "set_weight(20)" "$(setw2 tropical)"
+check "set support optimises over proofs, not first-model" "20" "$(setopt tropical share2.lp)"
 # and the run must actually PROVE optimality, not merely print a value
 check "the set-support run reaches OPTIMUM FOUND" 1 \
   "$("$CLINGO" --warn=none --opt-mode=opt -n 0 --outf=0 -c beta=0 "$ROOT/core/base.lp" \
