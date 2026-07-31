@@ -575,10 +575,16 @@ printf 'assumption(c). contrary(c,p).\nassumption(d). contrary(d,cd).\nhead(w1,x
 lukw() { python3 "$ROOT/bin/waba" run --framework "$tmp/luk_k.lp" --semiring lukasiewicz \
            --semantics cf --default-policy neutral --show standard ${1:+--luk-k $1} 2>&1 \
          | grep -aoE 'supported_with_weight\(p,[0-9]+\)' | sort -u | head -1; }
-check "luk k=4  -> max(0,3+5-4)=4" "supported_with_weight(p,4)" "$(lukw 4)"
+# k=4 was dropped: it puts the weight-5 leaf OFF the grid [0,k], where Z3 shows the algebra is
+# not a semiring (0 stops annihilating, and otimes stops being associative), and the carrier
+# guard in semiring/lukasiewicz.lp now rejects it. The three surviving rows keep both leaves on
+# the grid, which is where the bounded sum is actually defined.
+check "luk k=5  -> max(0,3+5-5)=3" "supported_with_weight(p,3)" "$(lukw 5)"
 check "luk k=6  -> max(0,3+5-6)=2" "supported_with_weight(p,2)" "$(lukw 6)"
 check "luk k=8  -> max(0,3+5-8)=0" "supported_with_weight(p,0)" "$(lukw 8)"
 check "luk default k=1000 -> 0"    "supported_with_weight(p,0)" "$(lukw '')"
+# The guard itself: a leaf above k is refused rather than silently computed off-carrier.
+check "luk k=4 rejects the off-grid leaf" "" "$(lukw 4)"
 check "--luk-k does not affect godel" "supported_with_weight(p,3)" \
   "$(python3 "$ROOT/bin/waba" run --framework "$tmp/luk_k.lp" --semiring godel --semantics cf \
      --default-policy neutral --show standard --luk-k 6 2>&1 | grep -aoE 'supported_with_weight\(p,[0-9]+\)' | sort -u | head -1)"
