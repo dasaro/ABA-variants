@@ -138,6 +138,30 @@ def axioms(oplus, otimes, zero, one):
     ]
 
 
+def idempotence(oplus, otimes):
+    """
+    Is (x) IDEMPOTENT?  a (x) a = a.
+
+    Not a semiring axiom, but it decides something the paper has to state: whether an atom's
+    weight depends on its derivation TREE or only on the SET of leaves that support it.
+
+    Folding (x) over a rule body counts each leaf OCCURRENCE. If (x) is idempotent the duplicates
+    collapse, so the fold depends only on the support set -- which is what ABA's own notion of an
+    argument (S, c) with S a SET requires. If it is not, two atoms with the SAME support set get
+    DIFFERENT weights when their derivation trees differ, and under the probabilistic reading a
+    fact reused in one proof is multiplied twice, as if independent of itself.
+
+    Measured on a framework where x and y both have support {f0(100), f1(200)}:
+        godel 100/100  bottleneck_cost 200/200      (idempotent -- agree)
+        tropical 300/500  arctic 300/500            (additive   -- differ)
+    """
+    a = Val('a')
+    s = Solver()
+    s.add(a.wf())
+    s.add(Not(eq(otimes(a, a), a)))
+    return s
+
+
 def show(a_t, a_v, model):
     t = model.eval(a_t, model_completion=True).as_long()
     return '#inf' if t == NEG else ('#sup' if t == POS else str(model.eval(a_v, model_completion=True)))
@@ -205,6 +229,30 @@ def main():
             print(f'  {name:18} {len(fails)} FAILED')
             for axiom, wit in fails:
                 print(f'      x {axiom:34} counterexample: {wit}')
+
+    print()
+    print('-' * 78)
+    print('(x) IDEMPOTENT?  decides weight-of-tree vs weight-of-support-set')
+    print('-' * 78)
+    for name in ALGEBRAS:
+        oplus, otimes, zero, one, extra = ALGEBRAS[name]
+        if one is None:
+            one = const(FIN, K)
+        s = idempotence(oplus, otimes)
+        for e in extra:
+            s.add(e)
+        if name == 'lukasiewicz':
+            # on its own carrier [0, k], or the witness would be an off-grid value the
+            # implementation now rejects anyway
+            s.add(Int('a_t') == FIN, Int('a_v') >= 0, Int('a_v') <= K)
+        verdict = s.check()
+        if verdict == unsat:
+            print(f'  {name:18} IDEMPOTENT     -> weight depends only on the SUPPORT SET')
+        else:
+            m = s.model()
+            wit = show(Int('a_t'), Int('a_v'), m)
+            print(f'  {name:18} NOT idempotent -> weight depends on the derivation TREE '
+                  f'(a = {wit})')
 
     print()
     print('-' * 78)
