@@ -50,8 +50,7 @@ multi_weight(X) :- weight(X,V1), weight(X,V2), V1 != V2.
 integral_weight(X) :- weight(X,W), W = W + 0.
 sentinel_weight(X) :- weight(X,#sup).
 sentinel_weight(X) :- weight(X,#inf).
-non_numeric_weight(X) :- weight(X,_), not integral_weight(X), not sentinel_weight(X).
-:- non_numeric_weight(_).
+:- weight(X,_), not integral_weight(X), not sentinel_weight(X).
 
 %% ====================
 %% FLATNESS GUARD
@@ -62,8 +61,7 @@ non_numeric_weight(X) :- weight(X,_), not integral_weight(X), not sentinel_weigh
 %% semantics rest on, and weighted non-flat ABA has no settled semantics.)
 %% A non-flat assumption is flagged here and the framework is rejected outright,
 %% rather than silently producing ill-defined weights.
-non_flat_assumption(X) :- assumption(X), is_head(X).
-:- non_flat_assumption(_).
+:- assumption(X), is_head(X).
 
 %% ====================
 %% WELL-FOUNDEDNESS GUARD (acyclic derivations)
@@ -75,9 +73,8 @@ non_flat_assumption(X) :- assumption(X), is_head(X).
 %% free-discard extensions). Such frameworks are rejected outright, like non-flat ones,
 %% rather than silently producing ill-defined weights. (WABA is defined for well-founded
 %% flat frameworks; the curated/reference examples are all acyclic.)
-derivation_edge(H,B) :- head(R,H), body(R,B).
-derivation_reaches(X,Y) :- derivation_edge(X,Y).
-derivation_reaches(X,Z) :- derivation_edge(X,Y), derivation_reaches(Y,Z).
+derivation_reaches(X,Y) :- head(R,X), body(R,Y).
+derivation_reaches(X,Z) :- head(R,X), body(R,Y), derivation_reaches(Y,Z).
 derivation_cycle(X) :- derivation_reaches(X,X).
 :- derivation_cycle(_).
 

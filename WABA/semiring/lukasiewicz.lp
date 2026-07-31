@@ -7,7 +7,6 @@
 
 #const k = 1000.
 
-active_semiring(lukasiewicz).
 
 oplus(max).
 oplus_identity(0).

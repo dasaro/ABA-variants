@@ -3,7 +3,6 @@
 %% Conjunction = accumulate reward (sum); disjunction = strongest chain (max).
 %% Weights are rewards/benefits, higher is better (longest path).
 
-active_semiring(arctic).
 
 oplus(max).
 oplus_identity(#inf).

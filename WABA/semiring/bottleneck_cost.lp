@@ -3,7 +3,6 @@
 %% Conjunction = worst step (max); disjunction = cheapest alternative (min).
 %% An argument costs as much as its single worst step (worst-case path).
 
-active_semiring(bottleneck_cost).
 
 oplus(min).
 otimes(max).

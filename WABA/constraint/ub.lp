@@ -1,7 +1,5 @@
 %% Generic upper-bound budget constraint.
 
-active_budget_mode(ub).
-active_constraint(ub).
 
 :- not active_monoid(sum), not active_monoid(max), not active_monoid(min).
 :- 2 { active_monoid(sum); active_monoid(max); active_monoid(min) }.

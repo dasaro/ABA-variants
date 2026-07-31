@@ -13,6 +13,4 @@
 %%          WABA/semantics/<semantic>.lp framework.lp
 
 %% Reject any extension that discards any attack
-active_budget_mode(no_discard).
-active_constraint(no_discard).
 :- discarded_attack(_,_,_).

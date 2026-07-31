@@ -3,7 +3,6 @@
 %% Conjunction = accumulate cost (sum); disjunction = cheapest proof (min).
 %% Weights are costs, lower is better (shortest path).
 
-active_semiring(tropical).
 
 oplus(min).
 oplus_identity(#sup).

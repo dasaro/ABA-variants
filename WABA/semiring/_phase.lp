@@ -22,29 +22,32 @@
 %% and includes a ⊗ skeleton (_idempotent.lp or _additive.lp) defining rule_deriv/4.
 
 %% ---- phase bridges -----------------------------------------------------------
+%% Two bridges, not three. `phase_selected` used to gate the policy-default case while
+%% `phase_active` gated the explicit-weight one, but they coincide exactly where the former was
+%% used -- that rule is already restricted to `assumption(X)`, and for an ASSUMPTION:
+%%   support : the flatness guard means an assumption is never a rule head, so `supported(X)`
+%%             can only come from `in(X)`  ->  phase_active == phase_selected
+%%   maximal : semantics/admissible.lp declares `arg(X) :- assumption(X).`, so arg(X) holds for
+%%             every assumption  ->  phase_active == phase_selected
+%% A `phase/1` domain predicate is gone with it: P was always bound by the phase_active literal
+%% in the same body, so `phase(P)` was contributing neither safety nor a restriction.
 %% support : weights over the in-set S          (always on)      -> supported_with_weight/2
 %% maximal : weights over ALL assumptions       (budgeted_full)  -> arg_weight/2
 %%              (the intrinsic strongest strength of an argument, used as a fixed attack cost)
-phase(support).
-phase(maximal) :- budgeted_full.
-
 phase_active(support, X)    :- supported(X).
 phase_triggered(support, R) :- triggered_by_in(R).
-%% "selected" = the assumption is committed in this phase (in).
-phase_selected(support, X)  :- in(X).
 
 %% maximal phase — gated on budgeted_full; every assumption is selected, so arg_weight is
 %% the strength of an argument in the largest possible context (its intrinsic strongest form).
 phase_active(maximal, X)    :- budgeted_full, arg(X).
 phase_triggered(maximal, R) :- budgeted_full, arg_triggered(R).
-phase_selected(maximal, X)  :- budgeted_full, assumption(X).
 
 %% ---- direct (own) weight: explicit weight, else policy default ---------------
 %% Explicit weight is gated on phase_active (= in for flat assumptions, = supported
 %% for non-flat / derived atoms — matches the previous per-semiring gating). The
 %% policy default applies to unweighted assumptions that are selected.
-direct_weight(P, X, V) :- phase(P), weight(X, V), phase_active(P, X).
-direct_weight(P, X, V) :- phase(P), assumption(X), not weight(X, _), phase_selected(P, X), default_assumption_weight(V).
+direct_weight(P, X, V) :- weight(X, V), phase_active(P, X).
+direct_weight(P, X, V) :- assumption(X), not weight(X, _), phase_active(P, X), default_assumption_weight(V).
 
 %% ---- assumptions: weight is just the direct weight --------------------------
 %% WABA is restricted to flat ABA (see core/base.lp's flatness guard), so an

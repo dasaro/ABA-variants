@@ -3,7 +3,6 @@
 %% Conjunction = weakest link (min); disjunction = strongest alternative (max).
 %% Weights are truth degrees / confidences, higher is better (original WABA).
 
-active_semiring(godel).
 
 oplus(max).
 otimes(min).
