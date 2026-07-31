@@ -459,7 +459,7 @@ printf 'assumption(f0). contrary(f0,n0). weight(f0,105).\nassumption(f1). contra
 treew() { "$CLINGO" --warn=none -n 1 --outf=0 -c beta=0 "$ROOT/core/base.lp" "$ROOT/semiring/$1.lp" \
     "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/semantics/cf.lp" \
     "$tmp/share.lp" 2>/dev/null | tr ' ' '\n' | grep -oE 'supported_with_weight\(q,[-0-9]+\)' | head -1; }
-setw() { "$CLINGO" --warn=none --opt-mode=opt -n 1 --outf=0 -c beta=0 "$ROOT/core/base.lp" \
+setw() { "$CLINGO" --warn=none --opt-mode=opt -n 0 --outf=0 -c beta=0 "$ROOT/core/base.lp" \
     "$ROOT/semiring/$1.lp" "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" \
     "$ROOT/semantics/cf.lp" "$ROOT/setsupport.lp" "$tmp/share.lp" 2>/dev/null \
     | tr ' ' '\n' | grep -oE 'set_weight\([-0-9]+\)' | tail -1; }
@@ -471,6 +471,31 @@ check "godel tree == set"            "supported_with_weight(q,105)" "$(treew god
 check "godel set"                    "set_weight(105)"              "$(setw godel)"
 check "bottleneck tree == set"       "supported_with_weight(q,357)" "$(treew bottleneck_cost)"
 check "bottleneck set"               "set_weight(357)"              "$(setw bottleneck_cost)"
+# A SECOND fixture with two alternative proofs. The one above has a single derivation tree, so
+# the (+) step is vacuous and the run passes even with `-n 1` -- which is how a real bug hid:
+# set_weight comes from an OPTIMISATION, and `-n 1` reports the first model, not the best.
+# Here proof B is better (3+17=20) than proof A (32+17+3=52), so a non-optimal run reads 52.
+printf 'assumption(a1). contrary(a1,x1). weight(a1,3).\nassumption(a2). contrary(a2,x2). weight(a2,17).\nassumption(a4). contrary(a4,x4). weight(a4,32).\nhead(p0,m0). body(p0,a2). body(p0,a1).\nhead(p1,m1). body(p1,a2).\nhead(p2,m2). body(p2,a4).\nhead(qa,q). body(qa,m2). body(qa,m0).\nhead(qb,q). body(qb,m1). body(qb,m0).\nquery_atom(q).\n:- assumption(X), not in(X).\n' > "$tmp/share2.lp"
+setw2() { "$CLINGO" --warn=none --opt-mode=opt -n 0 --outf=0 -c beta=0 "$ROOT/core/base.lp" \
+    "$ROOT/semiring/$1.lp" "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" \
+    "$ROOT/semantics/cf.lp" "$ROOT/setsupport.lp" "$tmp/share2.lp" 2>/dev/null \
+    | tr ' ' '\n' | grep -oE 'set_weight\([-0-9]+\)' | tail -1; }
+check "set support optimises over proofs, not first-model" "set_weight(20)" "$(setw2 tropical)"
+# and the run must actually PROVE optimality, not merely print a value
+check "the set-support run reaches OPTIMUM FOUND" 1 \
+  "$("$CLINGO" --warn=none --opt-mode=opt -n 0 --outf=0 -c beta=0 "$ROOT/core/base.lp" \
+      "$ROOT/semiring/tropical.lp" "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" \
+      "$ROOT/semantics/cf.lp" "$ROOT/setsupport.lp" "$tmp/share2.lp" 2>/dev/null \
+     | grep -c 'OPTIMUM FOUND')"
+# dedup can only REMOVE (x)-summands, so under a cost polarity the set value never exceeds the tree
+check "set <= tree on the two-proof fixture" ok \
+  "$(t=$("$CLINGO" --warn=none -n 1 --outf=0 -c beta=0 "$ROOT/core/base.lp" \
+        "$ROOT/semiring/tropical.lp" "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" \
+        "$ROOT/semantics/cf.lp" "$tmp/share2.lp" 2>/dev/null \
+        | tr ' ' '\n' | grep -oE 'supported_with_weight\(q,[-0-9]+\)' | head -1 \
+        | tr -dc '0-9'); \
+     [ "$t" -ge 20 ] && echo ok || echo "tree=$t < set=20")"
+
 # the advisory names the atom whose derivation reuses a leaf
 # validate.lp is run on the FRAMEWORK ALONE: share.lp carries a `:- assumption(X), not in(X).`
 # for the solver runs above, and in/1 does not exist under the validator, so that constraint
