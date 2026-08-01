@@ -5,7 +5,7 @@
 %% grounding small by avoiding repeated existential patterns.
 %%
 %% Three well-formedness guards live here, and all three REJECT rather than warn:
-%% flatness, well-foundedness of derivations, and functionality of weight/2.
+%% flatness, acyclicity of derivations, and functionality of weight/2.
 
 %% ====================
 %% DOMAIN PREDICATES
@@ -31,7 +31,7 @@ derived_atom(X) :- is_head(X), not assumption(X).
 %%
 %%   flat            no assumption is the head of a rule, so an assumption's weight is
 %%                   intrinsic rather than extension-dependent
-%%   well-founded    the rule-dependency graph is acyclic, so the ⊕-over-derivations /
+%%   acyclic         the rule-dependency graph has no cycle, so the ⊕-over-derivations /
 %%                   ⊗-over-body recursion has a unique least fixpoint
 %%   functional w    weight/2 is a partial FUNCTION on atoms
 %%   w into S        every declared weight is an element of the algebra's carrier
