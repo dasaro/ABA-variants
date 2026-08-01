@@ -114,23 +114,33 @@ The **monoid** aggregates the *discarded* attacks into the extension's cost, bou
 
 **`no_discard` recovers classical ABA exactly** — it forbids *every* discard, for any weight. Prefer it (or `--aba-recovery`) to `ub` with `beta = 0`: a budget of 0 is a genuine budget, and under the cost semirings the `⊗`-identity (`#inf`, the "negligible-cost" weight of an unweighted attack or a fact-derived contrary) is free to drop at any budget by design. The `aba` default policy also makes unweighted attacks `#sup` (un-droppable), so it recovers ABA under a budget too. **Frameworks must be well-founded:** `core/base.lp` rejects derivation cycles (`p ← q`, `q ← p`) outright, since a cyclic derivation has no well-defined propagated weight — as with the flatness guard, the framework is refused rather than given ill-defined weights. **Weights as probabilities:** encode `w = round(-K ln p)` and run `tropical`; the propagated weight is then the surprisal of an atom's most-probable proof (decode `p = exp(-w/K)`) — see `examples/probabilistic/`. **This is exact only where no derivation reuses a leaf:** `⊗` folds a derivation *tree*, so a leaf reached by two branches contributes `p²`, i.e. is treated as independent of itself. `validate.lp` reports `advisory(leaf_reuse, X)` when that can happen, and the optional `setsupport.lp` folds each leaf once instead — which is no longer a semiring fold, since deduplication needs provenance, and so costs a search rather than a grounding pass. The idempotent algebras (`godel`, `bottleneck_cost`) are unaffected, because `min`/`max` ignore multiplicity.
 
-### Where weights live (leaves vs derived atoms)
+### Where weights live (leaves and derived atoms)
 
-WABA weights are intrinsic to the **leaves**: `weight/2` on an assumption (its own strength) or on a fact (an empty-body rule head). A **derived** atom gets its weight by *propagation* — the semiring combines its premises with `⊗` and alternative derivations with `⊕`. **Put the weights on the leaves and let them propagate**; that is the canonical model.
+`weight/2` may be declared on **any** atom. On a **leaf** — an assumption, or a fact (an
+empty-body rule head) — the declared weight is intrinsic and always effective, since there
+is no derivation to compete with it. On a **derived** atom the declared weight is combined
+with the atom's derivations by `⊕`, one more summand in the same fold: an independent
+assessment of the conclusion, merged with what its premises provide. This is well defined
+and legitimate; the paper's running example carries one deliberately (`wt(n) = (1 ⊗ 6) ⊕ 2`).
 
-An explicit `weight/2` on a *derived* atom is combined with its own derivation via `⊕`, so in most algebras it is **silently dominated** and never takes effect:
+What deserves awareness is that **which side prevails is the algebra's call**, through a
+comparison the modeller cannot see locally. On that example: arctic keeps the derivation
+(7 beats 2), Gödel keeps the declaration (2 beats the min-fold 1), the cost algebras'
+`⊕ = min` prefers the declared 2, and under Łukasiewicz the derivation erodes to 0 and the
+declaration survives as a floor. One declaration, void in one algebra and decisive in four.
 
-|                  | `⊗`-identity | explicit weight `W` on a derived atom (from unweighted supports) |
-|------------------|--------------|-------------------------------------------------------------------|
-| `arctic`         | `0`          | **survives** — `max(W, 0) = W`                                    |
-| `tropical`       | `0`          | **survives** under `aba` — `min(W, #sup) = W`; dominated to `0` under the default `neutral` |
-| `godel`          | `#sup`       | dominated → `#sup`  (`max(W, #sup)`)                              |
-| `bottleneck_cost`| `#inf`       | dominated → `#inf`  (`min(W, #inf)`)                             |
-| `lukasiewicz`    | `k`          | dominated → `k`     (`max(W, k)`)                                |
+The degenerate special case is a derived atom whose supports are all **unweighted**: the
+derivation then folds to the `⊗`-identity, which under `godel`/`bottleneck_cost`/`lukasiewicz`
+is also `⊕`-dominant, so the declared weight silently never takes effect there (`arctic`,
+whose `⊗`-identity is `0`, keeps it; `tropical` keeps it under the `aba` default and loses
+it under `neutral`). If a declared weight must always survive verbatim, put it on a leaf.
 
-`core/base.lp` flags this as **`weight_on_derived_dominated(X, Declared, Effective)`** (the filter modules `#show` it; it is empty for a well-formed framework). A declared weight that did not take effect almost always means it belongs on a leaf instead. The "a weighted non-assumption atom" requirement is met cleanly by a **weighted fact** — `weight(f, W). head(r, f).` with an empty body — whose weight is intrinsic and always survives.
+There is **no advisory predicate for a dominated weight**: an earlier
+`weight_on_derived_dominated/3` was removed when the guards were cut from the core
+(`core/base.lp` is the mathematics alone; validation lives at the boundaries). Whether a
+declaration took effect is visible by comparing `weight/2` with `supported_with_weight/2`.
 
-**`tropical` is the one asymmetric algebra**, and it is the only one where the choice of default policy changes anything. Under the default `neutral` its delta is its `⊗`-identity `0`, so an unweighted assumption is transparent — but then an explicit weight on a derived atom is dominated to `0`. Under `aba` its delta is `#sup` (the `⊕`-identity / `⊗`-annihilator), which makes weighted intermediates survive but *annihilates* a conjunction through an unweighted assumption: `c_acc ← t_acc, objection` collapses to `#sup`. There is **no free lunch** — choose per model, or route the objection through an intermediate (`objection ← t_acc`; `c_acc ← objection`) so the conjunction never mixes a weight with delta. For the other four algebras `neutral` and the retired `legacy` policy agreed, so nothing there depends on the choice.
+**`tropical` is the one asymmetric algebra**, and it is the only one where the choice of default policy changes anything. Under the default `neutral` its delta is its `⊗`-identity `0`, so an unweighted assumption is transparent — but then an explicit weight on a derived atom with only unweighted supports is dominated to `0`. Under `aba` its delta is `#sup` (the `⊕`-identity / `⊗`-annihilator), which makes weighted intermediates survive but *annihilates* a conjunction through an unweighted assumption: `c_acc ← t_acc, objection` collapses to `#sup`. There is **no free lunch** — choose per model, or route the objection through an intermediate (`objection ← t_acc`; `c_acc ← objection`) so the conjunction never mixes a weight with delta. For the other four algebras `neutral` and the retired `legacy` policy agreed, so nothing there depends on the choice.
 
 ## Web Playground Sync
 
