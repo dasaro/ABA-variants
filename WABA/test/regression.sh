@@ -741,5 +741,34 @@ case "$out" in *"normalises authored weights to finite integers"*) echo "  ok   
                *) echo "  FAIL CLI accepted an infinite leaf weight"; fail=$((fail+1));; esac
 
 echo
+echo "== N12: ub/lb REJECT an unbound beta (the failure is silent and bidirectional) =="
+# Documented in CLAUDE.md but unimplemented until 2026-08-01: with `beta` left an
+# uninterpreted constant, clingo orders it strictly ABOVE every integer, so the comparison
+# grounds and simply never fires -- ub goes silently UNBOUNDED (admits every discard) while
+# lb silently collapses onto no_discard. Measured before the guard: ub returned 3 extensions
+# without `-c beta` where `-c beta=0` returned 2.
+cat > "$tmp/cyc.lp" <<'EOF'
+assumption(a). assumption(b). contrary(a,ca). contrary(b,cb).
+head(r1,ca). body(r1,b). weight(b,5).
+head(r2,cb). body(r2,a). weight(a,5).
+EOF
+nb() { # $1=constraint $2=monoid ; no -c beta at all
+  "$CLINGO" --warn=none -n 0 --outf=0 --project "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
+    "$ROOT/defaults/neutral.lp" "$ROOT/monoid/$2.lp" "$ROOT/constraint/$1.lp" \
+    "$ROOT/filter/projection.lp" "$ROOT/semantics/stable.lp" "$tmp/cyc.lp" 2>&1 \
+    | grep -ac '^Answer:'; }
+wb() { # $1=constraint $2=monoid $3=beta
+  "$CLINGO" --warn=none -n 0 --outf=0 --project -c beta="$3" "$ROOT/core/base.lp" \
+    "$ROOT/semiring/godel.lp" "$ROOT/defaults/neutral.lp" "$ROOT/monoid/$2.lp" \
+    "$ROOT/constraint/$1.lp" "$ROOT/filter/projection.lp" "$ROOT/semantics/stable.lp" \
+    "$tmp/cyc.lp" 2>&1 | grep -ac '^Answer:'; }
+check "ub with no -c beta is REJECTED"  0 "$(nb ub sum)"
+check "lb with no -c beta is REJECTED"  0 "$(nb lb min)"
+check "ub with -c beta=0 still works"   2 "$(wb ub sum 0)"
+check "ub with -c beta=9 still works"   2 "$(wb ub sum 9)"
+check "ub with -c beta=10 admits both"  3 "$(wb ub sum 10)"
+check "a symbolic beta is REJECTED too" 0 "$(wb ub sum foo)"
+
+echo
 echo "==== $pass passed, $fail failed ===="
 [ "$fail" -eq 0 ]

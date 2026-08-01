@@ -3,6 +3,23 @@
 
 %% budget_value/1 is the active monoid's aggregate, defined once in monoid/<m>.lp.
 
+%% beta MUST be an integer whenever this module is loaded.
+%%
+%% Without this, omitting `-c beta` leaves `beta` an uninterpreted constant. clingo orders
+%% every integer strictly BELOW an uninterpreted constant, so the comparison below still
+%% GROUNDS and still SUCCEEDS -- it simply never fires. The failure is therefore silent, and
+%% it runs in OPPOSITE directions for the two bounds: `C > beta` becomes unsatisfiable, so
+%% ub is silently unbounded and admits every discard; `C < beta` becomes universally true,
+%% so lb silently collapses onto no_discard. Measured on a two-assumption cycle: ub without
+%% `-c beta` returns 3 extensions where `-c beta=0` returns 2.
+%%
+%% The test is arithmetic, not comparison, precisely because comparison is total over
+%% clingo's term order while `+` is undefined on a symbolic constant. It lives here rather
+%% than in core/base.lp so that runs loading no budget module never ground it.
+beta_is_integer :- beta = B, B = B + 0.
+:- not beta_is_integer.
+
+
 %% An empty discard set spends nothing, so it trivially respects any upper bound.
 %% Without this guard the min monoid breaks: #min{} over no discards = #sup, which
 %% would spuriously exceed every finite beta and reject the (cost-free) no-discard
