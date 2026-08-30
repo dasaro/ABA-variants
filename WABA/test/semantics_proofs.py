@@ -42,6 +42,8 @@ import json
 from dataclasses import dataclass
 from typing import Callable
 
+import _z3venv  # noqa: F401  (re-execs via test/.venv when z3 is missing)
+
 from z3 import And, Bool, BoolVal, Implies, Not, Or, Solver, sat, unsat
 
 

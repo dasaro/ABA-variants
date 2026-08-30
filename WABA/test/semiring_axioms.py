@@ -17,6 +17,8 @@ Both are checked.
 """
 import itertools
 import sys
+import _z3venv  # noqa: F401  (re-execs via test/.venv when z3 is missing)
+
 from z3 import (And, Distinct, ForAll, If, Implies, Int, IntSort, Not, Or, Solver, sat, unsat)
 
 # ---------------------------------------------------------------------------

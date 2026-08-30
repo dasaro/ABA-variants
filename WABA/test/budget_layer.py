@@ -17,6 +17,8 @@ gated on `some_discard`, so the empty concession set is always admitted -- that 
 makes "a budget only ever ADDS extensions" true, and it is checked below rather than assumed.
 """
 import sys
+import _z3venv  # noqa: F401  (re-execs via test/.venv when z3 is missing)
+
 from z3 import And, ForAll, Function, If, Implies, Int, IntSort, Not, Or, Solver, sat, unsat
 
 NEG, FIN, POS = 0, 1, 2          # #inf, finite, #sup  (clingo's order)

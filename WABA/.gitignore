@@ -73,6 +73,7 @@
 
 # Public regression tests
 !test/
+!test/_z3venv.py
 !test/beta_sigma_oracle.py
 !test/finite_aba_oracle.py
 !test/extended_semantics.py
