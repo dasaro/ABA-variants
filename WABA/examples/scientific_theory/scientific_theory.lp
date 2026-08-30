@@ -124,13 +124,20 @@ body(r9, assume_auxiliary_h1).
 body(r9, assume_relativistic).
 body(r9, assume_quantum).
 
+%% Newtonian mechanics has one contrary, as required by ABA. Its two alternative
+%% incompatibility derivations are combined before they form the single atomic attack unit.
+head(r10, against_newtonian).
+body(r10, incompatible_newtonian_quantum).
+head(r11, against_newtonian).
+body(r11, incompatible_classical_relativistic).
+
 %% ============================================================================
 %% CONTRARIES (Theoretical Inconsistencies Defeat Hypotheses)
 %% ============================================================================
 
-contrary(assume_newtonian, incompatible_newtonian_quantum).
+contrary(assume_newtonian, against_newtonian).
+contrary(assume_relativistic, incompatible_classical_relativistic).
 contrary(assume_quantum, incompatible_newtonian_quantum).
-contrary(assume_newtonian, incompatible_classical_relativistic).
 contrary(assume_auxiliary_h1, excessive_complexity).
 
 %% ============================================================================

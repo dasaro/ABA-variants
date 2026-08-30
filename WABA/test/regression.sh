@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Regression tests for the 2026-07 soundness fixes.
 #
-#   D1/D4  defense semantics are CLASSICAL (weight-blind, no budget) + pin no-discards
+#   D1/D4  exact no-discard recovery and the common beta-sigma pipeline
 #   D2     no_discard is the exact ABA-recovery knob (not ub with beta=0)
 #   D3     derivation cycles are rejected (well-foundedness guard)
-#   D5     Lukasiewicz aba default = #sup (bare-assumption attacks un-discardable)
+#   D5     Lukasiewicz defaults stay inside [0,k]; no_discard provides exact recovery
 #
 # Usage:  bash test/regression.sh        (run from the WABA/ root or anywhere)
 # Exit code 0 = all pass, 1 = a failure.
@@ -32,15 +32,9 @@ check() { # check "desc" expected actual
   else echo "  FAIL $1 — expected [$2] got [$3]"; fail=$((fail+1)); fi
 }
 
-echo "== D1: the reference framework under the surviving weighted semantics =="
-# The classical defence semantics (admissible/complete/grounded/preferred) were REMOVED on
-# 2026-07-29: wABA is a weighted framework and those four ignored the weights entirely,
-# returning the same answer under every algebra. Their loss is real and recorded here:
-# the beta=0 recovery checks below can no longer be DIFFERENTIAL (beta-sigma vs sigma
-# computed in the same system) and are now against the CONSTANTS 7 and 3, which were
-# measured against the classical modules before they were deleted, and which ASPforABA
-# independently confirms for stable. If a future change makes them wrong, nothing in this
-# tree will notice -- re-derive them against an external ABA solver, not by editing them.
+echo "== D1: the reference framework under the supported semantics =="
+# These two direct checks pin the reference graph. Defence semantics are exercised below
+# through the same discard layer and compared with the independent ABA oracle in GT.
 check "stable = 2" 2 "$(compose godel aba no_discard stable "$REF" | models)"
 check "cf = 11"    11 "$(compose godel aba no_discard cf     "$REF" | models)"
 
@@ -48,12 +42,12 @@ echo "== D2: no_discard is the exact ABA recovery (stable = 2) =="
 check "no_discard stable = 2" 2 "$(compose godel aba no_discard stable "$REF" | models)"
 
 echo "== D3: derivation cycles are rejected; acyclic frameworks are accepted =="
-printf 'budget(100). assumption(a). contrary(a,ca). assumption(b). contrary(b,cb).\nhead(r1,p). body(r1,q). head(r2,q). body(r2,p). head(r3,ca). body(r3,b).\n' > "$tmp/cyc.lp"
-printf 'budget(100). assumption(a). contrary(a,ca). assumption(b). contrary(b,cb).\nhead(r1,p). body(r1,a). head(r2,cb). body(r2,p).\n' > "$tmp/acyc.lp"
+printf 'assumption(a). contrary(a,ca). assumption(b). contrary(b,cb).\nhead(r1,p). body(r1,q). head(r2,q). body(r2,p). head(r3,ca). body(r3,b).\n' > "$tmp/cyc.lp"
+printf 'assumption(a). contrary(a,ca). assumption(b). contrary(b,cb).\nhead(r1,p). body(r1,a). head(r2,cb). body(r2,p).\n' > "$tmp/acyc.lp"
 # NOTE: the framework PRECONDITIONS (flat, well-founded, w a function into the carrier) moved
 # out of core/base.lp on 2026-07-31. They are hypotheses of the definition, not part of the
 # semantics, so a paper states them once and the BOUNDARIES enforce them: bin/waba for the CLI,
-# runtime/framework-preconditions.js for the web playground. These checks therefore assert that
+# the bundled validate.lp pre-flight in the web playground. These checks therefore assert that
 # the boundary refuses the framework and NAMES the offender -- which an ASP constraint could
 # never do; it could only return an unexplained UNSATISFIABLE.
 cyc="$(python3 "$ROOT/bin/waba" run --framework "$tmp/cyc.lp" --semantics stable 2>&1 | grep -c 'WELL-FOUNDED')"
@@ -61,93 +55,90 @@ acyc="$(compose godel aba no_discard stable "$tmp/acyc.lp" | grep -aoE 'UNSATISF
 check "cyclic framework rejected at the boundary" 1 "$cyc"
 check "acyclic framework accepted"  SATISFIABLE   "$acyc"
 
-echo "== D5: Lukasiewicz bare-assumption attack is un-discardable under aba =="
+echo "== D5: Lukasiewicz aba default is the carrier top k =="
 printf 'budget(100000). assumption(a). contrary(a,b). assumption(b). contrary(b,cb).\n' > "$tmp/luk.lp"
-n="$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=100000 "$ROOT/core/base.lp" "$ROOT/semiring/lukasiewicz.lp" "$ROOT/defaults/aba.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/stable.lp" "$tmp/luk.lp" 2>&1 | grep -c 'discarded_attack(b,a')"
-check "b->a never discarded at beta=100000" 0 "$n"
+luk_discard() {
+  "$CLINGO" --warn=no-atom-undefined -n 0 -c beta="$1" "$ROOT/core/base.lp" \
+    "$ROOT/semiring/lukasiewicz.lp" "$ROOT/defaults/aba.lp" "$ROOT/monoid/sum.lp" \
+    "$ROOT/constraint/ub.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/stable.lp" \
+    "$tmp/luk.lp" 2>&1 | grep -c 'discarded_attack(b,a,1000)'
+}
+check "k-priced attack is not affordable below k" 0 "$(luk_discard 999)"
+check "k-priced attack is affordable at k"       1 "$(luk_discard 1000)"
 
-echo "== wABA BUDGETED ADMISSIBLE (Dunne Def 6 lift, semantics/admissible.lp) =="
-# Ported from the retired semantics/admissible_budgeted.lp on 2026-07-29. Every expected
-# value was RE-MEASURED under admissible rather than carried over: the two encodings
-# are not equivalent (the retired one budgeted defence but never internal conflict), so the
-# properties survive but the numbers do not.
-dun() { "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta="$1" "$ROOT/core/base.lp" \
-          "$ROOT/semiring/$2.lp" "$ROOT/defaults/aba.lp" "$ROOT/filter/projection.lp" \
-          "$ROOT/semantics/admissible.lp" "$3" 2>&1; }
-# A1: beta=0 recovers classical admissible (7 on the reference), across the strength semirings
-for s in godel arctic lukasiewicz; do
-  check "beta=0 == classical admissible (7) / $s" 7 "$(dun 0 $s "$REF" | models)"
-done
-# beta grows => strictly more admissible sets (the budget does real work)
-check "reference beta=1000 > classical (16 vs 7)" 16 "$(dun 1000 godel "$REF" | models)"
-# polarity guard: cost semirings rejected (the known leak, pinned by N7)
-# Cost semirings are no longer refused: the module derives the bound DIRECTION from the
-# polarity, so a cost algebra bounds the CHEAPEST concession from below. beta=0 then admits
-# everything and recovery happens at a beta ABOVE every attack weight (w_max=100 here).
-for s in tropical bottleneck_cost; do
-  check "cost $s computes at beta=0 (16, not UNSAT)" 16 "$(dun 0 $s "$REF" | models)"
-  check "cost $s recovers at beta=200 (7)"            7  "$(dun 200 $s "$REF" | models)"
-done
-# A2 monoid-awareness: two strength-4 objections SUM to 8, so {t1,t2} needs beta >= 8
-printf 'assumption(t1). contrary(t1,o1).\nassumption(t2). contrary(t2,o2).\nassumption(s1). weight(s1,4). contrary(s1,cs1). head(r1,o1). body(r1,s1).\nassumption(s2). weight(s2,4). contrary(s2,cs2). head(r2,o2). body(r2,s2).\n' > "$tmp/agg.lp"
-check "both t1,t2 NOT admissible at beta=6 (sum 8, not per-attack 4)" 0 \
-  "$(dun 6 godel "$tmp/agg.lp" | grep -acE 'in\(t1\).*in\(t2\)|in\(t2\).*in\(t1\)')"
-check "both t1,t2 admissible at beta=8" 4 \
-  "$(dun 8 godel "$tmp/agg.lp" | grep -acE 'in\(t1\).*in\(t2\)|in\(t2\).*in\(t1\)')"
-# A5 faithfulness: an un-counterable maximal (#sup) objection is never overrulable
-printf 'assumption(t). contrary(t,obj).\nassumption(o). contrary(o,co). head(r1,obj). body(r1,o).\n' > "$tmp/sup.lp"
-check "un-counterable #sup objection never admits t (beta=1e6)" 0 \
-  "$(dun 1000000 godel "$tmp/sup.lp" | grep -c 'in(t)')"
-# the retired encoding could never buy INTERNAL conflict repair; the Dunne lift can, which
-# is the substantive difference between them and the reason the port changes numbers.
-printf 'assumption(a). contrary(a,ca).\nassumption(b). contrary(b,cb).\nhead(w1,l1). weight(l1,5).\nhead(r1,ca). body(r1,b). body(r1,l1).\nhead(r2,cb). body(r2,a). body(r2,l1).\n' > "$tmp/internal.lp"
-check "mutual conflict NOT repairable at beta=5" 0 \
-  "$(dun 5 godel "$tmp/internal.lp" | grep -acE 'in\(a\).*in\(b\)|in\(b\).*in\(a\)')"
-check "mutual conflict repairable at beta=10 (5+5)" 1 \
-  "$(dun 10 godel "$tmp/internal.lp" | grep -acE 'in\(a\).*in\(b\)|in\(b\).*in\(a\)')"
+echo "== one beta-sigma pipeline for all direct semantics =="
+bs() { # bs <beta> <semiring> <semantics> <framework> [constraint] [monoid] [policy]
+  "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta="$1" \
+    "$ROOT/core/base.lp" "$ROOT/semiring/$2.lp" "$ROOT/defaults/${7:-neutral}.lp" \
+    "$ROOT/monoid/${6:-sum}.lp" "$ROOT/constraint/${5:-ub}.lp" \
+    "$ROOT/filter/projection.lp" "$ROOT/semantics/$3.lp" "$4" 2>&1
+}
 
-echo "== wABA FULL DUNNE DEF 6 (shared internal+external budget) =="
-dun() { "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta="$1" "$ROOT/core/base.lp" "$ROOT/semiring/$2.lp" "$ROOT/defaults/aba.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/$3.lp" "$4" 2>&1; }
-# A1: beta=0 recovers classical admissible (7) / complete (3)
-for s in godel arctic lukasiewicz; do
-  check "dunne admissible beta=0 == classical (7) / $s" 7 "$(dun 0 $s admissible "$REF" | models)"
-done
-check "dunne complete beta=0 == classical (3)" 3 "$(dun 0 godel complete "$REF" | models)"
-# EXTERNAL defence: m attacked by g from an out-assumption e (strength 7) — admissible at beta>=7
-printf 'assumption(m). contrary(m,g).\nassumption(e). weight(e,7). contrary(e,ce). head(r1,g). body(r1,e).\n' > "$tmp/ext.lp"
-check "external threat: m NOT admissible at beta=6" no  "$(dun 6 godel admissible "$tmp/ext.lp" | grep -qa 'in(m)' && echo YES || echo no)"
-check "external threat: m admissible at beta=7"     YES "$(dun 7 godel admissible "$tmp/ext.lp" | grep -qa 'in(m)' && echo YES || echo no)"
-# INTERNAL repair: a,b mutually attack (strength 5 each) — {a,b} jointly admissible only at beta>=10
-printf 'assumption(a). weight(a,5). contrary(a,ca).\nassumption(b). weight(b,5). contrary(b,cb).\nhead(r1,ca). body(r1,b). head(r2,cb). body(r2,a).\n' > "$tmp/int.lp"
-check "internal repair: {a,b} NOT joint at beta=9" 0 "$(dun 9 godel admissible "$tmp/int.lp" | grep -acE 'in\(a\).*in\(b\)|in\(b\).*in\(a\)')"
-check "internal repair: {a,b} joint at beta=10"    1 "$(dun 10 godel admissible "$tmp/int.lp" | grep -acE 'in\(a\).*in\(b\)|in\(b\).*in\(a\)')"
-# cost semirings rejected
-check "cost tropical at beta=0 admits everything (16)" 16 "$(dun 0 tropical admissible "$REF" | models)"
-# bin/waba surface: budgeted-admissible deduped + guards
-check "bin/waba admissible beta=0 = 7" 7 "$(python3 "$ROOT/bin/waba" run --semantics admissible --semiring godel --default-policy aba --beta 0 --framework "$REF" 2>/dev/null | grep -cE '^Answer:')"
-case "$(python3 "$ROOT/bin/waba" run --semantics admissible --semiring tropical --beta 10 --framework "$REF" 2>&1 | tail -1)" in
-  *) echo "  ok   bin/waba accepts a cost semiring for the defence semantics"; pass=$((pass+1));;
-esac
+check "reference admissible recovery = 7" 7 \
+  "$(compose godel aba no_discard admissible "$REF" | models)"
+check "reference complete recovery = 3" 3 \
+  "$(compose godel aba no_discard complete "$REF" | models)"
 
-echo "== exact set-inclusion semantics via the CLI (no duplicate optima) =="
-# grounded and preferred were removed with the classical defence family on 2026-07-29.
-# budgeted-preferred is the only surviving subset-filtered semantics: it enumerates the
-# budgeted-admissible candidates and keeps the subset-maximal ones, so it must report each
-# extension ONCE (the former cardinality-#minimize encoding printed the optimum twice).
-check "preferred reports each extension once" 2 \
-  "$(python3 "$ROOT/bin/waba" run --semantics preferred --semiring godel \
-     --default-policy aba --beta 0 --framework "$REF" 2>/dev/null | grep -acE '^Answer:')"
-# NOT monotone in beta, and that is the documented behaviour, not a defect. beta-preferred
-# is subset-maximal AMONG the beta-admissible sets, so raising beta can promote a competitor
-# that SUBSUMES an existing preferred extension and thereby remove it. Measured on the
-# reference: admissible grows 7,7,7,11,16 over beta=0,5,10,100,1000 while
-# budgeted-preferred goes 2,2,2,2,1. See the paper's remark on the extremal semantics.
-check "preferred is NOT monotone: 2 at beta=100" 2 \
-  "$(python3 "$ROOT/bin/waba" run --semantics preferred --semiring godel \
-     --default-policy aba --beta 100 --framework "$REF" 2>/dev/null | grep -acE '^Answer:')"
-check "preferred DROPS to 1 at beta=1000" 1 \
-  "$(python3 "$ROOT/bin/waba" run --semantics preferred --semiring godel \
-     --default-policy aba --beta 1000 --framework "$REF" 2>/dev/null | grep -acE '^Answer:')"
+# Smallest P1 fixture: a -> b has weight 1. beta=1 existentially unions the
+# ordinary extensions of the intact and attack-free reducts.
+cat > "$tmp/p1.lp" <<'FW'
+assumption(a). weight(a,1). contrary(a,ca).
+assumption(b). weight(b,1). contrary(b,cb).
+head(r1,cb). body(r1,a).
+FW
+for spec in "cf 3 4" "stable 1 2" "admissible 2 4" "complete 1 2"; do
+  sem=$(echo "$spec" | cut -d' ' -f1)
+  at0=$(echo "$spec" | cut -d' ' -f2)
+  at1=$(echo "$spec" | cut -d' ' -f3)
+  check "$sem: beta=0 intact reduct" "$at0" "$(bs 0 godel "$sem" "$tmp/p1.lp" | models)"
+  check "$sem: beta=1 union of reducts" "$at1" "$(bs 1 godel "$sem" "$tmp/p1.lp" | models)"
+done
+
+# A SUM budget is global: both weight-5 attacks can be removed only at beta=10.
+cat > "$tmp/internal.lp" <<'FW'
+assumption(a). weight(a,5). contrary(a,ca).
+assumption(b). weight(b,5). contrary(b,cb).
+head(r1,ca). body(r1,b). head(r2,cb). body(r2,a).
+FW
+check "two attacks cannot both be removed at beta=9" 0 \
+  "$(bs 9 godel admissible "$tmp/internal.lp" | grep -acE 'in\(a\).*in\(b\)|in\(b\).*in\(a\)')"
+check "two attacks can both be removed at beta=10" 1 \
+  "$(bs 10 godel admissible "$tmp/internal.lp" | grep -acE 'in\(a\).*in\(b\)|in\(b\).*in\(a\)')"
+
+# Pricing is fixed in Cl(A), not recomputed in the candidate.  With g out the
+# candidate derives ca only through the weight-2 path, while the maximal context
+# also enables the weight-9 path.  The unique ca->a discard therefore costs 9.
+cat > "$tmp/fixed_weight.lp" <<'FW'
+assumption(a). contrary(a,ca).
+assumption(g). contrary(g,cg).
+head(f2,l2). weight(l2,2).
+head(f9,l9). weight(l9,9).
+head(r1,ca). body(r1,l2).
+head(r2,ca). body(r2,g). body(r2,l9).
+:- not in(a). :- in(g).
+#show supported_with_weight/2.
+FW
+check "candidate trace still sees ca at weight 2" "supported_with_weight(ca,2)" \
+  "$(bs 9 arctic cf "$tmp/fixed_weight.lp" ub max \
+      | grep -aoE 'supported_with_weight\(ca,[0-9]+\)' | sort -u | head -1)"
+check "fixed ca->a attack is priced at 9" "discarded_attack(ca,a,9)" \
+  "$(bs 9 arctic cf "$tmp/fixed_weight.lp" ub max \
+      | grep -aoE 'discarded_attack\(ca,a,[0-9]+\)' | sort -u | head -1)"
+check "beta=2 cannot buy the globally weight-9 attack" 0 \
+  "$(bs 2 arctic cf "$tmp/fixed_weight.lp" ub max | models)"
+check "beta=9 can buy the globally weight-9 attack" 1 \
+  "$(bs 9 arctic cf "$tmp/fixed_weight.lp" ub max | models)"
+
+echo "== preferred maximality is local to one fixed discard witness =="
+cat > "$tmp/pref_filter.lp" <<'FW'
+candidate(1). member(1,a).
+candidate(2).
+candidate(3). member(3,a). discarded_member(3,cb,b,1).
+candidate(4). member(4,a). member(4,b). discarded_member(4,cb,b,1).
+FW
+check "intact {a} and reduced {a,b} are both preferred" "keep(1) keep(4)" \
+  "$("$CLINGO" --warn=none -n 1 "$ROOT/semantics/subset_maximal_filter.lp" \
+      "$tmp/pref_filter.lp" 2>/dev/null | grep -aoE 'keep\([0-9]+\)' | sort | tr '\n' ' ' | sed 's/ $//')"
 
 echo "== every documented semiring is selectable from the CLI =="
 for s in godel tropical arctic bottleneck_cost lukasiewicz godel_low tropical_high; do
@@ -155,11 +146,10 @@ for s in godel tropical arctic bottleneck_cost lukasiewicz godel_low tropical_hi
     "$(python3 "$ROOT/bin/waba" run --semantics stable --semiring $s --default-policy aba --framework "$REF" 2>/dev/null | grep -acE '^Answer:')"
 done
 
-echo "== Lukasiewicz otimes-identity law (a #sup premise must NOT inflate the derivation) =="
-# otimes identity is k: k (x) 300 = max(0, k+300-k) = 300. Under the `aba` policy an
-# unweighted assumption is #sup, so this is reachable in ordinary use.
+echo "== Lukasiewicz otimes-identity law (the aba default is k) =="
+# The aba default is the in-carrier identity k: k (x) 300 = max(0, k+300-k) = 300.
 printf 'assumption(u). contrary(u,cu).\nassumption(w). weight(w,300). contrary(w,cw).\nhead(r1,conj). body(r1,u). body(r1,w).\nbudget(0).\n' > "$tmp/luk_id.lp"
-check "#sup (x) 300 = 300 (identity preserved)" "supported_with_weight(conj,300)" \
+check "k (x) 300 = 300 (identity preserved)" "supported_with_weight(conj,300)" \
   "$("$CLINGO" --warn=no-atom-undefined -n 1 -c beta=0 "$ROOT/core/base.lp" "$ROOT/semiring/lukasiewicz.lp" "$ROOT/defaults/aba.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/filter/standard.lp" "$ROOT/semantics/cf.lp" "$tmp/luk_id.lp" 2>&1 | grep -aoE 'supported_with_weight\(conj,[^)]*\)' | head -1)"
 printf 'assumption(x). contrary(x,cx).\nweight(p,900). head(f1,p). weight(q,900). head(f2,q).\nhead(r,t). body(r,p). body(r,q).\nbudget(0).\n' > "$tmp/luk_er.lp"
 check "900 (x) 900 = 800 (erosion intact)" "supported_with_weight(t,800)" \
@@ -177,7 +167,7 @@ echo "== N1: delta = e_otimes is transparent in a conjunction, for every algebra
 # probe <- a, d  with w(d)=5 and `a` an unweighted assumption, so wt(probe) = delta (x) 5.
 printf 'assumption(a). contrary(a,ca).\nhead(rd,d). weight(d,5).\nhead(r1,probe). body(r1,a). body(r1,d).\n' > "$tmp/mix.lp"
 wt() { # wt <semiring> <policy>
-  "$CLINGO" --warn=no-atom-undefined -n 0 -c beta=0 "$ROOT/core/base.lp" \
+  "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta=0 "$ROOT/core/base.lp" \
     "$ROOT/semiring/$1.lp" "$ROOT/defaults/$2.lp" "$ROOT/constraint/no_discard.lp" \
     "$ROOT/filter/standard.lp" "$ROOT/semantics/cf.lp" "$tmp/mix.lp" 2>&1 \
     | grep -aoE 'supported_with_weight\(probe,[^)]*\)' | sed 's/.*,//;s/)//' | sort -u | head -1
@@ -186,20 +176,20 @@ for s in godel tropical arctic bottleneck_cost lukasiewicz; do
   check "neutral: delta (x) 5 = 5 for $s" 5 "$(wt $s neutral)"
 done
 
-echo "== N2: delta = top buys recovery by ANNIHILATING declared weights =="
-# The aba policy sets delta = #sup, which is the (x)-annihilator of the three
-# algebras whose e_otimes is not the top. Recovery is restored, but a derivation
-# through any unweighted assumption stops feeling the weights it passes through.
+echo "== N2: aba defaults remain algebra-specific =="
+# Gödel uses its identity #sup and Lukasiewicz uses its in-carrier identity k, so a
+# declared co-premise survives. Tropical, arctic and bottleneck-cost use #sup as an
+# annihilator, so a derivation through an unweighted assumption stops feeling that weight.
 for s in godel lukasiewicz;                       do check "aba: weight survives in $s" 5      "$(wt $s aba)"; done
 for s in tropical arctic bottleneck_cost;         do check "aba: weight annihilated in $s" '#sup' "$(wt $s aba)"; done
 
-echo "== N2b: recovery under delta = e_otimes holds iff e_otimes is unaffordable =="
+echo "== N2b: on the direct mutual-attack fixture, recovery tracks e_otimes affordability =="
 # Two mutually attacking UNWEIGHTED assumptions: classically 2 stable extensions.
 # Under `neutral` an all-unweighted derivation weighs e_otimes, which beta=0 already
 # affords whenever e_otimes <= 0 -- true for tropical/arctic (0) and bottleneck (-inf).
 printf 'assumption(p). contrary(p,cp).\nassumption(q). contrary(q,cq).\nhead(r1,cp). body(r1,q).\nhead(r2,cq). body(r2,p).\n' > "$tmp/pos.lp"
 rec() { # rec <semiring> <policy>
-  "$CLINGO" --warn=no-atom-undefined -n 0 -c beta=0 "$ROOT/core/base.lp" \
+  "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta=0 "$ROOT/core/base.lp" \
     "$ROOT/semiring/$1.lp" "$ROOT/defaults/$2.lp" "$ROOT/monoid/sum.lp" \
     "$ROOT/constraint/ub.lp" "$ROOT/filter/projection.lp" \
     "$ROOT/semantics/stable.lp" "$tmp/pos.lp" 2>&1 | models
@@ -361,67 +351,28 @@ check "beta=0 matches the no_discard baseline" \
      "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/filter/projection.lp" \
      "$ROOT/semantics/stable.lp" "$tmp/redundant.lp" 2>&1 | models)" "$(nm 0)"
 
-echo "== N7: KNOWN orthogonality leak in budgeted defence (pinned, not fixed) =="
-# semantics/admissible.lp:20 carries `:- oplus(min).`, an integrity constraint keyed
-# on the SEMIRING'S IDENTITY rather than on the weights it produces. Consequence: two
-# algebras that agree on every propagated attack weight still split SAT/UNSAT, so the
-# classical-layer factorisation does NOT extend to these semantics. Worse, the file's own
-# header promises that beta=0 gives classical admissibility, and for a cost semiring it
-# gives UNSAT instead.
-#
-# This test PINS the current behaviour so the discrepancy is visible and cannot drift. If
-# the Dunne lift is ever made order-aware, these expectations SHOULD change -- update them
-# deliberately rather than deleting the test.
+echo "== N7: defence uses the same algebra-independent discard layer =="
 cat > "$tmp/leak.lp" <<'FW'
-assumption(a). contrary(a, ca).
-assumption(b). contrary(b, cb).
-head(w1, l1). weight(l1, 20).
-head(w2, l2). weight(l2, 30).
-head(r1, ca). body(r1, b). body(r1, l1).
-head(r2, cb). body(r2, a). body(r2, l2).
+assumption(a). contrary(a,ca).
+assumption(b). contrary(b,cb).
+head(w1,l1). weight(l1,20).
+head(w2,l2). weight(l2,30).
+head(r1,ca). body(r1,b). body(r1,l1).
+head(r2,cb). body(r2,a). body(r2,l2).
 FW
-# (1) all five algebras agree on the attack weights
-for a in godel arctic lukasiewicz tropical bottleneck_cost; do
-  check "$a: attack weights are 20 and 30" "20 30" \
-    "$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=0 "$ROOT/core/base.lp" "$ROOT/semiring/$a.lp" \
-        "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/semantics/cf.lp" \
-        "$tmp/leak.lp" 2>&1 | grep -aoE 'attacks_with_weight\([a-z]+,[a-z]+,[0-9]+\)' \
-        | sed 's/.*,//;s/)//' | sort -un | tr '\n' ' ' | sed 's/ $//')"
+for algebra in godel arctic lukasiewicz tropical bottleneck_cost; do
+  check "$algebra: identical weights give 3 admissible extensions at beta=30" 3 \
+    "$(bs 30 "$algebra" admissible "$tmp/leak.lp" | models)"
+  check "$algebra: both attacks removable at beta=50" 4 \
+    "$(bs 50 "$algebra" admissible "$tmp/leak.lp" | models)"
 done
-dunne() { "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta=$2 "$ROOT/core/base.lp" \
-            "$ROOT/semiring/$1.lp" "$ROOT/defaults/neutral.lp" \
-            "$ROOT/semantics/admissible.lp" "$tmp/leak.lp" 2>&1 | models; }
-# (2) yet the outcome splits on polarity, not on the weights
-for a in godel arctic lukasiewicz; do
-  check "strength $a: budgeted-admissible has 7 extensions at beta=30" 7 "$(dunne $a 30)"
-done
-# FIXED 2026-07-29: the bound direction is derived from the polarity instead of the algebra
-# being refused, so a cost algebra computes. Its budget bounds the CHEAPEST concession from
-# BELOW, so beta=30 (below w_max) still admits everything.
-for a in tropical bottleneck_cost; do
-  check "cost $a: computes at beta=30 rather than UNSAT" 5 "$(dunne $a 30)"
-done
-# (3) the beta=0 recovery the header promises fails for a cost semiring. This used to be a
-# DIFFERENTIAL check against semantics/admissible.lp; that module was removed with the
-# classical family, so the reference is now the constant 3, measured against it beforehand.
-# Recovery is now available for BOTH polarities, at the budget where nothing is affordable:
-# beta=0 for a strength algebra (upper bound) and a beta above every attack weight for a cost
-# algebra (lower bound). The pinned framework's weights are 20 and 30.
-check "strength godel recovers at beta=0"          3 "$(dunne godel 0)"
-check "cost tropical does NOT recover at beta=0"  11 "$(dunne tropical 0)"
-check "cost tropical recovers at beta=31 (>w_max)" 3 "$(dunne tropical 31)"
-# (4) the CLI does guard the composition, with a message
-out="$(python3 "$ROOT/bin/waba" run --semantics admissible --semiring tropical \
-        --budget-mode ub --objective sum-min --beta 30 --framework "$tmp/leak.lp" 2>&1)"
-case "$out" in *"take --beta directly"*) echo "  ok   CLI still rejects --objective/--budget-mode for defence"; pass=$((pass+1));;
-                *) echo "  FAIL expected the --beta-directly message, got: $out"; fail=$((fail+1));; esac
 
 echo "== N8: recoverability is a property of (delta, bound), and of the SEMANTICS =="
 # Two mutually attacking UNWEIGHTED assumptions, so delta drives every attack weight.
 printf 'assumption(p). contrary(p,cp).\nassumption(q). contrary(q,cq).\nhead(r1,cp). body(r1,q).\nhead(r2,cq). body(r2,p).\n' > "$tmp/unw.lp"
 nmod() { # nmod <semiring> <policy> <semantics> <constraint> <beta> [monoid]
   local extra=""; [ -n "${6:-}" ] && extra="$ROOT/monoid/$6.lp"
-  "$CLINGO" --warn=no-atom-undefined -n 0 -c beta=$5 "$ROOT/core/base.lp" \
+  "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta=$5 "$ROOT/core/base.lp" \
     "$ROOT/semiring/$1.lp" "$ROOT/defaults/$2.lp" $extra "$ROOT/constraint/$4.lp" \
     "$ROOT/filter/projection.lp" "$ROOT/semantics/$3.lp" "$tmp/unw.lp" 2>&1 | models
 }
@@ -507,11 +458,11 @@ check "validate flags the leaf reuse" "advisory(leaf_reuse,q)" \
   "$("$CLINGO" --warn=none -n 1 --outf=0 "$ROOT/validate.lp" "$tmp/share_facts.lp" 2>/dev/null \
      | tr ' ' '\n' | grep -oE 'advisory\(leaf_reuse,q\)' | head -1)"
 # and an UNSAT validation must NOT read as "well formed"
-check "an unvalidatable framework is refused, not passed" 1 \
+check "a framework carrying an ASP constraint is refused, not passed" 1 \
   "$(python3 "$ROOT/bin/waba" run --framework "$tmp/share.lp" --semantics cf 2>&1 \
-     | grep -c 'could not validate')"
+     | grep -c 'unsafe framework source')"
 
-echo "== N9: the two well-formedness guards added by the 2026-07 source review =="
+echo "== N9: boundary checks enforce the formal wABA signature =="
 # (a) weight/2 must be a partial FUNCTION. Two weight facts for one atom split a single
 #     conflict into several independently discardable attacks: the budget double-charges
 #     and the same (attacker,target) pair can be discarded AND successful in one model.
@@ -521,12 +472,33 @@ case "$out" in *"partial FUNCTION"*) echo "  ok   duplicate weight/2 is rejected
                *) echo "  FAIL duplicate weight/2 was accepted"; fail=$((fail+1));; esac
 # a single weight on the same shape must still solve
 printf 'assumption(a). contrary(a,b).\nassumption(b). contrary(b,cb).\nweight(b,3). weight(a,5).\n' > "$tmp/onew.lp"
-check "a single weight/2 still solves" 5 \
-  "$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=1000 "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
+check "a single weight/2 still solves (4 projected extensions)" 4 \
+  "$("$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta=1000 "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
       "$ROOT/defaults/neutral.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" \
       "$ROOT/filter/projection.lp" "$ROOT/semantics/cf.lp" "$tmp/onew.lp" 2>&1 | models)"
 
-# (b) an UNBOUND beta is rejected under ub/lb. clingo orders every integer strictly BELOW
+# One rule identifier joins exactly one head to its body. A reused identifier changes the
+# conjunction represented by the facts; an orphan body is silently inert without this check.
+printf 'head(r,p). head(r,q).\n' > "$tmp/multi_head.lp"
+out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/multi_head.lp" --semantics cf 2>&1)"
+case "$out" in *"exactly ONE head"*) echo "  ok   multi-head rule identifier rejected"; pass=$((pass+1));;
+               *) echo "  FAIL multi-head rule identifier accepted"; fail=$((fail+1));; esac
+printf 'body(orphan,p).\n' > "$tmp/orphan_body.lp"
+out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/orphan_body.lp" --semantics cf 2>&1)"
+case "$out" in *"declared by head/2"*) echo "  ok   orphan body identifier rejected"; pass=$((pass+1));;
+               *) echo "  FAIL orphan body identifier accepted"; fail=$((fail+1));; esac
+
+# (b) contrary/2 is a total function on assumptions, as required by the ABA definition.
+printf 'assumption(a).\n' > "$tmp/missing_contrary.lp"
+out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/missing_contrary.lp" --semantics cf 2>&1)"
+case "$out" in *"TOTAL on assumptions"*) echo "  ok   missing contrary/2 is rejected"; pass=$((pass+1));;
+               *) echo "  FAIL missing contrary/2 was accepted"; fail=$((fail+1));; esac
+printf 'assumption(a). contrary(a,ca). contrary(a,other_ca).\n' > "$tmp/multi_contrary.lp"
+out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/multi_contrary.lp" --semantics cf 2>&1)"
+case "$out" in *"must be FUNCTIONAL"*) echo "  ok   multiple contraries are rejected"; pass=$((pass+1));;
+               *) echo "  FAIL multiple contraries were accepted"; fail=$((fail+1));; esac
+
+# (c) an UNBOUND beta is rejected under ub/lb. clingo orders every integer strictly BELOW
 #     a symbolic constant, so `C > beta` never fires (ub silently unbounded) and `C < beta`
 #     always fires (lb silently collapses to no_discard) -- silent, and in OPPOSITE
 #     directions. no_discard must remain usable without beta, since it ignores the budget.
@@ -553,7 +525,7 @@ check "no_discard still runs without beta" 3 \
       "$ROOT/defaults/neutral.lp" "$ROOT/constraint/no_discard.lp" "$ROOT/filter/projection.lp" \
       "$ROOT/semantics/cf.lp" "$tmp/nb.lp" 2>&1 | models)"
 
-# (c) no shipped example trips the weight-on-derived advisory
+# (d) no shipped example trips the weight-on-derived advisory
 for ex in "$ROOT"/examples/*/*.lp; do
   n="$("$CLINGO" --warn=no-atom-undefined -n 0 -c beta=1000 "$ROOT/core/base.lp" "$ROOT/semiring/godel.lp" \
        "$ROOT/defaults/neutral.lp" "$ROOT/monoid/sum.lp" "$ROOT/constraint/ub.lp" \
@@ -562,9 +534,8 @@ for ex in "$ROOT"/examples/*/*.lp; do
 done
 
 echo "== GT: ground truth against ASPforABA (external ABA oracle) =="
-# Removing the classical defence family cost us the in-tree reference for the recovery
-# theorem (beta-sigma = sigma(F-)). This block restores it from an INDEPENDENT solver
-# instead of from constants. ASPforABA's encodings take the same assumption/contrary/
+# This block checks the recovery theorem (beta-sigma = sigma(F-)) against an INDEPENDENT
+# solver instead of against in-tree constants. ASPforABA's encodings take the same assumption/contrary/
 # head/body facts we do, and com-aba-cred.dl is the complete-extension encoding whose
 # query filter (`:- not supported(X), query(X).`) is vacuous when no query/1 is given,
 # so it enumerates. Run with clingo directly, not the python driver.
@@ -611,14 +582,14 @@ ASPEOF
       echo "  FAIL stable != ASPforABA on $b"; diff "$tmp/gt_stb" "$tmp/ou_stb" | head -4; fail=$((fail+1))
     fi
     gt "$ASPFORABA/com-aba-cred.dl" "$fw" > "$tmp/gt_com"
-    ours complete "$fw" 0 "" > "$tmp/ou_com"
+    ours complete "$fw" 0 "$ROOT/constraint/no_discard.lp" > "$tmp/ou_com"
     if diff -q "$tmp/gt_com" "$tmp/ou_com" >/dev/null; then
       echo "  ok   complete beta=0 == ASPforABA on $b ($(wc -l < "$tmp/gt_com" | tr -d " ") ext)"; pass=$((pass+1))
     else
       echo "  FAIL complete beta=0 != ASPforABA on $b"; diff "$tmp/gt_com" "$tmp/ou_com" | head -4; fail=$((fail+1))
     fi
     gt "$tmp/asp_common.lp $tmp/asp_adm.lp" "$fw" > "$tmp/gt_adm"
-    ours admissible "$fw" 0 "" > "$tmp/ou_adm"
+    ours admissible "$fw" 0 "$ROOT/constraint/no_discard.lp" > "$tmp/ou_adm"
     if diff -q "$tmp/gt_adm" "$tmp/ou_adm" >/dev/null; then
       echo "  ok   admissible beta=0 == ASPforABA on $b ($(wc -l < "$tmp/gt_adm" | tr -d ' ') ext)"; pass=$((pass+1))
     else
@@ -641,6 +612,51 @@ case "$out" in *"normalises authored weights to finite integers"*) echo "  ok   
 check "a well-formed framework still runs" 2 \
   "$(python3 "$ROOT/bin/waba" run --framework "$REF" --semantics stable 2>/dev/null | grep -acE '^Answer:')"
 
+# (a2) The five input predicates are DATA. Before this boundary check, a framework could
+#      derive weight/2 from in/1, pin in/1 directly, pre-author discarded_attack/3, or add a
+#      candidate-dependent integrity constraint. validate.lp sees the framework alone, so all
+#      four attacks could pass that semantic pre-flight and alter the later composed program.
+printf 'assumption(a). contrary(a,ca). weight(a,1) :- in(a).\n' > "$tmp/candidate_weight.lp"
+out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/candidate_weight.lp" --semantics cf 2>&1)"
+case "$out" in *"ASP rules and constraints are not accepted"*) echo "  ok   candidate-dependent weight rule rejected"; pass=$((pass+1));;
+               *) echo "  FAIL candidate-dependent weight rule reached the solver"; fail=$((fail+1));; esac
+printf 'assumption(a). contrary(a,ca). in(a).\n' > "$tmp/runtime_fact.lp"
+out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/runtime_fact.lp" --semantics cf 2>&1)"
+case "$out" in *"reserved implementation predicate"*) echo "  ok   authored in/1 rejected"; pass=$((pass+1));;
+               *) echo "  FAIL authored in/1 reached the solver"; fail=$((fail+1));; esac
+printf 'assumption(a). contrary(a,ca). discarded_attack(ca,a,0).\n' > "$tmp/discard_fact.lp"
+out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/discard_fact.lp" --semantics cf 2>&1)"
+case "$out" in *"reserved implementation predicate"*) echo "  ok   authored discard receipt rejected"; pass=$((pass+1));;
+               *) echo "  FAIL authored discard receipt reached the solver"; fail=$((fail+1));; esac
+printf 'assumption(a). contrary(a,ca). :- out(a).\n' > "$tmp/runtime_constraint.lp"
+out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/runtime_constraint.lp" --semantics cf 2>&1)"
+case "$out" in *"ASP rules and constraints are not accepted"*) echo "  ok   runtime-dependent constraint rejected"; pass=$((pass+1));;
+               *) echo "  FAIL runtime-dependent constraint reached the solver"; fail=$((fail+1));; esac
+printf 'assumption(a). contrary(a,ca). #show in/1.\n' > "$tmp/authored_show.lp"
+out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/authored_show.lp" --semantics cf 2>&1)"
+case "$out" in *"directive '#show' is not accepted"*) echo "  ok   authored solver directive rejected"; pass=$((pass+1));;
+               *) echo "  FAIL authored solver directive reached the solver"; fail=$((fail+1));; esac
+
+cat > "$tmp/pure_facts.lp" <<'EOF'
+%* in(a). weight(a,999). *%
+assumption(a;f(2,"quoted.value")).
+contrary(a,ca;f(2,"quoted.value"),cf).
+head(r(1),ca). body(r(1),f(2,"quoted.value")).
+weight(a,scale;f(2,"quoted.value"),2).
+EOF
+cat > "$tmp/pure_root.lp" <<'EOF'
+#const scale=1.
+#include "pure_facts.lp".
+EOF
+check "ground pooled/structured/quoted facts and includes remain accepted" 1 \
+  "$(python3 "$ROOT/bin/waba" run --framework "$tmp/pure_root.lp" --semantics cf 2>/dev/null | grep -acE '^SATISFIABLE$')"
+
+if python3 "$ROOT/test/input_boundary.py" >/dev/null; then
+  echo "  ok   source-boundary unit and policy-coverage tests"; pass=$((pass+1))
+else
+  echo "  FAIL source-boundary unit and policy-coverage tests"; fail=$((fail+1))
+fi
+
 # (b) Lukasiewicz's bound k was unreachable from the CLI: with the default 1000 every
 #     ordinary small-integer derivation erodes to 0, and a framework cannot set the
 #     constant (clingo rejects redefinition). --luk-k plumbs it through.
@@ -651,35 +667,42 @@ lukw() { python3 "$ROOT/bin/waba" run --framework "$tmp/luk_k.lp" --semiring luk
 # k=4 was dropped: it puts the weight-5 leaf OFF the grid [0,k], where Z3 shows the algebra is
 # not a semiring (0 stops annihilating, and otimes stops being associative), and the carrier
 # guard in semiring/lukasiewicz.lp now rejects it. The three surviving rows keep both leaves on
-# the grid, which is where the bounded sum is actually defined.
+# the grid, which is where the Lukasiewicz t-norm is actually defined.
 check "luk k=5  -> max(0,3+5-5)=3" "supported_with_weight(p,3)" "$(lukw 5)"
 check "luk k=6  -> max(0,3+5-6)=2" "supported_with_weight(p,2)" "$(lukw 6)"
 check "luk k=8  -> max(0,3+5-8)=0" "supported_with_weight(p,0)" "$(lukw 8)"
 check "luk default k=1000 -> 0"    "supported_with_weight(p,0)" "$(lukw '')"
 # The guard itself: a leaf above k is refused rather than silently computed off-carrier.
 check "luk k=4 rejects the off-grid leaf" "" "$(lukw 4)"
+out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/luk_k.lp" --semiring lukasiewicz \
+        --semantics cf --luk-k 0 2>&1)"
+case "$out" in *"must be a positive integer"*) echo "  ok   non-positive --luk-k is rejected"; pass=$((pass+1));;
+               *) echo "  FAIL non-positive --luk-k was accepted"; fail=$((fail+1));; esac
 check "--luk-k does not affect godel" "supported_with_weight(p,3)" \
   "$(python3 "$ROOT/bin/waba" run --framework "$tmp/luk_k.lp" --semiring godel --semantics cf \
      --default-policy neutral --show standard --luk-k 6 2>&1 | grep -aoE 'supported_with_weight\(p,[0-9]+\)' | sort -u | head -1)"
 
 # (c) --print-command must not hand back a command that answers a different question.
 #     preferred needs two solver passes; pass 1 alone returns the CANDIDATES.
-out="$(python3 "$ROOT/bin/waba" run --framework "$REF" --semantics preferred --beta 200 --print-command 2>/dev/null)"
+out="$(python3 "$ROOT/bin/waba" run --framework "$REF" --semantics preferred \
+        --budget-mode ub --objective sum-min --beta 200 --print-command 2>/dev/null)"
 case "$out" in *"two passes"*) echo "  ok   --print-command flags the two-pass semantics"; pass=$((pass+1));;
                *) echo "  FAIL --print-command silently printed only pass 1"; fail=$((fail+1));; esac
 
-# (d) --objective now optimises BY DEFAULT (--opt-mode defaults to optN when an objective
-#     is given). Previously the default was `ignore`, so the objective was loaded and then
-#     discarded -- a ranking nobody saw, even though --objective is mandatory for budgeted
-#     runs. `--opt-mode ignore` must still be available to enumerate without optimising.
+# (d) --objective selects the aggregation monoid and a possible ranking direction, but pure
+#     beta-sigma semantics is the existential union over every affordable reduct. Enumeration
+#     is therefore the default, and optimisation is applied only after explicit optN.
 opt() { python3 "$ROOT/bin/waba" run --framework "$REF" --semantics stable --budget-mode ub \
           --beta 20 --objective "$1" ${2:+--opt-mode $2} 2>&1; }
 n="$(opt sum-min | grep -ac 'Optimization')"
-if [ "$n" -gt 0 ]; then echo "  ok   --objective optimises with no --opt-mode"; pass=$((pass+1));
-else echo "  FAIL --objective still a no-op by default"; fail=$((fail+1)); fi
-case "$(opt sum-min | grep -a 'OPTIMUM')" in *"OPTIMUM FOUND"*) echo "  ok   OPTIMUM FOUND reported"; pass=$((pass+1));;
+check "--objective alone enumerates without optimising" 0 "$n"
+case "$(opt sum-min optN | grep -a 'OPTIMUM')" in *"OPTIMUM FOUND"*) echo "  ok   explicit optN reports OPTIMUM FOUND"; pass=$((pass+1));;
   *) echo "  FAIL no OPTIMUM FOUND"; fail=$((fail+1));; esac
-check "--opt-mode ignore still enumerates without optimising" 0 "$(opt sum-min ignore | grep -ac 'Optimization')"
+if [ "$(opt sum-min optN | grep -ac 'Optimization')" -gt 0 ]; then
+  echo "  ok   explicit optN applies the objective"; pass=$((pass+1))
+else
+  echo "  FAIL explicit optN did not apply the objective"; fail=$((fail+1))
+fi
 
 echo "== N12: a non-integer weight is REJECTED, not silently un-priced =="
 # #sum/#max/#min drop a tuple whose weight term is not integral, so a non-numeric weight made its
@@ -704,41 +727,51 @@ check "an integer weight still solves" 1 "$(wguard "$tmp/w_int.lp" | grep -ac '^
 # infinite by design (see N11)
 check "a #sup sentinel weight stays legal" 1 "$(wguard "$tmp/w_sup.lp" | grep -ac '^Answer:')"
 
-echo "== N11: infinite arg_weight is REACHABLE and the two guards are exact duals =="
-# arg_weight can be an infinity: a leaf weighted #inf or #sup (raw clingo only -- bin/waba
-# rejects both) propagates through otimes to the attack. semantics/admissible.lp guards #sup
-# under a strength polarity and #inf under a cost one, and clingo's #sum drops #inf while #min
-# drops #sup. The question was whether that combination lets a real objection be paid for
-# nothing. It does not: in each polarity the guarded infinity is the MAXIMAL objection and the
-# dropped one is the oplus-identity, i.e. an objection of no force at all, which should indeed
-# be free. Crucially strength + #inf is still blocked at beta=0, so recovery survives.
-printf 'assumption(t). contrary(t,obj).\nassumption(u). contrary(u,cu).\nhead(f1,l). weight(l,#inf).\nhead(r1,obj). body(r1,u). body(r1,l).\n' > "$tmp/infleaf.lp"
-sed 's/weight(l,#inf)/weight(l,#sup)/' "$tmp/infleaf.lp" > "$tmp/supleaf.lp"
-adm() { "$CLINGO" --warn=no-atom-undefined -n 0 --project -c beta=$3 "$ROOT/core/base.lp" \
-          "$ROOT/semiring/$1.lp" "$ROOT/defaults/neutral.lp" "$ROOT/filter/projection.lp" \
-          "$ROOT/semantics/admissible.lp" "$2" 2>&1 | grep -ac 'in(t)'; }
-# the infinity really does reach arg_weight
-w() { "$CLINGO" --warn=no-atom-undefined -n 1 -c beta=5 "$ROOT/core/base.lp" \
-        "$ROOT/semiring/$1.lp" "$ROOT/defaults/neutral.lp" "$ROOT/semantics/admissible.lp" \
-        "$tmp/infleaf.lp" 2>&1 | grep -aoE 'arg_weight\(obj,[^)]*\)' | sed 's/.*,//;s/)//' | sort -u | head -1; }
-for a in godel arctic tropical bottleneck_cost; do
-  check "$a: arg_weight(obj) is #inf (reachable)" '#inf' "$(w $a)"
+echo "== N11: infinity handling in the monoid and common constraint module =="
+cat > "$tmp/infleaf.lp" <<'FW'
+assumption(t). contrary(t,obj).
+assumption(u). contrary(u,cu).
+head(f1,l). weight(l,#inf).
+head(r1,obj). body(r1,u). body(r1,l).
+:- not discarded_attack(obj,t,#inf).
+FW
+cat > "$tmp/supleaf.lp" <<'FW'
+assumption(t). contrary(t,obj).
+assumption(u). contrary(u,cu).
+head(f1,l). weight(l,#sup).
+head(r1,obj). body(r1,u). body(r1,l).
+:- not discarded_attack(obj,t,#sup).
+FW
+for algebra in godel arctic tropical bottleneck_cost; do
+  check "$algebra: #inf discard is priced by sum+ub" 4 \
+    "$(bs 0 "$algebra" cf "$tmp/infleaf.lp" | models)"
+  check "$algebra: #sup remains un-discardable under ub" 0 \
+    "$(bs 1000 "$algebra" cf "$tmp/supleaf.lp" | models)"
 done
-# STRENGTH: #inf is the oplus-identity, a null objection -- blocked at beta=0, free above it
-for a in godel arctic; do
-  check "strength $a: #inf objection blocked at beta=0" 0 "$(adm $a "$tmp/infleaf.lp" 0)"
-  check "strength $a: #inf objection free at beta=1"    2 "$(adm $a "$tmp/infleaf.lp" 1)"
-  check "strength $a: #sup objection never droppable"   0 "$(adm $a "$tmp/supleaf.lp" 1000)"
-done
-# COST: the roles swap -- #inf is minimal cost, hence best supported, hence un-droppable
-for a in tropical bottleneck_cost; do
-  check "cost $a: #inf objection never droppable" 0 "$(adm $a "$tmp/infleaf.lp" 1000)"
-  check "cost $a: #sup objection is a null one"   2 "$(adm $a "$tmp/supleaf.lp" 0)"
-done
-# and the CLI refuses infinite weights outright, so this is a raw-composition matter only
-out="$(python3 "$ROOT/bin/waba" run --framework "$tmp/infleaf.lp" --semantics admissible --beta 5 2>&1)"
-case "$out" in *"normalises authored weights to finite integers"*) echo "  ok   CLI rejects an infinite leaf weight"; pass=$((pass+1));;
-               *) echo "  FAIL CLI accepted an infinite leaf weight"; fail=$((fail+1));; esac
+
+cat > "$tmp/sum_inf.lp" <<'FW'
+discarded_attack(a,b,#inf).
+discarded_attack(c,d,7).
+#show budget_value/1.
+FW
+check "sum is absorbing at #inf instead of dropping that tuple" "budget_value(#inf)" \
+  "$("$CLINGO" --warn=none -n 1 "$ROOT/monoid/sum.lp" "$tmp/sum_inf.lp" 2>/dev/null \
+      | grep -aoE 'budget_value\([^)]*\)' | sort -u)"
+
+cat > "$tmp/sum_rank.lp" <<'FW'
+1 { pick_inf; pick_fin } 1.
+discarded_attack(a,b,#inf) :- pick_inf.
+discarded_attack(c,d,7) :- pick_fin.
+#show pick_inf/0.
+#show pick_fin/0.
+FW
+sum_rank() {
+  "$CLINGO" --warn=none --opt-mode=optN --quiet=1 -n 0 "$ROOT/monoid/sum.lp" \
+    "$ROOT/optimize/$1.lp" "$tmp/sum_rank.lp" 2>/dev/null \
+    | grep -aoE 'pick_(inf|fin)' | sort -u
+}
+check "sum minimization ranks #inf below a finite sum" pick_inf "$(sum_rank minimize)"
+check "sum maximization ranks a finite sum above #inf" pick_fin "$(sum_rank maximize)"
 
 echo
 echo "== N12: ub/lb REJECT an unbound beta (the failure is silent and bidirectional) =="
@@ -768,6 +801,24 @@ check "ub with -c beta=0 still works"   2 "$(wb ub sum 0)"
 check "ub with -c beta=9 still works"   2 "$(wb ub sum 9)"
 check "ub with -c beta=10 admits both"  3 "$(wb ub sum 10)"
 check "a symbolic beta is REJECTED too" 0 "$(wb ub sum foo)"
+
+echo
+echo "== beta-sigma differential oracle (five direct/preferred semantics) =="
+if python3 "$ROOT/test/beta_sigma_oracle.py"; then
+  pass=$((pass+1))
+else
+  echo "  FAIL beta-sigma differential oracle"
+  fail=$((fail+1))
+fi
+
+echo
+echo "== higher-order semantics differential oracle =="
+if python3 "$ROOT/test/extended_semantics.py"; then
+  pass=$((pass+1))
+else
+  echo "  FAIL higher-order semantics differential oracle"
+  fail=$((fail+1))
+fi
 
 echo
 echo "==== $pass passed, $fail failed ===="

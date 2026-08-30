@@ -1,7 +1,7 @@
 %% Bottleneck-cost semiring (idempotent family; order-dual of godel).
 %% Semiring: (ℤ ∪ {±∞}, ⊕=min, ⊗=max, 0̄=#sup, 1̄=#inf) — cost polarity.
-%% Conjunction = worst step (max); disjunction = cheapest alternative (min).
-%% An argument costs as much as its single worst step (worst-case path).
+%% Conjunction = costliest weighted premise (max); disjunction = cheapest alternative (min).
+%% An argument costs as much as its costliest weighted proof leaf (bottleneck path).
 
 
 oplus(min).

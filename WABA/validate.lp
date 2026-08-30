@@ -5,21 +5,14 @@
 %% hypotheses of the definition, not part of the semantics, so they are not in core/base.lp:
 %% a paper states them once, and the core computes the mathematics.
 %%
-%% They are checked HERE, by clingo, on the framework alone. The first attempt scanned the
-%% framework text with regexes in bin/waba and in the playground, which was wrong in both
-%% directions and was caught by adversarial review:
+%% The supported entry points first apply a conservative source parser: only ground facts over
+%% the five public predicates, comments, constants and (in the CLI) recursively checked includes
+%% cross that boundary. This prevents a framework from defining candidate-dependent weights,
+%% runtime predicates, constraints or solver directives. The parser understands pooled and
+%% multi-line facts, block comments, function terms and quoted strings.
 %%
-%%   MISSED   pooled/compact facts -- `head(r1,c; r1,a).` -- which CLAUDE.md tells authors to
-%%            PREFER, so the most-recommended syntax bypassed every check
-%%   MISSED   a fact split across two lines (clingo does not care about newlines)
-%%   MISSED   a weight/2 derived by a RULE rather than stated as a fact
-%%   MISSED   %* ... *% block comments (the CLI stripped only %-to-end-of-line)
-%%   REJECTED legal frameworks whose atoms are function terms, f(a), because the identifier
-%%            regexes did not match them
-%%
-%% Running clingo instead means the framework is parsed by the same front end that will solve
-%% it, so every one of those forms is handled exactly and for free. Grounding a framework
-%% against this file alone is cheap: there is no choice rule and no search.
+%% The mathematical conditions below are then checked HERE, by clingo, on those facts alone.
+%% Grounding a framework against this file is cheap: there is no choice rule and no search.
 %%
 %% USAGE   clingo --outf=0 validate.lp <framework.lp>            [-c k=N for lukasiewicz]
 %%         Any violation/2 atom in the answer set is a rejection; the empty answer set means
@@ -28,6 +21,14 @@
 %% ============================================================================
 
 #const k = 0.                  %% overridden with -c k=N when the Lukasiewicz carrier applies
+
+%% ---- rule identifiers denote exactly one rule --------------------------------
+%% One identifier joins one head to zero or more body atoms. Reusing it for two heads gives both
+%% heads the same body, so the facts no longer encode the promised one-ID/one-rule translation;
+%% a body with no head is silently inert. Either case makes reconstruction non-lossless.
+has_head(R) :- head(R, _).
+violation(multi_head, R) :- head(R, X), head(R, Y), X != Y.
+violation(orphan_body, R) :- body(R, _), not has_head(R).
 
 %% ---- flat: no assumption is the head of a rule -------------------------------
 %% An assumption's weight is then intrinsic rather than extension-dependent, which is what the
@@ -48,6 +49,14 @@ violation(cyclic, X) :- reaches(X, X).
 %% successful in one answer set. Stated over weight/2 however it is DERIVED, so a rule-defined
 %% weight colliding with a fact is caught too.
 violation(multi_weight, X) :- weight(X, V), weight(X, W), V != W.
+
+%% ---- contrary is a total FUNCTION on assumptions ----------------------------
+%% The ABA signature requires exactly one contrary for every assumption.  Missing
+%% declarations silently turn an assumption into an unattacked atom; multiple declarations
+%% create more than one atomic attack unit for one target and invalidate |T_F| <= |A|.
+has_contrary(X) :- assumption(X), contrary(X, _).
+violation(missing_contrary, X) :- assumption(X), not has_contrary(X).
+violation(multi_contrary, X) :- assumption(X), contrary(X, C), contrary(X, D), C != D.
 
 %% ---- w maps into the algebra's carrier ---------------------------------------
 %% A non-integral weight is silently dropped by the monoid aggregates (#sum/#max/#min ignore a

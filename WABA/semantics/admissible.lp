@@ -1,84 +1,31 @@
-%% ============================================================================
-%% wABA BUDGETED ADMISSIBLE — full structured lift of Dunne et al. (AIJ 2011) Def 6.
-%% ============================================================================
-%% S is beta-admissible iff there is a discard set `pay` of attacks with total
-%% propagated strength <= beta such that S is CLASSICALLY admissible in the framework
-%% with `pay` removed. ONE shared budget covers BOTH internal conflict repair (paying to
-%% un-defeat a member) AND external defence (paying to overrule an undefeated objection),
-%% exactly as Dunne Def 6 removes any total-weight-<=beta set of edges. beta = 0 => classical.
-%%
-%% Faithfulness in the STRUCTURED setting (vs weighted-ABSTRACT AFs): the discard ranges
-%% over the abstract attacks whose attacker is derivable in the MAXIMAL argument context,
-%% a fixed domain; each attack's cost is the attacker's strength in that context (its
-%% intrinsic strongest form, arg_weight). The reduced framework's defeat + undefeated set
-%% are recomputed over the surviving (unpaid) attacks. Because the discard domain is fixed
-%% (not the removal-dependent undefeated set) the guess-and-check is stratified.
-%%
-%% The BUDGET DIRECTION follows the algebra's polarity, rather than the algebra being
-%% refused. See "budget" below.
+%% ==========================================================================
+%% BETA-SIGMA ADMISSIBLE SEMANTICS
+%% ==========================================================================
+%% core/base.lp constructs one fixed maximal-context atom-level attack relation,
+%% guesses one discard set D, and the selected monoid/bound modules enforce
+%% cost(D) beta.  This file contains ONLY ordinary flat-ABA admissibility in the
+%% reduced framework Att \ D.  In particular, there is no second `pay` relation
+%% and no defence-specific interpretation of beta.
 
-budgeted_full.                 %% switches on the maximal-context weight phase in _phase.lp
-:- discarded_attack(_,_,_).    %% use our own single discard set `pay`, not base's support discard
+#project in/1.
+#project out/1.
 
-%% assumption in/out (base.lp provides supported/attacks; the argumentation choice lives here)
-1 { in(X) ; out(X) } 1 :- assumption(X).
+1 { in(X); out(X) } 1 :- assumption(X).
 
-%% maximal argument set (derivable from ALL assumptions) — the FIXED attack domain
-arg(X) :- assumption(X).
-arg(X) :- head(R,X), arg_triggered(R).
-arg_triggered(R) :- rule(R), arg(Z) : body(R,Z).
+%% What the candidate S attacks in the reduced framework.
+defeated(Y) :- attacks_successfully_with_weight(_,Y,_).
 
-%% abstract attacks + the single shared discard set
-att(X,Y) :- contrary(Y,X), arg(X).
-{ pay(X,Y) : att(X,Y) }.
+%% Conflict-freeness.
+:- in(Y), defeated(Y).
 
-%% ---- classical admissibility on the REDUCED framework (attacks minus `pay`) ----
-%% conflict-free: no member is defeated by a surviving support attack
-rdefeated(Y) :- supported(X), contrary(Y,X), not pay(X,Y).
-:- in(Y), rdefeated(Y).
+%% The closure of assumptions not attacked by S represents the arguments that
+%% are undefeated by S.  S defends each of its members exactly when no such
+%% argument has a surviving attack on that member.
+undefeated(X) :- assumption(X), not defeated(X).
+undefeated(X) :- head(R,X), undefeated_triggered(R).
+undefeated_triggered(R) :- rule(R), undefeated(Z) : body(R,Z).
 
-%% defended: no member is attacked by a surviving argument in the reduced undefeated set
-runde(X) :- assumption(X), not rdefeated(X).
-runde(X) :- head(R,X), runde(Z) : body(R,Z).
-:- in(Y), contrary(Y,X), runde(X), not pay(X,Y).
+attacked_by_undefeated(Y) :-
+    undefeated(X), attack_survives_with_weight(X,Y,_).
 
-%% ---- BUDGET, applied in the direction the POLARITY dictates ------------------
-%% This used to be `:- oplus(min).`, refusing cost algebras outright. That refusal keyed on
-%% the algebra's IDENTITY rather than on the weights it produces, so two algebras agreeing on
-%% every attack weight could still split SAT/UNSAT, and the beta=0 recovery this file's own
-%% header promises returned UNSATISFIABLE for the cost algebras instead of the classical
-%% extensions. The direction of the bound is now derived from the polarity, which is what the
-%% two readings of a weight require.
-haspay :- pay(_,_).
-
-%% STRENGTH polarity (oplus = max): a bigger weight is an objection that is harder to
-%% overrule, so the total strength conceded is bounded ABOVE and a maximal-strength (#sup)
-%% objection can never be paid for. beta = 0 then forbids every concession, which is exactly
-%% classical admissibility.
-%% An infinite arg_weight IS reachable: a leaf weighted #inf or #sup (raw clingo only --
-%% bin/waba rejects both) propagates through otimes. The two guards below are exact duals, and
-%% between them they leave nothing mis-priced. Under STRENGTH, #sup is the maximal objection and
-%% is un-droppable, while #inf is the oplus-identity -- an objection of no force at all -- which
-%% clingo's #sum drops, so it costs nothing above beta=0 and is still blocked AT beta=0 by the
-%% guard below it, preserving recovery. Under COST the roles swap: #inf is minimal cost, hence
-%% the best-supported objection, and is un-droppable; #sup is unestablishable, hence null, and
-%% #min drops it. Pinned by N11 in test/regression.sh.
-:- oplus(max), pay(X,Y), arg_weight(X,#sup).
-:- oplus(max), haspay, effective_budget(0).
-:- oplus(max), haspay, V = #sum{ W,X,Y : pay(X,Y), arg_weight(X,W) },
-   effective_budget(B), B != 0, V > B.
-
-%% COST polarity (oplus = min): a SMALLER weight is a more cheaply established, hence better
-%% supported, objection. Bounding the aggregate ABOVE would therefore licence dismissing
-%% precisely the best-supported objections -- the perversity the old refusal was guarding
-%% against. The bound reverses instead: every conceded objection must be at least
-%% beta-expensive, so the CHEAPEST concession is bounded BELOW, and a minimal-cost (#inf)
-%% objection can never be paid for. Note that the recovery budget is then a beta ABOVE every
-%% attack weight, not 0 -- the same asymmetry the lower bound has for conflict-based
-%% semantics.
-:- oplus(min), pay(X,Y), arg_weight(X,#inf).
-:- oplus(min), haspay, V = #min{ W,X,Y : pay(X,Y), arg_weight(X,W) },
-   effective_budget(B), V < B.
-
-%% `pay` is the discard-set witness; it is intentionally NOT #shown so that many discard
-%% sets realising the SAME extension project to one answer (bin/waba runs these with --project).
+:- in(Y), attacked_by_undefeated(Y).

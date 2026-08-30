@@ -4,8 +4,13 @@ active_optimization(minimize).
 
 :- active_optimization(maximize).
 
-%% Sum: minimize the discarded multiset directly (fast path; no single aggregate term).
-#minimize { W,X,Y : active_monoid(sum), discarded_attack(X,Y,W) }.
+%% Sum: rank its canonical budget_value/1 rather than the raw tuples.  Raw #minimize
+%% would silently omit a #inf tuple and tie an absorbing-#inf aggregate with a finite one.
+%% Priority 2 puts #sup above every usable aggregate; priority 1 puts every finite sum
+%% above #inf; priority 0 orders the finite sums normally.
+:~ active_monoid(sum), budget_value(M), M = #sup. [1@2]
+:~ active_monoid(sum), budget_value(M), M != #sup, M != #inf. [1@1]
+:~ active_monoid(sum), budget_value(M), M != #sup, M != #inf. [M@0]
 
 %% Max/Min: minimize budget_value/1 (the active monoid aggregate from monoid/<m>.lp).
 %% #sup/#inf are ordered above/below finite costs via separate priority levels.

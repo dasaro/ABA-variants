@@ -13,8 +13,11 @@ assumption(a).
 assumption(b).
 assumption(c).
 
-% a attacks b
+% a attacks b; the other two contraries are fresh and underivable, so a and c
+% remain unattacked while contrary/2 stays total as required by the ABA signature.
+contrary(a, not_a).
 contrary(b, a).
+contrary(c, not_c).
 
 % Weights (all equal for plain ABA behavior)
 weight(a, 1).
@@ -24,4 +27,3 @@ weight(c, 1).
 % Budget definition for constraint files
 % Use beta=0 for plain ABA (no attack discarding)
 #const beta = 0.
-budget(beta).

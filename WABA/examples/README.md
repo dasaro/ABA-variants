@@ -79,5 +79,16 @@ Framework: `examples/probabilistic/probabilistic.lp`
 Weights are **surprisals** `w = round(-1000 * ln p)`; on the tropical semiring the
 propagated `supported_with_weight(X, w)` is the surprisal of `X`'s most-probable
 proof, so `p = exp(-w/1000)`. Here `grass_wet` decodes to `0.90` (most likely: it
-rained) and `slippery` to `0.45 = 0.90 * 0.50`. See the file header for the
-budgeted reading (the inconsistency budget becomes a joint-probability threshold).
+rained) and `slippery` to `0.45 = 0.90 * 0.50`. These are Viterbi/best-proof
+scores, not marginal probabilities. The matching `probabilistic.pl` asks ProbLog
+for the exact marginals `0.97` and `0.485`; it compiles the overlapping proofs into
+a Boolean explanation instead of merely summing proof values. Reproduce and check
+both outputs (with ProbLog installed) using:
+
+```bash
+python3 examples/probabilistic/compare_probabilities.py
+```
+
+See the `.lp` file header for the budgeted reading. The budget bounds a sum of
+numeric surprisals; the corresponding product of decoded best-proof scores is not,
+in general, a joint probability because discarded attacks may share leaves.

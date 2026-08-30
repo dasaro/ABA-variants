@@ -5,16 +5,11 @@
 %%   support : weights over the selected (in) atoms          -> supported_with_weight/2
 %%   maximal : weights over ALL assumptions                  -> arg_weight/2
 %%
-%% The maximal phase is INERT by default: the CLASSICAL defence semantics
-%% (semantics/admissible.lp) are weight-blind and do not need it. It is switched on by
-%% semantics/admissible.lp, which declares `budgeted_full` and supplies arg/1 +
-%% arg_triggered/1; arg_weight is then each attacker's strength in the maximal argument
-%% context, used as a fixed (extension-independent) attack cost.
-%%
-%% A third phase, `undefeated`, existed for an earlier budgeted-defence encoding
-%% (semantics/admissible_budgeted.lp) that priced attacks over the not-defeated set.
-%% Both were retired on 2026-07-29: that design budgeted defence but never internal
-%% conflict, so it was not the Dunne Def 6 lift the paper defines.
+%% The maximal phase is activated by core/base.lp for EVERY supported semantics.
+%% The beta-sigma construction must choose its discard set before applying sigma,
+%% so `arg_weight` fixes the atom-level attack relation and its prices in the closure
+%% of ALL assumptions.  Candidate-relative `supported_with_weight` remains available
+%% for tracing the selected set, but it never re-prices a discard.
 %%
 %% A concrete algebra is fixed by a thin shim that declares:
 %%   oplus(min|max)      -- ⊕ combine of alternative derivations
@@ -32,13 +27,14 @@
 %% A `phase/1` domain predicate is gone with it: P was always bound by the phase_active literal
 %% in the same body, so `phase(P)` was contributing neither safety nor a restriction.
 %% support : weights over the in-set S          (always on)      -> supported_with_weight/2
-%% maximal : weights over ALL assumptions       (budgeted_full)  -> arg_weight/2
-%%              (the intrinsic strongest strength of an argument, used as a fixed attack cost)
+%% maximal : weights over ALL assumptions       (always enabled by base.lp)
+%%                                                        -> arg_weight/2
+%%              (the fixed weight used by the common beta discard layer)
 phase_active(support, X)    :- supported(X).
 phase_triggered(support, R) :- triggered_by_in(R).
 
-%% maximal phase — gated on budgeted_full; every assumption is selected, so arg_weight is
-%% the strength of an argument in the largest possible context (its intrinsic strongest form).
+%% maximal phase — base.lp declares budgeted_full and selects every assumption, so
+%% arg_weight is fixed before any candidate extension is evaluated.
 phase_active(maximal, X)    :- budgeted_full, arg(X).
 phase_triggered(maximal, R) :- budgeted_full, arg_triggered(R).
 

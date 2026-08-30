@@ -4,7 +4,22 @@ This repository hosts some variants of ABA that are being developed by the logic
 
 ## Weighted Assumption Based Argumentation
 
-WABA extends flat ABA with numeric weights. Weights are declared on the *leaves* of a derivation (assumptions and facts) and propagated by a commutative semiring; the attacks an extension declines to answer are aggregated by a monoid and bounded by an inconsistency budget `beta`. Setting the budget so that nothing is affordable recovers classical ABA exactly.
+WABA extends flat ABA with numeric weights. Weights may be declared on any atom and are
+propagated by a commutative semiring (leaf weights are intrinsic; a derived declaration is
+combined with its rule derivations). The attacks an extension concedes are aggregated by a
+monoid and bounded by an inconsistency budget `beta`. Conflict-free, stable, admissible,
+complete, preferred, grounded, naive, semi-stable, stage, ideal, and eager semantics all use the
+same beta-sigma construction: choose one affordable discard set, then apply the ordinary
+semantics to the fixed reduct. The explicit no-discard profile recovers classical ABA
+exactly. The subset- and range-induced semantics are filtered inside each fixed reduct
+before the discard witness is forgotten.
+
+wABA is written from scratch. It uses standard flat-ABA predicates that overlap with
+ASPforABA's interface, but it is not derived from ASPforABA or from the separate pABA/ProbLog
+implementation. ASPforABA is used only as an external no-discard recovery baseline. The
+pABA/ProbLog implementation follows the PABA theory and an ASPforABA-style flat-ABA encoding;
+the detailed provenance and external recovery checks are documented in
+[WABA/README.md](WABA/README.md#encoding-provenance).
 
 In order to run WABA, you must have `clingo` installed (tested with version 5.8.0 with Python 3.10.17, without Lua, but older versions may be supported).
 
@@ -43,7 +58,9 @@ clingo --warn=no-atom-undefined -n 0 -c beta=0 \
   WABA/examples/reference/aspforaba_journal_example.lp
 ```
 
-See [WABA/README.md](WABA/README.md) for the supported surface (five semirings, five semantics, the three canonical budget pairings), the split between the layers, and where weights are allowed to live. The regression suite is `WABA/test/regression.sh`.
+See [WABA/README.md](WABA/README.md) for the supported surface (five semirings, eleven
+semantics, and the three canonical budget pairings), the split between the layers, and where
+weights are allowed to live. The regression suite is `WABA/test/regression.sh`.
 
 ## Web Playground
 

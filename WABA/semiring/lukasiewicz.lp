@@ -12,11 +12,10 @@ oplus(max).
 oplus_identity(0).
 otimes_identity(k).
 
-%% aba default is #sup (un-discardable): an unweighted assumption then behaves as a
-%% plain ABA assumption whose attack survives any finite budget, so β=0 / no_discard
-%% recovers classical ABA at every k. (In luk's ⊗, a #sup premise saturates to the
-%% grid top k, counted inline by the NS term below.)
-semiring_default_weight(aba,#sup).
+%% Both policies use the grid top k.  #sup is outside the carrier [0,k], so it cannot be
+%% injected as an ABA default merely to make an attack hard to discard.  Exact classical
+%% recovery is structural instead: constraint/no_discard.lp forbids every discard.
+semiring_default_weight(aba,k).
 semiring_default_weight(neutral,k).
 
 #include "../defaults/base.lp".

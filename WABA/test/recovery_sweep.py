@@ -24,9 +24,7 @@ ROOT = str(pathlib.Path(__file__).resolve().parent.parent)
 ASPFORABA = os.environ.get('ASPFORABA', '/Users/fdasaro/Downloads/aspforaba/encodings')
 CLINGO = 'clingo'
 
-ALGEBRAS = {'godel': 'higher', 'arctic': 'higher', 'lukasiewicz': 'higher',
-            'tropical': 'lower', 'bottleneck_cost': 'lower'}
-DEFENCE = ('admissible', 'complete')
+ALGEBRAS = ('godel', 'arctic', 'lukasiewicz', 'tropical', 'bottleneck_cost')
 # stable and complete have first-party ASPforABA encodings; admissible is reproduced from
 # their encoder.py (COMMON + ADMISSIBLE_ADD), exactly as WABA/test/regression.sh does.
 # The ASPforABA admissible encoding, taken VERBATIM from WABA/test/regression.sh, which in
@@ -80,21 +78,14 @@ def extensions(output):
     return sets
 
 
-# Recovery is NOT universally at beta = 0. semantics/admissible.lp derives its bound from the
-# polarity: oplus = max forbids any pay at beta = 0, while oplus = min imposes #min{paid} >= beta,
-# for which beta = 0 is VACUOUS and recovery arrives at a beta above every attack weight. Running
-# the cost algebras at 0 is what my first sweep did, and it reported them as broken.
-COST_RECOVERY_BETA = 1000000
-
-
-def solve_waba(framework, algebra, semantics, polarity):
+def solve_waba(framework, algebra, semantics):
+    """Run the same exact-recovery profile for every algebra and semantics."""
     mods = [f'{ROOT}/core/base.lp', f'{ROOT}/semiring/{algebra}.lp',
             f'{ROOT}/defaults/neutral.lp', f'{ROOT}/constraint/no_discard.lp',
             f'{ROOT}/filter/projection.lp', f'{ROOT}/semantics/{semantics}.lp']
-    beta = COST_RECOVERY_BETA if (polarity == 'lower' and semantics in DEFENCE) else 0
-    args = ['-c', f'beta={beta}', *mods]
-    if semantics in DEFENCE:
-        args += ['--project']
+    # no_discard is the common beta-sigma recovery profile.  beta is inert under
+    # that module but grounded uniformly so no semantics or polarity has a special path.
+    args = ['--project', '-c', 'beta=0', *mods]
     return extensions(run(args, framework))
 
 
@@ -133,8 +124,8 @@ def check_one(job):
     except Exception as exc:                       # noqa: BLE001
         return ('oracle-error', semantics, rules, str(exc), None)
     per_algebra = {}
-    for algebra, polarity in ALGEBRAS.items():
-        per_algebra[algebra] = solve_waba(fw, algebra, semantics, polarity)
+    for algebra in ALGEBRAS:
+        per_algebra[algebra] = solve_waba(fw, algebra, semantics)
     bad = [a for a, ext in per_algebra.items() if ext != oracle]
     if bad:
         return ('mismatch', semantics, rules, sorted(oracle),

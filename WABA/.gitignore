@@ -8,6 +8,10 @@
 # Public wrapper + tooling
 !bin/waba
 !bin/sync-playground.mjs
+!bin/framework_source.py
+
+# Shared declarative source-boundary policy used by the CLI and browser bundle.
+!/input-policy.json
 
 # Public README
 !/README.md
@@ -45,6 +49,10 @@
 !semantics/stable.lp
 !semantics/subset_maximal_filter.lp
 !semantics/subset_minimal_filter.lp
+!semantics/range_maximal_filter.lp
+!semantics/ideal_filter.lp
+!semantics/eager_filter.lp
+!semantics/_range.lp
 !semiring/
 !semiring/_phase.lp
 !semiring/_idempotent.lp
@@ -65,7 +73,13 @@
 
 # Public regression tests
 !test/
+!test/beta_sigma_oracle.py
+!test/finite_aba_oracle.py
+!test/extended_semantics.py
+!test/input_boundary.py
 !test/regression.sh
+!test/semantics_proofs.py
+!test/unified_beta_sigma.sh
 
 # Public curated example surface
 !examples/
@@ -80,4 +94,6 @@
 !examples/reference/aspforaba_journal_example.lp
 !examples/probabilistic/
 !examples/probabilistic/probabilistic.lp
+!examples/probabilistic/probabilistic.pl
+!examples/probabilistic/compare_probabilities.py
 test/.venv/

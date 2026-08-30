@@ -1,5 +1,5 @@
 %% ============================================================================
-%% setsupport.lp — weight over the SUPPORT SET, not the derivation tree
+%% setsupport.lp — minimum-cost ASSUMPTION SUPPORT for a restricted fragment
 %% ============================================================================
 %% OPTIONAL. The core defines an atom's weight as the ⊕-best over its derivation TREES, each
 %% folded with ⊗ over rule bodies (see semiring/_phase.lp). For the two idempotent algebras
@@ -8,16 +8,22 @@
 %% tree is folded twice, so two atoms with identical support can carry different weights, and the
 %% probabilistic (tropical) reading multiplies a reused fact as if it were independent of itself.
 %%
-%% This module computes the other quantity:
+%% For tropical/min-cost use, this module computes the other quantity:
 %%
-%%     min over derivation trees T of q  of  ⊗ over the DISTINCT leaves of T
+%%     min over proof DAGs P of q  of  + over the DISTINCT assumption leaves of P
+%%
+%% SCOPE. Every weighted leaf must be represented as an assumption, and a derived atom must
+%% not carry a direct weight declaration. Weighted facts are not support_leaf/1 atoms, while
+%% a direct declaration on a derived atom is not one of proof_rule/2's rule alternatives.
+%% The worked ProbLog comparison and its benchmark satisfy these restrictions. This module is
+%% therefore not a general deduplicating replacement for the core tree recurrence.
 %%
 %% WHY IT IS NOT A SEMIRING FOLD. Folding is bottom-up and local: at each rule it sees its
 %% premises' VALUES, not which leaves produced them, so it cannot tell a leaf it has already
 %% counted from a new one. Recovering that needs the identity of the support — provenance —
 %% which is what ProbLog compiles into an SDD/BDD instead of folding. So the price of set
 %% semantics is leaving the algebra behind: a CHOICE of one triggered rule per supported derived
-%% atom (= pick a proof tree), the leaves of that tree collected top-down from the query, and an
+%% atom (= pick a proof DAG), the leaves of that DAG collected top-down from the query, and an
 %% optimisation over the choice, because ⊕ can no longer be a local aggregate. In the worst case
 %% that optimisation is NP-hard — minimum set cover embeds directly: one rule alternative per
 %% covering set, distinct-leaf cost = number of sets used — where the tree fold stays
@@ -51,11 +57,11 @@
 %%         read the LAST `Optimization` value — or set_weight/1 under an idempotent ⊗.
 %% ============================================================================
 
-%% Pick one derivation per supported derived atom. Atoms outside the chosen proof are picked
+%% Pick one derivation per supported derived atom. Atoms outside the chosen proof DAG are picked
 %% too and simply go unused; constraining the choice to the proof would be circular.
 1 { proof_rule(X, R) : head(R, X), triggered_by_in(R) } 1 :- derived_atom(X), supported(X).
 
-%% The chosen tree, walked down from the query.
+%% The chosen proof DAG, walked down from the query.
 in_proof(Q) :- query_atom(Q).
 in_proof(B) :- in_proof(X), proof_rule(X, R), body(R, B).
 

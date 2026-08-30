@@ -10,16 +10,20 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-IN_PATTERN = re.compile(r"in\(([^)]+)\)")
-INCLUDE_PATTERN = re.compile(r'^#include\s+"([^"]+)"')
-# Scan every weight/2 term on a line, not just one anchored at the start: ASP allows
-# several facts per line, and anchoring let `assumption(a). weight(a,-5).` slip through.
-WEIGHT_PATTERN = re.compile(r"\bweight\s*\(\s*[^,()]+,\s*([^)]+?)\s*\)")
+from framework_source import FrameworkSourceError, validate_framework_sources
 
 SUPPORTED_SEMANTICS = {
-    "cf", "stable",
-    # wABA budgeted-defence (Dunne Def 6 lift): weighted admissible/complete/preferred
-    "admissible", "complete", "preferred",
+    "cf",
+    "stable",
+    "admissible",
+    "complete",
+    "preferred",
+    "grounded",
+    "naive",
+    "semi-stable",
+    "stage",
+    "ideal",
+    "eager",
 }
 ALL_SEMANTICS = sorted(SUPPORTED_SEMANTICS)
 
@@ -55,61 +59,53 @@ OBJECTIVES = {
 }
 CANONICAL_PRESETS = {("sum", "ub"), ("max", "ub"), ("min", "lb")}
 
-DIRECT_SEMANTICS = {"cf", "stable"}
-# Exact set-inclusion semantics: enumerate candidates, then keep the subset-extremal ones.
-# grounded is the subset-LEAST complete extension; preferred the subset-maximal admissible one.
+# Higher-order semantics: enumerate a simple candidate family, then apply the
+# defining set comparison separately inside each fixed discard reduct.  The
+# discard witness is existentially forgotten only afterwards.
 POST_FILTER_SEMANTICS = {
     "preferred": "admissible",
+    "grounded": "complete",
+    "naive": "cf",
+    "semi-stable": "complete",
+    "stage": "cf",
+    "ideal": "admissible",
+    "eager": "complete",
 }
-SUBSET_FILTER = {
+POST_FILTER_MODULE = {
     "preferred": "subset_maximal_filter.lp",
+    "grounded": "subset_minimal_filter.lp",
+    "naive": "subset_maximal_filter.lp",
+    "semi-stable": "range_maximal_filter.lp",
+    "stage": "range_maximal_filter.lp",
+    "ideal": "ideal_filter.lp",
+    "eager": "eager_filter.lp",
 }
 
-# wABA budgeted DEFENCE (Dunne et al. AIJ 2011, Def 6, lifted to structured ABA). These
-# take --beta directly (their own SUM inconsistency budget, self-contained in the module),
-# need a STRENGTH semiring, and compose with no_discard (they use their own `pay` set).
-BUDGETED_DEFENSE_SEMANTICS = {"admissible", "complete", "preferred"}
+# Range maximisation needs S union S+ in the candidate output.  Keeping this
+# projection in a private module avoids exposing an implementation predicate in
+# ordinary complete/conflict-free runs.
+POST_FILTER_AUX = {
+    "semi-stable": "_range.lp",
+    "stage": "_range.lp",
+    "eager": "_range.lp",
+}
+
 # semantics whose module name matches the CLI name need no entry here.
 SEMANTIC_MODULE: dict[str, str] = {}
-STRENGTH_SEMIRINGS = {"godel", "arctic", "lukasiewicz", "tropical_high"}  # oplus = max
 
 
 @dataclass(frozen=True)
 class Model:
     text: str
     extension: frozenset[str]
+    discarded: frozenset[str]
+    semantic_range: frozenset[str]
     optimization_text: str | None
     optimization_key: tuple[int, ...] | None
 
 
 def project_root() -> Path:
     return Path(__file__).resolve().parent.parent
-
-
-def iter_framework_sources(path: Path) -> list[Path]:
-    pending = [path.resolve()]
-    seen: set[Path] = set()
-    ordered: list[Path] = []
-
-    while pending:
-        current = pending.pop()
-        if current in seen:
-            continue
-        seen.add(current)
-        ordered.append(current)
-
-        for raw_line in current.read_text().splitlines():
-            line = raw_line.split("%", 1)[0].strip()
-            if not line:
-                continue
-            match = INCLUDE_PATTERN.match(line)
-            if match is None:
-                continue
-            include_path = (current.parent / match.group(1)).resolve()
-            if include_path.exists():
-                pending.append(include_path)
-
-    return ordered
 
 
 VIOLATION_PATTERN = re.compile(r"violation\(([a-z_]+),(.+?)\)(?=\s|$)")
@@ -120,6 +116,12 @@ EXPLAIN = {
               "or a derived atom's weight has no unique least fixpoint",
     "multi_weight": "weight/2 must be a partial FUNCTION: two weights for one atom split a "
                     "single conflict into several independently discardable attacks",
+    "missing_contrary": "contrary/2 must be TOTAL on assumptions: every assumption needs "
+                        "exactly one contrary",
+    "multi_contrary": "contrary/2 must be FUNCTIONAL: an assumption may have only one "
+                      "contrary",
+    "multi_head": "each rule identifier must have exactly ONE head",
+    "orphan_body": "every body/2 fact must name a rule identifier declared by head/2",
     "not_a_number": "a non-integral weight is dropped by the monoid aggregates, so its attack "
                     "would cost nothing and be discardable at any budget",
     "negative": "weights must be nonnegative",
@@ -131,15 +133,26 @@ EXPLAIN = {
 
 def validate_framework(framework: Path, semiring_module: str, luk_k: int | None) -> None:
     """
-    Check the framework's preconditions by RUNNING clingo on WABA/validate.lp.
+    Enforce the data-only source boundary, then run the mathematical pre-flight program.
 
-    This replaced three regex scanners. Adversarial review showed the regex approach was wrong
-    in both directions: it missed pooled facts (`head(r1,c; r1,a).` -- the compact form CLAUDE.md
-    tells authors to PREFER), facts split across lines, weights derived by a rule, and %* *%
-    block comments; and it REJECTED legal frameworks whose atoms are function terms. Parsing ASP
-    with regexes cannot be made to work; letting clingo parse it is exact and costs one grounding
-    pass with no search.
+    The first pass accepts a conservative source language rather than trying to recognise
+    arbitrary ASP. The second lets clingo ground the accepted facts with validate.lp, which
+    checks the framework conditions and reports their exact offenders without any search.
     """
+    # First enforce the source boundary assumed by the encoding: the five framework
+    # predicates are ground data facts, and a framework cannot define or constrain runtime
+    # predicates.  validate.lp checks the mathematical values of those facts afterwards.
+    try:
+        validate_framework_sources(framework, project_root())
+    except FrameworkSourceError as exc:
+        raise SystemExit(
+            "unsafe framework source:\n"
+            f"  {exc}\n\n"
+            "The supported wrapper accepts ground data facts, comments, #const, and #include. "
+            "Use head/2 and body/2 facts for ABA rules; use direct clingo composition for a "
+            "general ASP program."
+        ) from exc
+
     # finite_only=1: the wrapper normalises authored weights to finite nonnegative integers.
     # A sentinel weight is legal MATHEMATICS for four of the five algebras -- it is a surface
     # decision, which is why validate.lp leaves it off by default for raw composition.
@@ -155,14 +168,13 @@ def validate_framework(framework: Path, semiring_module: str, luk_k: int | None)
     proc = subprocess.run(args, capture_output=True, text=True)
     if proc.returncode not in (0, 10, 20, 30):
         raise SystemExit(f"could not validate the framework:\n{proc.stderr.strip()}")
-    # UNSATISFIABLE means the framework's OWN integrity constraints fired against validate.lp,
-    # which defines none of the solver predicates they refer to. No violation atom is emitted,
-    # so treating that as a pass would silently skip validation altogether. Say so instead.
+    # The data-only parser has already excluded authored constraints. UNSATISFIABLE here is
+    # therefore a validator failure, never evidence that a framework is well formed.
     if "UNSATISFIABLE" in proc.stdout:
         raise SystemExit(
-            "could not validate this framework: it contains integrity constraints that refer to "
-            "predicates the pre-flight check does not define (in/1, supported/1, ...).\n"
-            "Move them out of the framework, or compose the raw clingo modules directly."
+            "could not validate this framework: the pre-flight program was unexpectedly "
+            "unsatisfiable; compose the raw clingo modules directly only if you intend to "
+            "leave the supported data boundary"
         )
 
     seen: list[tuple[str, str]] = []
@@ -197,6 +209,51 @@ def parse_optimization(line: str) -> tuple[int, ...]:
     return tuple(int(value) for value in values.strip().split())
 
 
+def split_model_atoms(model_text: str) -> list[str]:
+    """Split clingo's textual model without breaking nested terms or quoted strings."""
+    atoms: list[str] = []
+    start: int | None = None
+    depth = 0
+    quote: str | None = None
+    escaped = False
+
+    for index, char in enumerate(model_text):
+        if start is None:
+            if char.isspace():
+                continue
+            start = index
+
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = None
+            continue
+
+        if char in {'"', "'"}:
+            quote = char
+        elif char in "([{":
+            depth += 1
+        elif char in ")]}" and depth > 0:
+            depth -= 1
+        elif char.isspace() and depth == 0:
+            atoms.append(model_text[start:index])
+            start = None
+
+    if start is not None:
+        atoms.append(model_text[start:])
+    return atoms
+
+
+def predicate_argument(atom: str, predicate: str) -> str | None:
+    prefix = f"{predicate}("
+    if atom.startswith(prefix) and atom.endswith(")"):
+        return atom[len(prefix):-1]
+    return None
+
+
 def parse_models(stdout: str) -> list[Model]:
     lines = stdout.splitlines()
     models: list[Model] = []
@@ -218,10 +275,29 @@ def parse_models(stdout: str) -> list[Model]:
             opt_key = parse_optimization(opt_text)
             index += 1
 
+        atoms = split_model_atoms(model_text)
+        # semantic_range/1 is an internal receipt needed only by range-based
+        # post-filters.  Retain it structurally, but do not leak it through the
+        # user's selected output filter.
+        visible_atoms = [
+            atom for atom in atoms
+            if predicate_argument(atom, "semantic_range") is None
+        ]
         models.append(
             Model(
-                text=model_text,
-                extension=frozenset(IN_PATTERN.findall(model_text)),
+                text=" ".join(visible_atoms),
+                extension=frozenset(
+                    value for atom in atoms
+                    if (value := predicate_argument(atom, "in")) is not None
+                ),
+                discarded=frozenset(
+                    value for atom in atoms
+                    if (value := predicate_argument(atom, "discarded_attack")) is not None
+                ),
+                semantic_range=frozenset(
+                    value for atom in atoms
+                    if (value := predicate_argument(atom, "semantic_range")) is not None
+                ),
                 optimization_text=opt_text,
                 optimization_key=opt_key,
             )
@@ -231,14 +307,27 @@ def parse_models(stdout: str) -> list[Model]:
     return models
 
 
-def dedupe_models(models: list[Model]) -> list[Model]:
-    seen: set[tuple[frozenset[str], tuple[int, ...] | None]] = set()
+def dedupe_candidate_witnesses(models: list[Model]) -> list[Model]:
+    """Remove duplicate solver models while retaining distinct reduced frameworks."""
+    seen: set[tuple[frozenset[str], frozenset[str], tuple[int, ...] | None]] = set()
     result: list[Model] = []
     for model in models:
-        key = (model.extension, model.optimization_key)
+        key = (model.extension, model.discarded, model.optimization_key)
         if key in seen:
             continue
         seen.add(key)
+        result.append(model)
+    return result
+
+
+def dedupe_extensions(models: list[Model]) -> list[Model]:
+    """Existentially forget discard witnesses, retaining one receipt per extension."""
+    seen: set[frozenset[str]] = set()
+    result: list[Model] = []
+    for model in models:
+        if model.extension in seen:
+            continue
+        seen.add(model.extension)
         result.append(model)
     return result
 
@@ -272,8 +361,8 @@ def print_filtered_models(models: list[Model], semantics: str, candidate_semanti
     return 0
 
 
-def asp_keep_subset(models: list[Model], filter_module: str) -> list[Model]:
-    """Keep the subset-maximal (or subset-minimal) candidates, exactly, via ASP."""
+def asp_filter_models(models: list[Model], filter_module: str) -> list[Model]:
+    """Apply an exact relational filter inside each fixed discarded-attack reduct."""
     if not models:
         return []
 
@@ -287,6 +376,15 @@ def asp_keep_subset(models: list[Model], filter_module: str) -> list[Model]:
             handle.write(f"candidate({index}).\n")
             for atom in sorted(model.extension):
                 handle.write(f"member({index},{atom_ids[atom]}).\n")
+            for atom in sorted(model.semantic_range):
+                # Range atoms come from the same assumption domain as extension
+                # atoms.  A defeated-only assumption may occur in no extension,
+                # so assign an id lazily rather than assuming it is in atom_ids.
+                if atom not in atom_ids:
+                    atom_ids[atom] = len(atom_ids) + 1
+                handle.write(f"range_member({index},{atom_ids[atom]}).\n")
+            for attack in sorted(model.discarded):
+                handle.write(f"discarded_member({index},{attack}).\n")
 
     command = [
         "clingo",
@@ -306,10 +404,17 @@ def asp_keep_subset(models: list[Model], filter_module: str) -> list[Model]:
 
     keep_ids = {int(match) for match in re.findall(r"keep\((\d+)\)", completed.stdout)}
     kept = [model for index, model in enumerate(models, start=1) if index in keep_ids]
-    return dedupe_models(kept)
+    return kept
 
 
-def build_clingo_command(args: argparse.Namespace, semantic_name: str, opt_mode: str) -> list[str]:
+def build_clingo_command(
+    args: argparse.Namespace,
+    semantic_name: str,
+    opt_mode: str,
+    *,
+    project_extensions: bool,
+    auxiliary_semantics: str | None = None,
+) -> list[str]:
     root = project_root()
     framework = Path(args.framework).expanduser().resolve()
     command = [
@@ -318,9 +423,18 @@ def build_clingo_command(args: argparse.Namespace, semantic_name: str, opt_mode:
         "-n",
         "0",
         "--opt-mode=" + opt_mode,
+        *(["--project"] if project_extensions else []),
+        # Suppress improving-but-nonoptimal search witnesses.  With the explicit
+        # #project in/1 and out/1 declarations in every direct semantics module,
+        # quiet=1 prints each final optimal extension once while retaining one shown
+        # discarded_attack receipt for it.
+        *(["--quiet=1"] if opt_mode == "optN" else []),
         "-c",
         f"beta={args._effective_beta}",
-        *(["-c", f"k={args.luk_k}"] if getattr(args, "luk_k", None) is not None else []),
+        *(
+            ["-c", f"k={args._effective_luk_k}"]
+            if getattr(args, "_effective_luk_k", None) is not None else []
+        ),
         str(root / "core" / "base.lp"),
         str(root / "semiring" / f"{args._semiring_module}.lp"),
     ]
@@ -338,13 +452,11 @@ def build_clingo_command(args: argparse.Namespace, semantic_name: str, opt_mode:
             str(root / "constraint" / args._constraint_module),
             str(root / "filter" / SHOW_FILTERS[args.show]),
             str(root / "semantics" / f"{SEMANTIC_MODULE.get(semantic_name, semantic_name)}.lp"),
-            str(framework),
         ]
     )
-    # budgeted-defence: many discard sets realise the same extension, so project onto the
-    # shown atoms (in/out) to enumerate each beta-admissible set once.
-    if semantic_name in BUDGETED_DEFENSE_SEMANTICS:
-        command.insert(1, "--project")
+    if auxiliary_semantics is not None:
+        command.append(str(root / "semantics" / auxiliary_semantics))
+    command.append(str(framework))
     return command
 
 
@@ -367,22 +479,20 @@ def validate_args(args: argparse.Namespace) -> None:
             raise SystemExit(f"unknown semiring: {args.semiring}")
         args._semiring_module = args.semiring
 
+    if args._semiring_module == "lukasiewicz" and args.luk_k is not None and args.luk_k <= 0:
+        raise SystemExit("--luk-k must be a positive integer")
+    # Always pass the effective carrier bound. Otherwise an authored `#const k=...` can
+    # collide with the module default or make the solve disagree with the pre-flight, which
+    # already checks against 1000 when --luk-k is omitted. This also matches the browser.
+    args._effective_luk_k = (
+        args.luk_k if args.luk_k is not None else 1000
+    ) if args._semiring_module == "lukasiewicz" else None
+
     if args.default_policy is None:
         args.default_policy = "neutral"
     args._default_policy_module = DEFAULT_POLICIES[args.default_policy]
 
-    if args.semantics in BUDGETED_DEFENSE_SEMANTICS:
-        if args.objective is not None or args.budget_mode != "none":
-            raise SystemExit(
-                "the defence semantics take --beta directly (their own SUM inconsistency "
-                "budget); do not pass --objective or --budget-mode"
-            )
-        # self-contained budget in the module; compose with no_discard (base discards are pinned off)
-        args._effective_beta = args.beta if args.beta is not None else 0
-        args._constraint_module = "no_discard.lp"
-        args._monoid_module = None
-        args._optimize_module = None
-    elif args.aba_recovery:
+    if args.aba_recovery:
         args._effective_beta = 0
         args._constraint_module = "no_discard.lp"
         args._monoid_module = None
@@ -415,14 +525,15 @@ def validate_args(args: argparse.Namespace) -> None:
 
 
 def run_direct(args: argparse.Namespace) -> int:
-    # optN by default: --objective is MANDATORY for budgeted runs, so defaulting to
-    # "ignore" meant the objective was loaded and then discarded -- a ranking nobody saw.
-    # Pass --opt-mode ignore explicitly to enumerate without optimising.
-    opt_mode = args.opt_mode if args.opt_mode is not None else (
-        "optN" if args.objective is not None else "ignore"
-    )
+    # `--objective` selects the aggregation monoid as well as an optional ranking
+    # direction.  The beta-sigma semantics itself is the existential union over every
+    # affordable reduct, so enumeration remains the default; ranking is an explicit,
+    # subsequent result filter requested with `--opt-mode optN`.
+    opt_mode = args.opt_mode
 
-    command = build_clingo_command(args, args.semantics, opt_mode)
+    command = build_clingo_command(
+        args, args.semantics, opt_mode, project_extensions=True
+    )
     print(shell_join(command), file=sys.stderr)
     if args.print_command:
         print(shell_join(command))
@@ -434,8 +545,18 @@ def run_direct(args: argparse.Namespace) -> int:
 
 def run_post_filtered(args: argparse.Namespace) -> int:
     candidate_semantics = POST_FILTER_SEMANTICS[args.semantics]
-    candidate_opt_mode = "enum" if args.objective is not None else "ignore"
-    command = build_clingo_command(args, candidate_semantics, candidate_opt_mode)
+    requested_opt_mode = args.opt_mode
+    # Higher-order semantics require every affordable reduct before they can apply
+    # their ordinary subset/range relation inside that reduct. `enum` records each
+    # witness's objective value without pruning; requested global optimization happens later.
+    candidate_opt_mode = "enum" if requested_opt_mode == "optN" else "ignore"
+    command = build_clingo_command(
+        args,
+        candidate_semantics,
+        candidate_opt_mode,
+        project_extensions=False,
+        auxiliary_semantics=POST_FILTER_AUX.get(args.semantics),
+    )
     print(shell_join(command), file=sys.stderr)
     print(
         f"% post-filtering {candidate_semantics} candidates into {args.semantics}",
@@ -450,7 +571,7 @@ def run_post_filtered(args: argparse.Namespace) -> int:
         print(
             f"% NOTE: {args.semantics} is computed in two passes. The command below is pass 1"
             f" and yields the {candidate_semantics} CANDIDATES; pass 2 filters them with"
-            f" semantics/{SUBSET_FILTER[args.semantics]} over a generated facts file and is"
+            f" semantics/{POST_FILTER_MODULE[args.semantics]} over a generated facts file and is"
             f" not reproducible as a single command."
         )
         print(shell_join(command))
@@ -470,13 +591,18 @@ def run_post_filtered(args: argparse.Namespace) -> int:
             print(completed.stdout, end="")
         return completed.returncode
 
-    models = parse_models(completed.stdout)
-    models = asp_keep_subset(models, SUBSET_FILTER[args.semantics])
+    models = dedupe_candidate_witnesses(parse_models(completed.stdout))
+    models = asp_filter_models(models, POST_FILTER_MODULE[args.semantics])
     optimum = False
 
-    if args.objective is not None and (args.opt_mode or "optN") == "optN":
+    if args.objective is not None and requested_opt_mode == "optN":
         models = keep_optimal(models)
         optimum = True
+
+    # beta-sigma quantifies existentially over D. Once ordinary sigma has been
+    # computed per reduct, equal assumption sets are one extension; retain the
+    # first model as a concrete discard receipt.
+    models = dedupe_extensions(models)
 
     return print_filtered_models(models, args.semantics, candidate_semantics, optimum)
 
@@ -494,14 +620,20 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument(
         "--aba-recovery",
         action="store_true",
-        help="recover classical ABA with neutral defaults and no-discard constraint",
+        help="recover classical ABA by loading the exact no-discard constraint",
     )
     run.add_argument("--semantics", default="stable", choices=ALL_SEMANTICS)
     run.add_argument("--objective", choices=sorted(OBJECTIVES))
     run.add_argument("--budget-mode", default="none", choices=["none", "ub", "lb"])
     run.add_argument("--beta", type=int)
     run.add_argument("--show", default="projection", choices=sorted(SHOW_FILTERS))
-    run.add_argument("--opt-mode", choices=["ignore", "optN"])
+    run.add_argument(
+        "--opt-mode",
+        choices=["ignore", "optN"],
+        default="ignore",
+        help="enumerate the full beta-sigma union by default; use optN to retain only "
+             "globally objective-optimal results",
+    )
     run.add_argument(
         "--luk-k", type=int, default=None, metavar="K",
         help="Lukasiewicz bound k (default 1000). Its conjunction is max(0, a+b-k), so with "

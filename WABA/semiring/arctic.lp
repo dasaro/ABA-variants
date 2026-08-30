@@ -1,7 +1,7 @@
 %% Arctic / max-plus semiring (additive family; negation-dual of tropical).
 %% Semiring: (ℤ ∪ {-∞}, ⊕=max, ⊗=+, 0̄=#inf, 1̄=0) — strength polarity.
-%% Conjunction = accumulate reward (sum); disjunction = strongest chain (max).
-%% Weights are rewards/benefits, higher is better (longest path).
+%% Conjunction = sum weighted premise support; disjunction = greatest-total proof (max).
+%% Weights are rewards/benefits on atoms, higher is better.
 
 
 oplus(max).

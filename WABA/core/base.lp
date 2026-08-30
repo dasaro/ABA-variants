@@ -35,6 +35,8 @@ derived_atom(X) :- is_head(X), not assumption(X).
 %%                   ⊗-over-body recursion has a unique least fixpoint
 %%   functional w    weight/2 is a partial FUNCTION on atoms
 %%   w into S        every declared weight is an element of the algebra's carrier
+%%   total/function c every assumption has exactly one contrary
+%%   rule IDs        every body belongs to exactly one declared rule head
 %%
 %% These are hypotheses of the definition, not part of the semantics, and a paper states them
 %% once rather than encoding each as a constraint. They used to be five guards plus their
@@ -60,29 +62,49 @@ supported(X) :- head(R,X), triggered_by_in(R).
 %% OPTIMIZED: Use rule(R) instead of head(R,_) for domain
 triggered_by_in(R) :- rule(R), supported(X) : body(R,X).
 
-%% Attack computation
-%% An attack exists when a supported atom X attacks an assumption Y
-%% (where Y's contrary is X), with the weight of X
-%% OPTIMIZED: Remove redundant supported(X) check (supported_with_weight(X,W) implies support)
-attacks_with_weight(X,Y,W) :- supported_with_weight(X,W), assumption(Y), contrary(Y,X).
+%% Maximal argument context
+%% ------------------------
+%% The beta-sigma construction removes attacks BEFORE a candidate extension is
+%% evaluated.  Its attack domain and weights must therefore be fixed independently
+%% of that candidate.  `arg/1` is the least closure of the full assumption set and
+%% `arg_weight/2` is the corresponding maximal-context propagation phase supplied by
+%% semiring/_phase.lp.
+%%
+%% `budgeted_full` is the existing switch for that phase.  It is now enabled for
+%% every supported semantics, rather than only for the former defence-specific
+%% encoding.
+budgeted_full.
+arg(X) :- assumption(X).
+arg(X) :- head(R,X), arg_triggered(R).
+arg_triggered(R) :- rule(R), arg(Z) : body(R,Z).
 
-%% Attack discretion choice
-%% We can choose to discard any attack (at a cost)
+%% Fixed atom-level attack relation.  Discarding (X,Y,W) removes the attack from
+%% EVERY use made of it by the ordinary sigma semantics; it is not re-priced or
+%% re-guessed for each candidate extension.
+attacks_with_weight(X,Y,W) :- arg_weight(X,W), assumption(Y), contrary(Y,X).
+
+%% One global attack-discard choice, shared by conflict-free, stable, admissible,
+%% complete and preferred semantics.
 { discarded_attack(X,Y,W) : attacks_with_weight(X,Y,W) }.
 
-%% Successful attacks
-%% An attack succeeds if it's not discarded
-attacks_successfully_with_weight(X,Y,W) :- attacks_with_weight(X,Y,W), not discarded_attack(X,Y,W).
+%% Surviving attacks form the fixed reduced framework Att \ D.  This predicate is
+%% deliberately independent of the candidate extension and is used by defence.
+attack_survives_with_weight(X,Y,W) :-
+    attacks_with_weight(X,Y,W), not discarded_attack(X,Y,W).
+
+%% A candidate S successfully attacks Y when S derives X and X -> Y survives.
+%% Conflict-free and stable semantics consume this candidate-relative view.
+attacks_successfully_with_weight(X,Y,W) :-
+    supported(X), attack_survives_with_weight(X,Y,W).
 
 %% ====================
 %% BUDGET
 %% ====================
-%% The budget is supplied ONLY by -c beta=N, through effective_budget/1. A framework may
-%% still contain budget/1 facts -- earlier versions of this code and of the README asked for
-%% them -- but they are now INERT: every consumer reads effective_budget/1, so a framework
-%% cannot clamp, raise or nullify the budget the caller asked for. Previously both facts
-%% survived and the bound became min(N,beta) under ub, with budget(0) silently disabling
-%% --beta altogether.
+%% The budget is supplied ONLY by -c beta=N, through effective_budget/1. Earlier versions
+%% asked frameworks to carry budget/1 facts; the supported input boundary now rejects them
+%% because the framework language contains exactly five data predicates. Previously both a
+%% fact and the caller's value survived, and the bound became min(N,beta) under ub, with
+%% budget(0) silently disabling --beta altogether.
 effective_budget(beta).
 
 %% An unbound `beta` is not "budget disabled": clingo orders every integer strictly BELOW

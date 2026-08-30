@@ -11,6 +11,8 @@ assumption(b).
 assumption(c).
 assumption(d).
 
+% a is unattacked; its fresh contrary has no defining rule.
+contrary(a, not_a).
 contrary(b, x).
 contrary(c, y).
 contrary(d, z).
@@ -30,4 +32,3 @@ weight(y, 100).
 weight(z, 100).
 
 #const beta = 0.
-budget(beta).

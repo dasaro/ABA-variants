@@ -10,9 +10,12 @@
 %%   conjunction (rule body)   : +   over body  = surprisal of the product of premises
 %%   disjunction (derivations) : min            = the most probable proof
 %%
-%% This is the Viterbi semiring ([0,1], max, x) carried onto tropical (min,+) by the
-%% order-isomorphism p |-> -ln p. (Full MARGINAL probabilities -- a sum over ALL
-%% proofs -- would instead need the sum-product semiring, i.e. the ProbLog setting.)
+%% This is the Viterbi semiring ([0,1], max, x) carried onto tropical (min,+) by
+%% p |-> -ln p (max is mapped to min because -ln reverses the usual order).
+%% The result is a BEST-PROOF score, not a marginal probability.  Exact ProbLog
+%% marginals compile the proofs into a Boolean explanation and perform weighted
+%% model counting.  Merely replacing min by sum would double-count possible worlds
+%% whenever proofs overlap, so a plain sum-product fold is not enough.
 %%
 %% Probability table used below (p -> encoded weight):
 %%   rain        p = 0.90  ->  105
@@ -20,8 +23,15 @@
 %%   cold_night  p = 0.50  ->  693
 %%
 %% SEMIRING : tropical (min,+), lower-is-better (smaller surprisal = more probable)
-%% MONOID   : sum  (the dismissed attacks' surprisals add; ub budget beta bounds the
-%%            JOINT probability of what you dismiss: sum <= beta  <=>  prod p >= e^-beta/1000)
+%% MONOID   : sum  (the dismissed attacks' numeric surprisals add; an upper-bound
+%%            budget enforces sum(w_i) <= beta, equivalently
+%%            product(exp(-w_i/1000)) >= exp(-beta/1000)).
+%%
+%% The product in that identity is a product of decoded BEST-PROOF SCORES.  It is
+%% not, in general, the joint probability of the discarded attacks: attacks can
+%% share probabilistic leaves.  Also note the polarity forced by surprisal: a more
+%% probable attack has a smaller numeric discard price.  `beta` is therefore a
+%% bound in surprisal units, not a probability-mass budget or evidential resistance.
 %%
 %% RUN (pure propagation; read supported_with_weight(X,w) and decode p = exp(-w/1000)):
 %%   ./bin/waba run --framework examples/probabilistic/probabilistic.lp \
@@ -32,10 +42,9 @@
 %%        constraint/ub.lp filter/projection.lp semantics/stable.lp \
 %%        examples/probabilistic/probabilistic.lp
 %%   The {rain,sprinkler,cold_night,dry_path} extension discards `slippery` at
-%%   surprisal 798 (probability 0.45) and is feasible iff beta >= 798; it vanishes
-%%   at beta < 798. (sum+ub bounds the JOINT probability of the dismissed attacks
-%%   at >= exp(-beta/1000); under sum-min the optimiser instead prefers discarding
-%%   nothing, i.e. dry_path out at cost 0.)
+%%   surprisal 798 (decoded best-proof score about 0.45) and is feasible iff
+%%   beta >= 798; it vanishes below 798.  Under sum-min the optimiser instead
+%%   prefers discarding nothing, i.e. dry_path out at cost 0.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Probabilistic leaves (assumptions), weights = surprisals
@@ -56,6 +65,12 @@ head(r3, slippery).   body(r3, grass_wet).  body(r3, cold_night).   % slippery <
 %% Default belief: the path is safe to walk. The (probabilistic) conclusion
 %% `slippery` is its contrary, i.e. slippery attacks dry_path with weight 798.
 assumption(dry_path).
+%% The probabilistic leaves are unattacked assumptions, represented by fresh underivable
+%% contraries so that contrary/2 remains a total function.
+contrary(rain, not_rain).
+contrary(sprinkler, not_sprinkler).
+contrary(cold_night, not_cold_night).
 contrary(dry_path, slippery).
 %% Under sum+ub, dry_path can be accepted only by discarding the slippery attack,
-%% at surprisal cost 798 (probability 0.45); beta caps that cost.
+%% at surprisal cost 798 (decoded best-proof score about 0.45); beta caps that
+%% numeric surprisal.  It does not turn the extension into a probabilistic event.

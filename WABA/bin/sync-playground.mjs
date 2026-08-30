@@ -15,7 +15,7 @@
 //
 // NOTE: this only regenerates the .lp bundle + its metadata. The playground's
 // JS/UI (config-service.js, index.html, ...) must independently offer the same
-// surface (semiring families godel/tropical; monoids sum/max/min; no count).
+// surface (the five concrete algebras; monoids sum/max/min; no count).
 
 import fs from 'fs';
 import path from 'path';
@@ -63,9 +63,32 @@ const POLICY = {
         godel_low: { family: 'godel', polarity: 'lower' },
         tropical_high: { family: 'tropical', polarity: 'higher' }
     },
-    // Semantics that exist as their own module are discovered; these two are computed by
-    // post-filtering another semantics and so have no module of their own.
-    derivedSemantics: { preferred: 'admissible' },
+    // Higher-order semantics are computed by post-filtering one of the four
+    // candidate kernels.  Keep the candidate, filter and optional auxiliary
+    // projection explicit so every runtime can reproduce the CLI pipeline.
+    derivedSemantics: {
+        preferred: 'admissible',
+        grounded: 'complete',
+        naive: 'cf',
+        'semi-stable': 'complete',
+        stage: 'cf',
+        ideal: 'admissible',
+        eager: 'complete'
+    },
+    semanticFilters: {
+        preferred: 'subset_maximal_filter',
+        grounded: 'subset_minimal_filter',
+        naive: 'subset_maximal_filter',
+        'semi-stable': 'range_maximal_filter',
+        stage: 'range_maximal_filter',
+        ideal: 'ideal_filter',
+        eager: 'eager_filter'
+    },
+    semanticAuxiliaries: {
+        'semi-stable': '_range',
+        stage: '_range',
+        eager: '_range'
+    },
     budgetSide: { sum: 'ub', max: 'ub', min: 'lb' }
 };
 
@@ -142,7 +165,7 @@ function describeSemiring(src, raw = src) {
     // _additive.lp skeleton, whose rule body IS the #sum. Read the skeleton they include rather
     // than reporting null, or the UI would have nothing to say about their conjunction.
     // A module supplying its OWN rule_deriv/4 is outside the shared skeletons; today that is
-    // only Lukasiewicz, whose conjunction is a bounded sum rather than a plain one.
+    // only Lukasiewicz, whose conjunction is its t-norm rather than plain addition.
     const ownRuleDeriv = /^rule_deriv\(/m.test(raw);
     const otimes = one(/^\s*otimes\(([^)]+)\)\s*\./m)
         || (ownRuleDeriv ? 'bounded +' : (/_additive\.lp/.test(raw) ? '+' : null))
@@ -170,19 +193,9 @@ function describeSemiring(src, raw = src) {
     };
 }
 
-/**
- * Describe a semantics module from its source. A DEFENCE semantics is one that prices a `pay`
- * set -- that is what makes it carry its own budget, take beta directly and reject a
- * monoid/bound pairing. Detected structurally rather than listed by name in three JS files.
- */
-function describeSemantics(src) {
-    const usesPay = /\bpay\([^)]*\)/.test(src);
-    return {
-        defence: usesPay,
-        // The bound direction of a defence module follows the polarity, exactly as its own
-        // guards do. Recorded so the UI copy cannot drift from the module again.
-        polarityDependentBound: usesPay && /oplus\(min\)/.test(src) && /oplus\(max\)/.test(src)
-    };
+/** Every supported semantics uses the same external beta-sigma discard pipeline. */
+function describeSemantics() {
+    return { betaSigma: true };
 }
 
 function serializeSection(sectionObject, indent = '        ') {
@@ -202,13 +215,15 @@ console.log(`Syncing WABA modules from ${WABA_ROOT}`);
 
 const core = loadSingle(SINGLE.core);
 const validate = loadSingle(SINGLE.validate);
+const inputPolicy = JSON.parse(fs.readFileSync(path.join(WABA_ROOT, 'input-policy.json'), 'utf8'));
 const sections = {};
 for (const [name, rel] of Object.entries(DIRS)) sections[name] = discoverDir(rel);
 const examples = discoverExamples();
 
 // A semantics is offered when it has a module of its own, excluding the internal
 // subset filters, plus the ones derived by post-filtering.
-const SEMANTICS_MODULES = Object.keys(sections.semantics).filter((k) => !k.endsWith('_filter'));
+const SEMANTICS_MODULES = Object.keys(sections.semantics)
+    .filter((k) => !k.startsWith('_') && !k.endsWith('_filter'));
 const SUPPORTED_SEMANTICS = [
     ...SEMANTICS_MODULES,
     ...Object.keys(POLICY.derivedSemantics).filter((k) => !SEMANTICS_MODULES.includes(k))
@@ -240,8 +255,7 @@ for (const [key, src] of Object.entries(sections.semiring)) {
 }
 const semanticsInfo = {};
 for (const key of SUPPORTED_SEMANTICS) {
-    const src = sections.semantics[key] ?? sections.semantics[POLICY.derivedSemantics[key]];
-    semanticsInfo[key] = describeSemantics(src || '');
+    semanticsInfo[key] = describeSemantics();
 }
 
 // A selectable algebra with no polarity would silently break every bound direction, so fail
@@ -254,6 +268,7 @@ for (const [key, info] of Object.entries(semiringInfo)) {
 
 const metadata = {
     generatedFrom: 'ABA-variants/WABA',
+    inputPolicy,
     semiringInfo,
     semanticsInfo,
     semiringFamilies: POLICY.semiringFamilies,
@@ -268,6 +283,8 @@ const metadata = {
     supportedSemantics: SUPPORTED_SEMANTICS,
     postFilteredSemantics: Object.keys(POLICY.derivedSemantics),
     derivedSemantics: POLICY.derivedSemantics,
+    semanticFilters: POLICY.semanticFilters,
+    semanticAuxiliaries: POLICY.semanticAuxiliaries,
     canonicalSemiring: POLICY.canonicalSemiring,
     aliases: POLICY.aliases,
     supportedBudgetPairs
