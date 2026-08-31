@@ -40,6 +40,10 @@ check "cf = 11"    11 "$(compose godel aba no_discard cf     "$REF" | models)"
 
 echo "== D2: no_discard is the exact ABA recovery (stable = 2) =="
 check "no_discard stable = 2" 2 "$(compose godel aba no_discard stable "$REF" | models)"
+# Recovery pins neutral + no_discard (what CLAUDE.md and the playground both document);
+# the CLI used to accept --default-policy alongside it, silently loading defaults/aba.lp.
+check "recovery rejects --default-policy" 1 \
+  "$(python3 "$ROOT/bin/waba" run --framework "$REF" --aba-recovery --default-policy aba 2>&1 | grep -c 'recovery pins neutral')"
 
 echo "== D3: derivation cycles are rejected; acyclic frameworks are accepted =="
 printf 'assumption(a). contrary(a,ca). assumption(b). contrary(b,cb).\nhead(r1,p). body(r1,q). head(r2,q). body(r2,p). head(r3,ca). body(r3,b).\n' > "$tmp/cyc.lp"

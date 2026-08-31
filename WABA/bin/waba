@@ -465,8 +465,10 @@ def validate_args(args: argparse.Namespace) -> None:
         raise SystemExit("use either --semiring or --semiring-family/--polarity, not both")
     if args.polarity is not None and args.semiring_family is None:
         raise SystemExit("--polarity requires --semiring-family")
-    if args.aba_recovery and (args.objective is not None or args.beta is not None or args.budget_mode != "none"):
-        raise SystemExit("--aba-recovery cannot be combined with --objective, --budget-mode, or --beta")
+    if args.aba_recovery and (args.objective is not None or args.beta is not None or args.budget_mode != "none"
+                              or args.default_policy is not None):
+        raise SystemExit("--aba-recovery cannot be combined with --objective, --budget-mode, --beta,"
+                         " or --default-policy (recovery pins neutral + no_discard)")
 
     if args.semiring_family is not None:
         family = SEMIRING_FAMILIES[args.semiring_family]
